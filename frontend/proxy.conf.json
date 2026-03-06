@@ -1,0 +1,7 @@
+{
+  "/api": {
+    "target": "https://onboard.sbx.evidenceledger.eu",
+    "secure": true,
+    "changeOrigin": true
+  }
+}

@@ -1,0 +1,48 @@
+<div class="flex items-center justify-center min-h-full px-6">
+  <div class="max-w-[846px] w-full">
+    <h2 class="text-xl md:text-2xl lg:text-[30px] font-bold text-gray-900 mb-4">Verify your email address</h2>
+
+    <p class="text-xl leading-8 text-[#4C5A6B] mb-1">
+      We've sent a verification code to <strong>{{ email }}</strong>.
+    </p>
+    <p class="text-xl leading-8 text-[#4C5A6B] mb-8">
+      Please enter the code below to confirm your email and complete the registration.
+    </p>
+
+    <div class="flex gap-3 mb-2">
+      @for (digit of otpDigits; track $index) {
+        <input
+          #otpInput
+          type="text"
+          maxlength="1"
+          [value]="digit"
+          (input)="onInput($index, $event)"
+          (keydown)="onKeydown($index, $event)"
+          (focus)="onFocus($index, $event)"
+          (paste)="onPaste($event)"
+          class="w-14 h-14 text-center text-xl font-semibold border rounded-lg bg-white focus:ring-primary-100 focus:border-primary-100"
+          [ngClass]="errorMessage ? 'border-[#AD1F36]' : 'border-gray-300'" />
+      }
+    </div>
+
+    @if (errorMessage) {
+      <p class="text-xs mb-4" style="color: #AD1F36">{{ errorMessage }}</p>
+    } @else {
+      <div class="mb-4"></div>
+    }
+
+    <p class="text-sm text-gray-600 mb-6">
+      Didn't get the code?
+      <button type="button" class="text-primary-100 hover:underline font-medium cursor-pointer" (click)="onResend()">Resend</button>
+    </p>
+
+    <button
+      type="button"
+      class="px-5 py-3 text-sm font-medium text-white rounded-md bg-primary-100 hover:bg-primary-50 transition-colors"
+      [ngClass]="(!isComplete || isLoading) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'"
+      [disabled]="!isComplete || isLoading"
+      (click)="onVerify()">
+      {{ isLoading ? 'Verifying...' : 'Verify' }}
+    </button>
+  </div>
+</div>

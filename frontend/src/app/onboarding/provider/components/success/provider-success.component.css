@@ -1,0 +1,17 @@
+:host {
+  display: block;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.dome-icon {
+  background-color: #2D58A7;
+  -webkit-mask-image: url('/assets/logos/DOME_Icon_full.png');
+  mask-image: url('/assets/logos/DOME_Icon_full.png');
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}

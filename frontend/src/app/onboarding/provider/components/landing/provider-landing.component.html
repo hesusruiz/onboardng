@@ -1,0 +1,40 @@
+<div class="max-w-[846px] mx-auto px-6 pt-[100px]">
+  <h1 class="text-[40px] font-bold tracking-tight text-gray-900 mb-4">Register as a Provider</h1>
+
+  <p class="text-[28px] leading-10 font-semibold text-[#4C5A6B] mb-12">
+    For EU-registered organisations that want to publish and sell
+    cloud and edge services on the DOME Marketplace.
+  </p>
+
+  <p class="text-lg leading-7 font-normal text-[#4C5A6B] mb-4">
+    To register as a Provider, your organisation must meet all the following requirements:
+  </p>
+
+  <ul class="list-disc list-inside text-base leading-7 text-[#4C5A6B] mb-6 space-y-1">
+    <li>Be legally established in an EU country</li>
+    <li>Provide cloud or edge services</li>
+    <li>Offer services to businesses, public organisations, or professionals (not consumers)</li>
+  </ul>
+
+  <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg bg-white cursor-pointer mb-10">
+    <input
+      type="checkbox"
+      [formControl]="meetsRequirementsControl"
+      class="w-5 h-5 text-primary-100 border-gray-300 rounded focus:ring-0 focus:outline-none cursor-pointer" />
+    <span class="text-base font-normal leading-6 text-[#4C5A6B]">
+      I confirm that my organisation meets all the requirements listed above.
+    </span>
+  </label>
+
+  <div class="text-center">
+    <button
+      type="button"
+      class="px-5 py-3 text-sm font-medium text-white rounded-md bg-primary-100 hover:bg-primary-50 transition-colors"
+      [ngClass]="!meetsRequirementsControl.valid ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'"
+      [disabled]="!meetsRequirementsControl.valid"
+      (click)="next.emit()">
+      Start your registration
+    </button>
+    <p class="text-sm leading-4 tracking-[0.5px] text-gray-500 mt-3">Just a few steps to get started</p>
+  </div>
+</div>

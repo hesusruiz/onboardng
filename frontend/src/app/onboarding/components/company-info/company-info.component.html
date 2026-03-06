@@ -1,0 +1,112 @@
+<div class="max-w-[846px] mx-auto px-6 pb-24 overflow-y-auto h-full">
+  <app-progress-bar
+    [currentStep]="3"
+    [totalSteps]="3"
+    stepTitle="Company information">
+  </app-progress-bar>
+
+  <div class="mt-16" [formGroup]="formGroup">
+    <h2 class="text-xl md:text-2xl lg:text-[30px] font-bold text-gray-900 mb-3">Company information</h2>
+    <p class="text-xl font-normal leading-8 text-[#4C5A6B] mb-8">
+      Tell us about your organization.
+    </p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <div>
+        <label class="flex items-center gap-1 text-sm font-semibold leading-4 tracking-[0.5px] text-[#4C5A6B] mb-1">
+          Legal name
+          <div class="relative group inline-flex">
+            <svg class="w-4 h-4 text-gray-400 cursor-pointer" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <div class="absolute bottom-6 left-0 w-64 bg-gray-800 text-white text-xs rounded-md px-3 py-2 hidden group-hover:block z-20 leading-relaxed shadow-lg">
+              The name must be the legal name of the company as it appears in the records of incorporation of your company
+            </div>
+          </div>
+        </label>
+        <input
+          type="text"
+          formControlName="legalName"
+          class="w-full px-3 py-2.5 text-sm border rounded-lg bg-white focus:ring-primary-100 focus:border-primary-100"
+          [ngClass]="formGroup.get('legalName')?.invalid && formGroup.get('legalName')?.touched ? 'border-[#AD1F36]' : 'border-gray-300'" />
+        @if (formGroup.get('legalName')?.invalid && formGroup.get('legalName')?.touched) {
+          <p class="text-xs mt-1" style="color: #AD1F36">This field is required</p>
+        }
+      </div>
+      <div>
+        <label class="block text-sm font-semibold leading-4 tracking-[0.5px] text-[#4C5A6B] mb-1">VAT number</label>
+        <input
+          type="text"
+          formControlName="vatNumber"
+          class="w-full px-3 py-2.5 text-sm border rounded-lg bg-white focus:ring-primary-100 focus:border-primary-100"
+          [ngClass]="formGroup.get('vatNumber')?.invalid && formGroup.get('vatNumber')?.touched ? 'border-[#AD1F36]' : 'border-gray-300'" />
+        @if (formGroup.get('vatNumber')?.invalid && formGroup.get('vatNumber')?.touched) {
+          <p class="text-xs mt-1" style="color: #AD1F36">This field is required</p>
+        }
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <div>
+        <label class="block text-sm font-semibold leading-4 tracking-[0.5px] text-[#4C5A6B] mb-1">Country</label>
+        <app-country-select
+          [countries]="countries"
+          [value]="formGroup.get('country')?.value"
+          [hasError]="!!(formGroup.get('country')?.invalid && formGroup.get('country')?.touched)"
+          (valueChange)="formGroup.get('country')?.setValue($event); formGroup.get('country')?.markAsTouched()">
+        </app-country-select>
+        @if (formGroup.get('country')?.invalid && formGroup.get('country')?.touched) {
+          <p class="text-xs mt-1" style="color: #AD1F36">This field is required</p>
+        }
+      </div>
+      <div>
+        <label class="block text-sm font-semibold leading-4 tracking-[0.5px] text-[#4C5A6B] mb-1">City</label>
+        <input
+          type="text"
+          formControlName="city"
+          class="w-full px-3 py-2.5 text-sm border rounded-lg bg-white focus:ring-primary-100 focus:border-primary-100"
+          [ngClass]="formGroup.get('city')?.invalid && formGroup.get('city')?.touched ? 'border-[#AD1F36]' : 'border-gray-300'" />
+        @if (formGroup.get('city')?.invalid && formGroup.get('city')?.touched) {
+          <p class="text-xs mt-1" style="color: #AD1F36">This field is required</p>
+        }
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-semibold leading-4 tracking-[0.5px] text-[#4C5A6B] mb-1">Street name and number</label>
+        <input
+          type="text"
+          formControlName="street"
+          class="w-full px-3 py-2.5 text-sm border rounded-lg bg-white focus:ring-primary-100 focus:border-primary-100"
+          [ngClass]="formGroup.get('street')?.invalid && formGroup.get('street')?.touched ? 'border-[#AD1F36]' : 'border-gray-300'" />
+        @if (formGroup.get('street')?.invalid && formGroup.get('street')?.touched) {
+          <p class="text-xs mt-1" style="color: #AD1F36">This field is required</p>
+        }
+      </div>
+      <div>
+        <label class="block text-sm font-semibold leading-4 tracking-[0.5px] text-[#4C5A6B] mb-1">Postal code</label>
+        <input
+          type="text"
+          formControlName="postalCode"
+          class="w-full px-3 py-2.5 text-sm border rounded-lg bg-white focus:ring-primary-100 focus:border-primary-100"
+          [ngClass]="formGroup.get('postalCode')?.invalid && formGroup.get('postalCode')?.touched ? 'border-[#AD1F36]' : 'border-gray-300'" />
+        @if (formGroup.get('postalCode')?.invalid && formGroup.get('postalCode')?.touched) {
+          <p class="text-xs mt-1" style="color: #AD1F36">This field is required</p>
+        }
+      </div>
+    </div>
+
+    @if (errorMessage) {
+      <p class="text-xs mt-4" style="color: #AD1F36">{{ errorMessage }}</p>
+    }
+  </div>
+</div>
+
+<app-step-footer
+  [showBack]="true"
+  [nextLabel]="isLoading ? 'Registering...' : 'Complete your registration'"
+  [nextDisabled]="formGroup.invalid || isLoading"
+  (back)="back.emit()"
+  (next)="onComplete()">
+</app-step-footer>

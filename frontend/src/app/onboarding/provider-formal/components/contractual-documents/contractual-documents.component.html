@@ -1,0 +1,155 @@
+<div class="flex flex-col h-full">
+  <div class="bg-gray-50 pt-8 pb-4 border-b border-[#B6CAEC]">
+    <div class="max-w-[846px] mx-auto px-6">
+      <app-progress-bar
+        [currentStep]="3"
+        [totalSteps]="3"
+        [plain]="true"
+        stepTitle="Contractual documents">
+      </app-progress-bar>
+    </div>
+  </div>
+
+  <div class="flex-1 overflow-y-auto">
+    <div class="max-w-[846px] mx-auto px-6 pt-8 pb-24" [formGroup]="formGroup">
+      <h2 class="text-xl md:text-2xl lg:text-[30px] font-bold text-gray-900 mb-3">Contractual documents</h2>
+      <p class="text-xl font-normal leading-8 text-[#4C5A6B] mb-8">
+        Download and review the documents below.
+      </p>
+
+      <div class="flex items-center justify-between px-4 py-3 border border-gray-200 rounded-lg bg-white mb-8 max-w-[280px]">
+        <div class="flex items-center gap-3">
+          <svg class="w-5 h-5 text-primary-100 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          <span class="text-sm font-medium text-gray-900">LEAR appointment</span>
+        </div>
+        <button type="button" class="text-gray-400 hover:text-gray-600 cursor-pointer" (click)="downloadLearAppointment()">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+        </button>
+      </div>
+
+      <p class="text-sm font-semibold leading-4 tracking-[0.5px] text-[#4C5A6B] mb-3">
+        Do you have a qualified eIDAS certificate to sign documents on behalf of your company?
+      </p>
+
+      <div class="flex gap-6 mb-8">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input
+            type="radio"
+            [value]="true"
+            formControlName="hasEidasCertificate"
+            class="w-4 h-4 text-primary-100 border-gray-300 focus:ring-primary-100 cursor-pointer" />
+          <span class="text-sm text-gray-700">Yes</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input
+            type="radio"
+            [value]="false"
+            formControlName="hasEidasCertificate"
+            class="w-4 h-4 text-primary-100 border-gray-300 focus:ring-primary-100 cursor-pointer" />
+          <span class="text-sm text-gray-700">No</span>
+        </label>
+      </div>
+
+      @if (hasEidas === true) {
+        <div>
+          <p class="text-sm leading-6 text-[#4C5A6B] mb-4">
+            Sign the documents using your qualified eIDAS certificate and send them to:
+            <a href="mailto:onboarding@dome-marketplace.eu" class="text-primary-100 underline">onboarding&#64;dome-marketplace.eu</a>
+          </p>
+
+          <p class="text-sm text-[#4C5A6B] mb-4">or</p>
+
+          <p class="text-sm leading-6 text-[#4C5A6B] mb-4">
+            Sign the documents using your qualified eIDAS certificate and upload them here:
+          </p>
+
+          <div
+            class="border-2 border-dashed rounded-lg p-10 text-center transition-colors"
+            [ngClass]="isDragging ? 'border-primary-100 bg-blue-50' : 'border-gray-300'"
+            (dragover)="onDragOver($event)"
+            (dragleave)="onDragLeave()"
+            (drop)="onDrop($event)">
+            <svg class="w-8 h-8 mx-auto mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            <p class="text-sm text-gray-500 mb-1">Drop your files here</p>
+            <p class="text-sm text-gray-500 mb-3">or</p>
+            <label class="px-4 py-2 text-sm font-medium border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 cursor-pointer transition-colors">
+              Browse files
+              <input type="file" class="hidden" multiple accept=".pdf,.doc,.docx" (change)="onFileSelected($event)" />
+            </label>
+          </div>
+
+          @if (uploadedFiles.length > 0) {
+            <p class="text-sm font-semibold text-[#4C5A6B] mt-6 mb-3">Uploaded files:</p>
+            <div class="space-y-2">
+              @for (file of uploadedFiles; track $index) {
+                <div class="flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-lg max-w-[280px]">
+                  <div class="flex items-center gap-3 min-w-0">
+                    <svg class="w-5 h-5 text-primary-100 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <span class="text-sm font-medium text-gray-900 truncate">{{ file.name }}</span>
+                  </div>
+                  <button type="button" class="text-gray-400 hover:text-red-500 cursor-pointer shrink-0 ml-3" (click)="removeFile($index)">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                  </button>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      @if (hasEidas === false) {
+        <div>
+          <p class="text-sm leading-6 text-[#4C5A6B] mb-6">
+            Sign the documents and send them to
+            <a href="mailto:onboarding@dome-marketplace.eu" class="text-primary-100 underline">onboarding&#64;dome-marketplace.eu</a>
+            together with the additional documents listed below:
+          </p>
+
+          <div class="space-y-5">
+            <div>
+              <h4 class="text-sm font-bold text-gray-900 mb-1">Certificate of Incorporation</h4>
+              <p class="text-sm leading-6 text-[#4C5A6B]">
+                This document must display the complete name of the company, its date of incorporation, and the address of the
+                registered office. It should not be older than three (3) months from the date the potential CSP is submitting its
+                application to onboard.
+              </p>
+            </div>
+
+            <div>
+              <h4 class="text-sm font-bold text-gray-900 mb-1">Power of Attorney</h4>
+              <p class="text-sm leading-6 text-[#4C5A6B]">
+                A certified copy of the power of attorney or another document evidencing the source of the power of
+                representation of the legal representative acting on behalf of the potential CSP.
+              </p>
+            </div>
+
+            <div>
+              <h4 class="text-sm font-bold text-gray-900 mb-1">Sworn Translations</h4>
+              <p class="text-sm leading-6 text-[#4C5A6B]">
+                A sworn translation into English of any document not originally drafted in English must be provided.
+              </p>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</div>
+
+<app-step-footer
+  [showBack]="true"
+  nextLabel="Complete the onboarding"
+  [nextDisabled]="formGroup.get('hasEidasCertificate')?.value === null"
+  (back)="back.emit()"
+  (next)="onComplete()">
+</app-step-footer>

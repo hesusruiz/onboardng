@@ -1,0 +1,37 @@
+@if (currentStep >= 1 && currentStep <= 3) {
+  <div class="absolute bottom-16 w-[420px] pointer-events-none select-none" style="left: calc(50% + 423px)">
+    <div class="w-full watermark-logo" style="aspect-ratio: 1030/945"></div>
+  </div>
+}
+
+@switch (currentStep) {
+  @case (0) {
+    <app-formal-landing
+      (next)="goNext()">
+    </app-formal-landing>
+  }
+  @case (1) {
+    <app-legal-representative
+      [formGroup]="legalRepGroup"
+      (next)="goNext()"
+      (back)="goBack()">
+    </app-legal-representative>
+  }
+  @case (2) {
+    <app-lear
+      [formGroup]="learGroup"
+      (next)="goNext()"
+      (back)="goBack()">
+    </app-lear>
+  }
+  @case (3) {
+    <app-contractual-documents
+      [formGroup]="contractualGroup"
+      (complete)="onComplete()"
+      (back)="goBack()">
+    </app-contractual-documents>
+  }
+  @case (4) {
+    <app-formal-thank-you></app-formal-thank-you>
+  }
+}

@@ -1,0 +1,35 @@
+<div class="max-w-[846px] mx-auto px-6 pt-[100px]">
+  <h1 class="text-[40px] font-bold tracking-tight text-gray-900 mb-4">Register as a Customer</h1>
+
+  <p class="text-[28px] leading-10 font-semibold text-[#4C5A6B] mb-12">
+    For organisations and professionals seeking a single catalogue
+    of EU-certified services, faster procurement, simpler
+    comparison and purchasing.
+  </p>
+
+  <p class="text-lg leading-7 font-normal text-[#4C5A6B] mb-4">
+    To register as a Customer, your organisation must meet all the following requirement:
+  </p>
+
+  <label class="flex items-center gap-3 p-4 border border-gray-200 rounded-lg bg-white cursor-pointer mb-10">
+    <input
+      type="checkbox"
+      [formControl]="isCompanyControl"
+      class="w-5 h-5 text-primary-100 border-gray-300 rounded focus:ring-0 focus:outline-none cursor-pointer" />
+    <span class="text-base font-normal leading-6 text-[#4C5A6B]">
+      I am a company or professional acting within my trade, business, or professional activities
+    </span>
+  </label>
+
+  <div class="text-center">
+    <button
+      type="button"
+      class="px-5 py-3 text-sm font-medium text-white rounded-md bg-primary-100 hover:bg-primary-50 transition-colors"
+      [ngClass]="!isCompanyControl.valid ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'"
+      [disabled]="!isCompanyControl.valid"
+      (click)="next.emit()">
+      Start your registration
+    </button>
+    <p class="text-sm leading-4 tracking-[0.5px] text-gray-500 mt-3">Just a few steps to get started</p>
+  </div>
+</div>

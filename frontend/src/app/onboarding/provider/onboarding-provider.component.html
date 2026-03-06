@@ -1,0 +1,47 @@
+@if (currentStep >= 1 && currentStep <= 3) {
+  <div class="absolute bottom-16 w-[420px] pointer-events-none select-none" style="left: calc(50% + 423px)">
+    <div class="w-full watermark-logo" style="aspect-ratio: 1030/945"></div>
+  </div>
+}
+
+@switch (currentStep) {
+  @case (0) {
+    <app-provider-landing
+      [meetsRequirementsControl]="meetsRequirementsControl"
+      (next)="goNext()">
+    </app-provider-landing>
+  }
+  @case (1) {
+    <app-terms
+      [acceptTermsControl]="acceptTermsControl"
+      termsLabel="DOME Terms and Conditions for Providers"
+      termsUrl="https://onboard.dome.mycredential.eu/api/files/pbc_365946868/ki9zjz96v7re63n/20250303_dome_t_c_for_cloud_customers_6zqyb3yz7d.pdf"
+      (next)="goNext()"
+      (back)="goBack()">
+    </app-terms>
+  }
+  @case (2) {
+    <app-representative
+      [formGroup]="representativeGroup"
+      confirmText="I confirm I am authorised to manage this account on behalf of my organisation."
+      (next)="goNext()"
+      (back)="goBack()">
+    </app-representative>
+  }
+  @case (3) {
+    <app-company-info
+      [formGroup]="companyGroup"
+      (complete)="onComplete()"
+      (back)="goBack()">
+    </app-company-info>
+  }
+  @case (4) {
+    <app-email-verification
+      [email]="representativeGroup.get('email')?.value"
+      (verify)="onVerify($event)">
+    </app-email-verification>
+  }
+  @case (5) {
+    <app-provider-success></app-provider-success>
+  }
+}

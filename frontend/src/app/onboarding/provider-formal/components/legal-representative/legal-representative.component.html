@@ -1,0 +1,77 @@
+<div class="max-w-[846px] mx-auto px-6 pb-24 overflow-y-auto h-full">
+  <app-progress-bar
+    [currentStep]="1"
+    [totalSteps]="3"
+    stepTitle="Legal representative">
+  </app-progress-bar>
+
+  <div class="mt-16" [formGroup]="formGroup">
+    <h2 class="text-xl md:text-2xl lg:text-[30px] font-bold text-gray-900 mb-3">Legal Representative</h2>
+    <p class="text-xl font-normal leading-8 text-[#4C5A6B] mb-8">
+      Provide the details of the person legally representing your organisation.
+    </p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <div>
+        <label class="block text-sm font-semibold leading-4 tracking-[0.5px] text-[#4C5A6B] mb-1">First name</label>
+        <input
+          type="text"
+          formControlName="firstName"
+          class="w-full px-3 py-2.5 text-sm border rounded-lg bg-white focus:ring-primary-100 focus:border-primary-100"
+          [ngClass]="formGroup.get('firstName')?.invalid && formGroup.get('firstName')?.touched ? 'border-[#AD1F36]' : 'border-gray-300'" />
+        @if (formGroup.get('firstName')?.invalid && formGroup.get('firstName')?.touched) {
+          <p class="text-xs mt-1" style="color: #AD1F36">This field is required</p>
+        }
+      </div>
+      <div>
+        <label class="block text-sm font-semibold leading-4 tracking-[0.5px] text-[#4C5A6B] mb-1">Last name</label>
+        <input
+          type="text"
+          formControlName="lastName"
+          class="w-full px-3 py-2.5 text-sm border rounded-lg bg-white focus:ring-primary-100 focus:border-primary-100"
+          [ngClass]="formGroup.get('lastName')?.invalid && formGroup.get('lastName')?.touched ? 'border-[#AD1F36]' : 'border-gray-300'" />
+        @if (formGroup.get('lastName')?.invalid && formGroup.get('lastName')?.touched) {
+          <p class="text-xs mt-1" style="color: #AD1F36">This field is required</p>
+        }
+      </div>
+    </div>
+
+    <div class="mb-4">
+      <label class="block text-sm font-semibold leading-4 tracking-[0.5px] text-[#4C5A6B] mb-1">Email</label>
+      <input
+        type="email"
+        formControlName="email"
+        class="w-full md:w-1/2 px-3 py-2.5 text-sm border rounded-lg bg-white focus:ring-primary-100 focus:border-primary-100"
+        [ngClass]="formGroup.get('email')?.invalid && formGroup.get('email')?.touched ? 'border-[#AD1F36]' : 'border-gray-300'" />
+      @if (formGroup.get('email')?.invalid && formGroup.get('email')?.touched) {
+        <p class="text-xs mt-1" style="color: #AD1F36">This field is required</p>
+      }
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-semibold leading-4 tracking-[0.5px] text-[#4C5A6B] mb-1">Nationality (optional)</label>
+        <app-country-select
+          [countries]="countries"
+          [value]="formGroup.get('nationality')?.value"
+          (valueChange)="formGroup.get('nationality')?.setValue($event)">
+        </app-country-select>
+      </div>
+      <div>
+        <label class="block text-sm font-semibold leading-4 tracking-[0.5px] text-[#4C5A6B] mb-1">ID card number (optional)</label>
+        <input
+          type="text"
+          formControlName="idCardNumber"
+          class="w-full px-3 py-2.5 text-sm border rounded-lg bg-white border-gray-300 focus:ring-primary-100 focus:border-primary-100" />
+      </div>
+    </div>
+  </div>
+</div>
+
+<app-step-footer
+  [showBack]="true"
+  nextLabel="Continue"
+  [nextDisabled]="formGroup.invalid"
+  (back)="back.emit()"
+  (next)="onNext()">
+</app-step-footer>
