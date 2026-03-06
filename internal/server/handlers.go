@@ -14,6 +14,7 @@ import (
 	"github.com/hesusruiz/onboardng/common"
 	"github.com/hesusruiz/onboardng/credissuance"
 	"github.com/hesusruiz/onboardng/internal/db"
+	"github.com/hesusruiz/utils/errl"
 )
 
 // APIResponse is the reply to the API calls
@@ -234,11 +235,12 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// // Verify the code again to prevent spurious calls
-	// if !s.VerifyCode(requestData.Email, requestData.Code) {
-	// 	s.SendJSON(w, http.StatusBadRequest, false, "Invalid or expired verification code", nil)
-	// 	return
-	// }
+	// Verify the code again to prevent spurious calls
+	if !s.VerifyCode(requestData.Email, requestData.Code) {
+		s.SendJSON(w, http.StatusBadRequest, false, "Invalid or expired verification code", nil)
+		return
+	}
+	s.DeleteVerificationCode(requestData.Email)
 
 	slog.Info("Attempting to issue credential for registration", "email", requestData.Email, "vatID", requestData.VatId)
 
@@ -292,7 +294,20 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	reg.IssuanceAt = time.Now()
-	_, issError := s.Issuer.LEARIssuanceRequest(cred)
+	token, err := s.Issuer.GetAccessToken()
+	if err != nil {
+		err = errl.Errorf("Failed to get access token for credential issuance: %v", err)
+		slog.Error("❌ Error getting access token", "error", err)
+		reg.IssuanceError = err.Error()
+		if updateErr := s.DB.UpdateRegistrationStatus(reg); updateErr != nil {
+			slog.Error("❌ Error updating registration status with access token error", "error", updateErr)
+		}
+		s.SendJSON(w, http.StatusInternalServerError, false, "Failed to get access token for credential issuance", err.Error())
+		return
+
+	}
+
+	_, issError := s.Issuer.LEARIssuanceRequest(token, cred)
 	if issError != nil {
 		// There was an error, update the register and send an email informing of the error
 
@@ -338,7 +353,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		slog.Error("❌ Error updating registration status with issuance success", "error", err)
 	}
 
-	err := s.Mail.SendWelcomeEmail(reg)
+	err = s.Mail.SendWelcomeEmail(reg)
 	if err != nil {
 		slog.Error("❌ Error sending welcome email", "error", err)
 		reg.NotifEmailError = err.Error()
@@ -349,6 +364,31 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	if updateErr := s.DB.UpdateRegistrationStatus(reg); updateErr != nil {
 		slog.Error("❌ Error updating registration status with email result", "error", updateErr)
+	}
+
+	// Create the object in the TM Forum server
+	orgForm := credissuance.RegistrationRequest{
+		CompanyName:   requestData.CompanyName,
+		FirstName:     requestData.FirstName,
+		LastName:      requestData.LastName,
+		Email:         requestData.Email,
+		Country:       requestData.Country,
+		VatId:         requestData.VatId,
+		StreetAddress: requestData.StreetAddress,
+		PostalCode:    requestData.PostalCode,
+	}
+	newOrg := credissuance.OrganizationFromRequest(orgForm)
+
+	_, err = s.Issuer.CreateOrganization(token, newOrg)
+	if err != nil {
+		err = errl.Errorf("Failed to create organization for registration: %v", err)
+		slog.Error("❌ Error creating organization", "error", err)
+		reg.IssuanceError = err.Error()
+		if updateErr := s.DB.UpdateRegistrationStatus(reg); updateErr != nil {
+			slog.Error("❌ Error updating registration status with organization creation error", "error", updateErr)
+		}
+		s.SendJSON(w, http.StatusInternalServerError, false, "Failed to create organization for registration", err.Error())
+		return
 	}
 
 	s.SendJSON(w, http.StatusOK, true, "Registration successful", nil)

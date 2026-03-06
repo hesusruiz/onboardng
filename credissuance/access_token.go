@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/hesusruiz/utils/errl"
 )
 
 func TokenRequest(
@@ -26,11 +27,14 @@ func TokenRequest(
 	fmt.Println("Machine Credential:")
 	fmt.Println(machineCredential)
 	fmt.Println("===")
+	fmt.Println("Didkey:")
+	fmt.Println(didkey)
+	fmt.Println("===")
 
 	// The assertion to authenticate to the token endpoint
 	cliAssertion, err := NewCliAssertion(machineCredential, didkey, verifierURL, privateKey)
 	if err != nil {
-		return "", err
+		return "", errl.Errorf("error creating client assertion: %w", err)
 	}
 
 	// Build the request body for calling the token endpoint
@@ -51,18 +55,18 @@ func TokenRequest(
 	// Send the request to the token endpoint and get the response
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", err
+		return "", errl.Errorf("error calling token endpoint: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode > 399 {
 		fmt.Println("Error calling Token Endpoint:", resp.Status, req.Host, req.URL.String())
-		return "", fmt.Errorf("error calling Token Endpoint: %v", resp.Status)
+		return "", errl.Errorf("error calling Token Endpoint: %v", resp.Status)
 	}
 
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return "", errl.Errorf("error reading response body: %w", err)
 	}
 
 	// The access token is one of the fields in the response body
@@ -73,7 +77,7 @@ func TokenRequest(
 	at := &accessTokenResponse{}
 	err = json.Unmarshal(responseBody, at)
 	if err != nil {
-		return "", err
+		return "", errl.Errorf("error unmarshalling response body: %w", err)
 	}
 	accessToken := at.AccessToken
 
@@ -89,7 +93,7 @@ func NewCliAssertion(learCredential string, didkey string, verifierURL string, p
 
 	vpStringToken, err := NewVPToken(string(learCredential), didkey, privateKey, verifierURL)
 	if err != nil {
-		panic(err)
+		return "", errl.Errorf("error creating VP Token: %w", err)
 	}
 
 	// This is the object to create the Client Assertion
@@ -193,9 +197,8 @@ func NewVPToken(vcStringToken string, didkey string, privateKey *ecdsa.PrivateKe
 
 	signed, err := token.SignedString(privateKey)
 	if err != nil {
-		return "", err
+		return "", errl.Errorf("error signing VP Token: %w", err)
 	}
-	// fmt.Println(signed)
 
 	return signed, nil
 

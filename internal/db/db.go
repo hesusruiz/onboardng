@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/hesusruiz/onboardng/internal/configuration"
@@ -41,15 +42,16 @@ type Service struct {
 	runtime configuration.RuntimeEnv
 }
 
-func NewService(runtime configuration.RuntimeEnv) (*Service, error) {
+func NewService(runtime configuration.RuntimeEnv, path string) (*Service, error) {
 
 	// Create the directory if it does not exist
-	if err := os.MkdirAll(dbDir, 0755); err != nil {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, errl.Errorf("failed to create data directory: %w", err)
 	}
 
 	// Open the database
-	dbConn, err := sql.Open("sqlite", dbPath)
+	dbConn, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, errl.Errorf("failed to open database: %w", err)
 	}
@@ -58,7 +60,7 @@ func NewService(runtime configuration.RuntimeEnv) (*Service, error) {
 	query := `
 	CREATE TABLE IF NOT EXISTS registrations (
 		registration_id TEXT UNIQUE,
-		email TEXT UNIQUE,
+		email TEXT,
 		first_name TEXT,
 		last_name TEXT,
 		company_name TEXT,
@@ -78,7 +80,7 @@ func NewService(runtime configuration.RuntimeEnv) (*Service, error) {
 		return nil, errl.Errorf("failed to create table: %w", err)
 	}
 
-	return &Service{dbPath: dbPath, conn: dbConn, runtime: runtime}, nil
+	return &Service{dbPath: path, conn: dbConn, runtime: runtime}, nil
 }
 
 func (s *Service) Close() error {
@@ -104,7 +106,7 @@ func (s *Service) SaveRegistration(reg *RegistrationRecord) error {
 	switch s.runtime {
 	case configuration.Development, configuration.Preproduction:
 		slog.Info("Saving registration in development or preproduction", "vat_id", reg.VatID, "email", reg.Email)
-		oldReg, err := s.GetRegistration(reg.VatID, reg.Email)
+		oldReg, err := s.GetRegistrationByVatID(reg.VatID)
 		if err != nil && err != sql.ErrNoRows {
 			// A database error, we can not continue
 			return err
@@ -126,8 +128,18 @@ func (s *Service) SaveRegistration(reg *RegistrationRecord) error {
 		}
 	case configuration.Production:
 		slog.Info("Saving registration in production", "vat_id", reg.VatID, "email", reg.Email)
-		// In production, we always insert the registration and fail if the vatID or email already exists
-		_, err := s.conn.Exec(insertQuery,
+
+		// In production, we check if the company (vat_id) already exists.
+		// One individual (email) can register multiple companies.
+		oldReg, err := s.GetRegistrationByVatID(reg.VatID)
+		if err != nil && err != sql.ErrNoRows {
+			return err
+		}
+		if oldReg != nil {
+			return fmt.Errorf("company with VAT ID %s already registered", reg.VatID)
+		}
+
+		_, err = s.conn.Exec(insertQuery,
 			reg.RegistrationID, reg.Email, reg.FirstName, reg.LastName, reg.CompanyName, reg.Country, reg.VatID,
 			reg.StreetAddress, reg.PostalCode,
 			reg.CreatedAt, reg.UpdatedAt, reg.IssuanceAt, reg.IssuanceError, reg.NotifEmailAt, reg.NotifEmailError,
@@ -171,15 +183,17 @@ func (s *Service) AmendRegistration(reg *RegistrationRecord) error {
 		issuance_at = ?,
 		issuance_error = ?,
 		notif_email_at = ?,
-		notif_email_error = ?
-	WHERE email = ? AND vat_id = ?`
+		notif_email_error = ?,
+		email = ?
+	WHERE vat_id = ?`
 	_, err := s.conn.Exec(query,
 		reg.RegistrationID,
 		reg.FirstName, reg.LastName, reg.CompanyName, reg.Country,
 		reg.StreetAddress, reg.PostalCode,
 		reg.UpdatedAt,
 		reg.IssuanceAt, reg.IssuanceError, reg.NotifEmailAt, reg.NotifEmailError,
-		reg.Email, reg.VatID,
+		reg.Email,
+		reg.VatID,
 	)
 	return err
 }
@@ -232,6 +246,27 @@ func (s *Service) GetRegistration(vatID string, email string) (*RegistrationReco
 
 	var reg RegistrationRecord
 	err := s.conn.QueryRow(query, vatID, email).Scan(
+		&reg.RegistrationID, &reg.Email, &reg.FirstName, &reg.LastName, &reg.CompanyName, &reg.Country, &reg.VatID,
+		&reg.StreetAddress, &reg.PostalCode,
+		&reg.CreatedAt, &reg.UpdatedAt, &reg.IssuanceAt, &reg.IssuanceError, &reg.NotifEmailAt, &reg.NotifEmailError,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &reg, nil
+}
+
+func (s *Service) GetRegistrationByVatID(vatID string) (*RegistrationRecord, error) {
+	query := `
+	SELECT 
+		registration_id, email, first_name, last_name, company_name, country, vat_id,
+		street_address, postal_code,
+		created_at, updated_at, issuance_at, issuance_error, notif_email_at, notif_email_error
+	FROM registrations
+	WHERE vat_id = ?`
+
+	var reg RegistrationRecord
+	err := s.conn.QueryRow(query, vatID).Scan(
 		&reg.RegistrationID, &reg.Email, &reg.FirstName, &reg.LastName, &reg.CompanyName, &reg.Country, &reg.VatID,
 		&reg.StreetAddress, &reg.PostalCode,
 		&reg.CreatedAt, &reg.UpdatedAt, &reg.IssuanceAt, &reg.IssuanceError, &reg.NotifEmailAt, &reg.NotifEmailError,

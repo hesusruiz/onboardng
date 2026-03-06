@@ -49,18 +49,24 @@ func (s *Server) StoreVerificationCode(email, code string) {
 	}
 }
 
-// VerifyCode checks if the provided code is correct for the given email and deletes it if so.
+// VerifyCode checks if the provided code is correct for the given email.
 func (s *Server) VerifyCode(email, code string) bool {
-	s.CodesMu.Lock()
-	defer s.CodesMu.Unlock()
+	s.CodesMu.RLock()
+	defer s.CodesMu.RUnlock()
 
 	entry, exists := s.VerificationCodes[email]
 	if !exists || entry.Code != code {
 		return false
 	}
 
-	delete(s.VerificationCodes, email)
 	return true
+}
+
+// DeleteVerificationCode removes the verification code for the given email.
+func (s *Server) DeleteVerificationCode(email string) {
+	s.CodesMu.Lock()
+	defer s.CodesMu.Unlock()
+	delete(s.VerificationCodes, email)
 }
 
 // cleanupExpired removes entries older than 15 minutes from the in-memory caches.

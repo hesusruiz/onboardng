@@ -1,82 +1,46 @@
 package credissuance
 
 import (
-	"bytes"
-	"fmt"
-	"io"
+	"encoding/json"
 	"net/http"
-	"os"
+	"net/http/httptest"
 	"testing"
-
-	"github.com/hesusruiz/onboardng/internal/configuration"
-	"gopkg.in/yaml.v3"
 )
 
-type MockRoundTripper struct {
-	OriginalTransport http.RoundTripper
-	Responses         map[string]string
-}
-
-func (m *MockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	url := req.URL.String()
-	if respBody, ok := m.Responses[url]; ok {
-		return &http.Response{
-			StatusCode: 200,
-			Body:       io.NopCloser(bytes.NewBufferString(respBody)),
-			Header:     make(http.Header),
-		}, nil
-	}
-	if m.OriginalTransport != nil {
-		return m.OriginalTransport.RoundTrip(req)
-	}
-	return nil, fmt.Errorf("no mock response for %s", url)
-}
-
-type TestConfig struct {
-	DestDir      string                             `yaml:"dest_dir"`
-	SrcDir       string                             `yaml:"src_dir"`
-	AppName      string                             `yaml:"app_name"`
-	Environments map[string]configuration.EnvConfig `yaml:"environments"`
-}
-
 func TestLEARIssuanceRequest(t *testing.T) {
+	// Simple mock server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/token" {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"access_token": "test-token"})
+			return
+		}
+		if r.URL.Path == "/issuances" {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"credential": "mock_credential"}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
 
-	// Load testconfiguration
-	configData, err := os.ReadFile("testdata/config.yaml")
-	if err != nil {
-		t.Fatalf("failed to read config.yaml: %v", err)
+	// We need a dummy private key that matches the did:key encoding logic in NewLEARIssuance
+	// Or we can just manually construct the LEARIssuance struct to avoid the complex NewLEARIssuance logic.
+	issuer := &LEARIssuance{
+		verifierURL:            server.URL,
+		verifierTokenEndpoint:  server.URL + "/token",
+		credentialIssuancePath: server.URL + "/issuances",
 	}
-	var cfg TestConfig
-	if err := yaml.Unmarshal(configData, &cfg); err != nil {
-		t.Fatalf("failed to parse config.yaml: %v", err)
-	}
 
-	// Get the environment config
-	envCfg := cfg.Environments["dev"]
-
-	// Setup issuer
-	issuerCfg := configuration.EnvConfig{
-		PrivateKeyFile:        envCfg.PrivateKeyFile,
-		MachineCredentialFile: envCfg.MachineCredentialFile,
-		MyDidkey:              envCfg.MyDidkey,
-		Verifier: configuration.VerifierConfig{
-			URL:           envCfg.Verifier.URL,
-			TokenEndpoint: envCfg.Verifier.TokenEndpoint,
+	// Use a sample credential
+	cred := &LEARIssuanceRequestBody{
+		Payload: Payload{
+			Mandator: Mandator{Organization: "Test Org"},
 		},
-		Issuer: configuration.IssuerConfig{
-			CredentialIssuancePath: envCfg.Issuer.CredentialIssuancePath,
-		},
 	}
-	issuer, err := NewLEARIssuance(issuerCfg)
-	if err != nil {
-		t.Fatalf("NewLEARIssuance failed: %v", err)
-	}
-
-	// Use the first credential from sample_credentials.go
-	cred := Cred1()
 
 	// Perform the issuance request
-	resp, err := issuer.LEARIssuanceRequest(cred)
+	resp, err := issuer.LEARIssuanceRequest("test-token", cred)
 	if err != nil {
 		t.Fatalf("LEARIssuanceRequest failed: %v", err)
 	}

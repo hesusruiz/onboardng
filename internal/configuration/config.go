@@ -46,6 +46,8 @@ type EnvConfig struct {
 	Verifier VerifierConfig `yaml:"verifier"`
 	// The issuer configuration.
 	Issuer IssuerConfig `yaml:"issuer"`
+	// The TMForum configuration.
+	TMForum TMForumConfig `yaml:"tmforum"`
 	// The mail configuration.
 	Mail MailConfig `yaml:"mail"`
 }
@@ -57,6 +59,10 @@ type VerifierConfig struct {
 
 type IssuerConfig struct {
 	CredentialIssuancePath string `yaml:"credentialIssuancePath,omitempty"`
+}
+
+type TMForumConfig struct {
+	BaseURL string `yaml:"baseUrl,omitempty"`
 }
 
 type MailConfig struct {

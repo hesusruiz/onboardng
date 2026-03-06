@@ -3,6 +3,9 @@ package mainapp
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -171,6 +174,9 @@ func run(cfg configuration.Config, envFlag string, port string, watchFlag bool, 
 		Issuer: configuration.IssuerConfig{
 			CredentialIssuancePath: srvConfig.Issuer.CredentialIssuancePath,
 		},
+		TMForum: configuration.TMForumConfig{
+			BaseURL: srvConfig.TMForum.BaseURL,
+		},
 	}
 	issuanceService, err := credissuance.NewLEARIssuance(issuerCfg)
 	if err != nil {
@@ -179,7 +185,7 @@ func run(cfg configuration.Config, envFlag string, port string, watchFlag bool, 
 	}
 
 	// Initialize Database service
-	dbService, err := db.NewService(runtimeEnv)
+	dbService, err := db.NewService(runtimeEnv, "data/onboarding.db")
 	if err != nil {
 		slog.Error("❌ Error initializing database service", "error", errl.Error(err))
 		return err
@@ -243,7 +249,17 @@ func loadEncryptedConfig(path string, secretKey string) configuration.Config {
 	}
 	defer source.Close()
 
-	var reader io.Reader
+	// Read the entire source into memory to calculate the hash
+	configBytes, err := io.ReadAll(source)
+	if err != nil {
+		log.Fatalf("Error: Could not read config source: %v", err)
+	}
+
+	// Calculate and print SHA256 hash
+	hash := sha256.Sum256(configBytes)
+	fmt.Printf("Config file SHA256: %s\n", hex.EncodeToString(hash[:]))
+
+	var reader io.Reader = bytes.NewReader(configBytes)
 	if strings.HasSuffix(path, ".age") {
 		// Decryption mode
 		if secretKey == "" {
@@ -255,14 +271,13 @@ func loadEncryptedConfig(path string, secretKey string) configuration.Config {
 			log.Fatalf("Error: Invalid identity key: %v", err)
 		}
 
-		ageReader, err := age.Decrypt(source, identity)
+		ageReader, err := age.Decrypt(reader, identity)
 		if err != nil {
 			log.Fatalf("Error: Failed to decrypt file: %v", err)
 		}
 		reader = ageReader
 	} else {
 		// Standard YAML mode (Development)
-		reader = source
 		slog.Warn("Running in Development Mode (Unencrypted YAML)")
 	}
 
@@ -272,8 +287,13 @@ func loadEncryptedConfig(path string, secretKey string) configuration.Config {
 		log.Fatalf("Error: Failed to parse YAML: %v", err)
 	}
 
-	// 3. Start Application
-	fmt.Printf("Successfully loaded config from %s\n", path)
+	// 3. Start Application - Pretty print the config in JSON format
+	jsonConfig, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		log.Fatalf("Error: Failed to marshal config: %v", err)
+	}
+	fmt.Println(string(jsonConfig))
+
 	return cfg
 }
 
@@ -299,6 +319,13 @@ func sealConfig(inputPath, outputPath string) error {
 		log.Fatalf("Error: Key generation failed: %v", err)
 	}
 	publicKey := identity.Recipient()
+
+	// Save the private key to a file in the config/ directory
+	// This directory is ignored by git
+	secretKeyPath := filepath.Join("config", "age_secret_key.txt")
+	if err := os.WriteFile(secretKeyPath, []byte(identity.String()), 0600); err != nil {
+		return errl.Errorf("failed to save private key to %s: %w", secretKeyPath, err)
+	}
 
 	// Encrypt private key and machine credential for each environment
 	// Encrypt also the SMTP password
@@ -348,10 +375,12 @@ func sealConfig(inputPath, outputPath string) error {
 	fmt.Println("=======================================================================")
 	fmt.Printf("Encrypted File: %s\n", outputPath)
 	fmt.Printf("Private Key:    %s\n", identity.String())
+	fmt.Printf("Key saved in:   %s (GIT-IGNORED)\n", secretKeyPath)
 	fmt.Println("=======================================================================")
 	fmt.Println("ACTION REQUIRED:")
 	fmt.Println("1. Commit the .age file to your repository.")
 	fmt.Println("2. Set the Private Key as AGE_SECRET_KEY in your environment.")
+	fmt.Printf("   (Or use the saved key in %s)\n", secretKeyPath)
 	fmt.Println("3. DO NOT LOSE THIS KEY. It cannot be recovered.")
 	fmt.Println("=======================================================================")
 
@@ -383,55 +412,6 @@ func sealFile(inputPath string, publicKey age.Recipient) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// executeSeal encrypts a file using age encryption
-func executeSeal(inputPath, outputPath string) {
-
-	// 1. Generate new identity (Private + Public)
-	identity, err := age.GenerateHybridIdentity()
-	if err != nil {
-		log.Fatalf("Error: Key generation failed: %v", err)
-	}
-	publicKey := identity.Recipient()
-
-	// 2. Open input file
-	inputFile, err := os.Open(inputPath)
-	if err != nil {
-		log.Fatalf("Error: Cannot open source file: %v", err)
-	}
-	defer inputFile.Close()
-
-	// 3. Create output file
-	outputFile, err := os.Create(outputPath)
-	if err != nil {
-		log.Fatalf("Error: Cannot create output file: %v", err)
-	}
-	defer outputFile.Close()
-
-	// 4. Encrypt
-	ageWriter, err := age.Encrypt(outputFile, publicKey)
-	if err != nil {
-		log.Fatalf("Error: Encryption setup failed: %v", err)
-	}
-
-	if _, err := io.Copy(ageWriter, inputFile); err != nil {
-		log.Fatalf("Error: Failed during encryption stream: %v", err)
-	}
-	ageWriter.Close() // Flush buffers
-
-	// 5. Present the credentials to the user
-	fmt.Println("=======================================================================")
-	fmt.Println("✅ CONFIGURATION SEALED WITH POST-QUANTUM ENCRYPTION (MLKEM768-X25519)")
-	fmt.Println("=======================================================================")
-	fmt.Printf("Encrypted File: %s\n", outputPath)
-	fmt.Printf("Private Key:    %s\n", identity.String())
-	fmt.Println("=======================================================================")
-	fmt.Println("ACTION REQUIRED:")
-	fmt.Println("1. Commit the .age file to your repository.")
-	fmt.Println("2. Set the Private Key as AGE_SECRET_KEY in your environment.")
-	fmt.Println("3. DO NOT LOSE THIS KEY. It cannot be recovered.")
-	fmt.Println("=======================================================================")
-}
-
 func startWatcher(cfg configuration.Config) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -442,7 +422,6 @@ func startWatcher(cfg configuration.Config) {
 
 	watchPaths := []string{
 		cfg.SrcDir,
-		"config.yaml",
 	}
 
 	for _, path := range watchPaths {
