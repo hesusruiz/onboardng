@@ -145,7 +145,7 @@ func usage(runCmd, generateCmd, sealCmd *flag.FlagSet) {
 
 	fmt.Println("Commands:")
 
-	fmt.Println("run       Run the server")
+	fmt.Println("serve       Run the server")
 	runCmd.PrintDefaults()
 	fmt.Println()
 

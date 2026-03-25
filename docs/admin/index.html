@@ -1,53 +1,6 @@
 
-<!DOCTYPE html>
-<html lang="en">
 
-<head>
-    <title>Onboarding</title>
-    <link rel="stylesheet" href="assets/w3.css" />
-    <link rel="stylesheet" href="assets/dome.css" />
-    <link
-        href="https://fonts.googleapis.com/css2?family=Blinker:wght@100;200;300;400;600;700;800;900&family=Caladea:ital,wght@0,400;0,700;1,400;1,700&display=swap"
-        rel="stylesheet">
-    <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=check_circle,counter_1,counter_2,counter_3" />
 
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-
-    <script>
-        const weAreOnGHProd = window.location.hostname.includes('onboarding.dome-marketplace.eu');
-        const calledByDOMEProd = document.referrer.includes('dome-marketplace.eu');
-        var needsRedirect = weAreOnGHProd && !calledByDOMEProd;
-        if (needsRedirect) {
-            window.location.href = 'https://dome-marketplace.github.io/onboarding-pre/';
-        }
-    </script>
-</head>
-
-<body>
-    <header>
-        
-<div class="dome-header">
-    <div class="dome-content">
-        <div class="w3-bar">
-            <div class="w3-bar-item padding-right-0">
-                <a href="#">
-                    <img src="assets/logos/DOME_Icon_White.svg" alt="DOME Icon" style="width:100%;max-height:32px">
-                </a>
-            </div>
-            <div class="w3-bar-item">
-                <span class="blinker-semibold w3-xlarge nowrap">DOME Marketplace</span>
-            </div>
-        </div>
-    </div>
-</div>
-
-    </header>
-
-    <main>
-        <div style="background-color: #EDF2FA; min-height: 100vh;">
-            <div class="w3-padding-32 dome-content">
-                
 <section class="admin-dashboard" x-data="adminDashboard()" x-init="initData()" x-cloak>
     <div class="w3-container w3-padding-32" style="max-width:1200px; margin:0 auto;">
 
@@ -74,8 +27,8 @@
                 <template x-for="reg in registrations" :key="reg.registration_id">
                     <tbody class="w3-border-bottom">
                         
-                        <tr @click="toggleExpansion(reg, 'details')" 
-                            :class="{'w3-pale-red': getErrors(reg.registration_id).length > 0, 'w3-hover-light-grey': getErrors(reg.registration_id).length === 0, 'w3-hover-pale-red': getErrors(reg.registration_id).length > 0}" 
+                        <tr @click="toggleExpansion(reg, 'details')"
+                            :class="{'w3-pale-red': getErrors(reg.registration_id).length > 0, 'w3-hover-light-grey': getErrors(reg.registration_id).length === 0, 'w3-hover-pale-red': getErrors(reg.registration_id).length > 0}"
                             style="cursor: pointer;">
                             <td x-text="formatDate(reg.created_at)"></td>
                             <td x-text="reg.company_name + (reg.vat_id ? ' (' + reg.vat_id + ')' : '')"></td>
@@ -102,7 +55,8 @@
                             <td colspan="5" class="w3-padding-16">
                                 <div class="w3-row">
                                     <div class="w3-half">
-                                        <p><strong>Reg ID:</strong> <span x-text="reg.registration_id" style="font-family: monospace;"></span></p>
+                                        <p><strong>Reg ID:</strong> <span x-text="reg.registration_id"
+                                                style="font-family: monospace;"></span></p>
                                         <p><strong>First Name:</strong> <span x-text="reg.first_name"></span></p>
                                         <p><strong>Last Name:</strong> <span x-text="reg.last_name"></span></p>
                                         <p><strong>Email:</strong> <span x-text="reg.email"></span></p>
@@ -129,7 +83,9 @@
                                     <ul class="w3-ul w3-border w3-white" x-show="getFiles(reg.vat_id).length > 0">
                                         <template x-for="file in getFiles(reg.vat_id)" :key="file.file_id">
                                             <li>
-                                                <a :href="'/api/admin/file/' + file.file_id" target="_blank" @click.stop class="w3-text-blue w3-hover-text-indigo" style="text-decoration: none;">
+                                                <a :href="'/api/admin/file/' + file.file_id" target="_blank" @click.stop
+                                                    class="w3-text-blue w3-hover-text-indigo"
+                                                    style="text-decoration: none;">
                                                     <strong x-text="file.name"></strong>
                                                 </a>
                                                 <span class="w3-text-grey"
@@ -234,7 +190,7 @@
 
             async fetchErrors() {
                 if (Object.keys(this.errorsCache).length === 0) {
-                    const data = await this.callApi('/api/admin/registration-errors?limit=5000');
+                    const data = await this.callApi('/api/admin/registration-logs?limit=5000');
                     if (data && data.data) {
                         data.data.forEach(e => {
                             if (!this.errorsCache[e.registration_id]) {
@@ -302,16 +258,4 @@
     }
 </script>
 
-            </div>
-        </div>
-    </main>
 
-    <footer>
-        <div class="dome-content">
-            
-        </div>
-    </footer>
-
-</body>
-
-</html>
