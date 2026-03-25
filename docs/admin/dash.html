@@ -22,6 +22,8 @@
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
         rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
     <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
@@ -98,359 +100,513 @@
 </head>
 
 <body class="bg-surface font-body text-on-surface min-h-screen">
-    
-    <header
-        class="w-full border-b sticky top-0 z-50 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-none">
-        <div class="flex justify-between items-center w-full px-6 py-3 max-w-full">
-            <div class="flex items-center gap-8">
-                <span class="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white" style="">DOME
-                    Onboarding Admin</span>
+    <div class="admin-dashboard" x-data="adminDashboard()" x-init="initData()" x-cloak>
+
+        
+        <header
+            class="w-full border-b sticky top-0 z-50 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-none">
+            <div class="flex justify-between items-center w-full px-6 py-3 max-w-full">
+                <div class="flex items-center gap-8">
+                    <span class="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white" style="">DOME
+                        Onboarding Admin</span>
+                    
+                    <div
+                        class="hidden md:flex items-center bg-surface-container-low border border-outline-variant rounded-lg px-3 py-1.5 w-80 focus-within:border-primary transition-colors">
+                        <span class="material-symbols-outlined text-outline mr-2" data-icon="search"
+                            style="">search</span>
+                        <input class="bg-transparent border-none focus:ring-0 text-sm w-full font-label"
+                            placeholder="Search registrations..." type="text" />
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <div class="flex flex-col items-end hidden sm:flex">
+                        <span class="font-bold text-sm text-slate-900 dark:text-slate-100" style="">Alex Rivera</span>
+                        <span class="text-xs text-indigo-600 dark:text-indigo-400 font-medium"
+                            style="">Administrator</span>
+                    </div>
+                    <div
+                        class="h-10 w-10 rounded-full border-2 border-primary overflow-hidden hover:scale-95 transition-transform cursor-pointer">
+                        <img alt="Alex Rivera" class="h-full w-full object-cover"
+                            data-alt="professional headshot of a middle-aged male administrator with a confident smile in a corporate setting"
+                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBevmhMBC6VdCzeb04ZRhSTj4NUFBDTObZ4btp4nUtwIFyTSDy8Nssa70wEnMcweTiMnxsS95kFxrWfxvkC8GNA5a6yU8SMe2MpvmyrvqA6OpyP8LGr1KUla0f9a9V8kEC1nihdq-hSZIGelvfwQH5zIsHCffvhjgXta1Ps3jmWONJZy2CDb_pO85HT_m36XPO0H4JXom3Dhpv8Y7fK6ueFm4V40vwUIAy-VzbPGZjcFjuXcmsn6C1zykVNhnD5d9dMocGMJkRvMQaK"
+                            style="" />
+                    </div>
+                </div>
+            </div>
+            
+            <nav class="flex px-6 space-x-8">
+                <a class="text-indigo-600 dark:text-indigo-400 font-bold border-b-2 border-indigo-600 py-2 text-sm uppercase tracking-wider"
+                    href="#" style="">Records</a>
+                <a class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 py-2 text-sm uppercase tracking-wider transition-colors duration-200"
+                    href="#" style="">Analytics</a>
+                <a class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 py-2 text-sm uppercase tracking-wider transition-colors duration-200"
+                    href="#" style="">Users</a>
+                <a class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 py-2 text-sm uppercase tracking-wider transition-colors duration-200"
+                    href="#" style="">Settings</a>
+            </nav>
+        </header>
+        <main class="max-w-7xl mx-auto px-6 py-8">
+            
+            <div class="mb-10">
+                <h1 class="text-4xl font-extrabold text-on-surface tracking-tight leading-none mb-2" style="">
+                    Registration
+                    Pipeline</h1>
+                <p class="text-on-surface-variant max-w-2xl font-medium" style="">Manage incoming entity registrations
+                    and
+                    monitor the LEAR completion lifecycle across the platform.</p>
+            </div>
+            
+            <div
+                class="bg-surface-container-high p-4 rounded-xl border border-outline-variant mb-8 flex flex-col md:flex-row gap-6 items-start md:items-center">
+                <div class="flex flex-col gap-2">
+                    <span class="text-xs font-bold uppercase tracking-widest text-on-surface-variant px-1"
+                        style="">Filter
+                        by Role</span>
+                    <div
+                        class="inline-flex rounded-lg border border-outline bg-surface-container-lowest overflow-hidden">
+                        <button class="px-6 py-2 text-sm font-bold bg-primary text-on-primary transition-all"
+                            style="">All</button>
+                        <button
+                            class="px-6 py-2 text-sm font-bold text-on-surface hover:bg-surface-variant border-l border-outline transition-all"
+                            style="">Sellers</button>
+                        <button
+                            class="px-6 py-2 text-sm font-bold text-on-surface hover:bg-surface-variant border-l border-outline transition-all"
+                            style="">Buyers</button>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <span class="text-xs font-bold uppercase tracking-widest text-on-surface-variant px-1"
+                        style="">Approval
+                        Status</span>
+                    <div
+                        class="inline-flex rounded-lg border border-outline bg-surface-container-lowest overflow-hidden">
+                        <button class="px-6 py-2 text-sm font-bold bg-primary text-on-primary transition-all"
+                            style="">All</button>
+                        <button
+                            class="px-6 py-2 text-sm font-bold text-on-surface hover:bg-surface-variant border-l border-outline transition-all"
+                            style="">Approved</button>
+                        <button
+                            class="px-6 py-2 text-sm font-bold text-on-surface hover:bg-surface-variant border-l border-outline transition-all"
+                            style="">Pending</button>
+                        <button
+                            class="px-6 py-2 text-sm font-bold text-on-surface hover:bg-surface-variant border-l border-outline transition-all"
+                            style="">Rejected</button>
+                    </div>
+                </div>
+                <div class="md:ml-auto self-end md:self-center">
+                    <button
+                        class="bg-surface-container-lowest text-on-surface border border-outline px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-white active:scale-95 transition-all"
+                        style="">
+                        <span class="material-symbols-outlined text-lg" data-icon="filter_list"
+                            style="">filter_list</span>
+                        Advanced Filters
+                    </button>
+                </div>
+            </div>
+            
+            <div class="space-y-4 mb-8">
+                <template x-for="reg in registrations" :key="reg.registration_id">
+                    
+                    <div
+                        class="grid grid-cols-12 gap-0 bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden hd-shadow group hover:border-primary transition-all">
+                        <div
+                            class="col-span-1 flex items-center justify-center bg-indigo-50 border-r border-outline-variant py-8">
+                            <div
+                                class="h-12 w-12 rounded-lg bg-primary-container flex items-center justify-center text-on-primary">
+                                <span class="material-symbols-outlined text-2xl" data-icon="store" style="">store</span>
+                            </div>
+                        </div>
+                        <div class="col-span-4 p-6 flex flex-col justify-center border-r border-outline-variant">
+                            <h3 x-text="reg.first_name + ' ' + reg.last_name"
+                                class="text-xl font-extrabold text-on-surface mb-1" style=""></h3>
+                            <p x-text="reg.email" class="text-sm font-medium text-on-surface-variant mb-3" style=""></p>
+                            <div class="flex items-center gap-4">
+                                <div class="flex flex-col">
+                                    <span class="text-[10px] uppercase font-bold text-outline" style="">Company</span>
+                                    <span class="text-xs font-semibold" style="">company_name</span>
+                                </div>
+                                <div class="flex flex-col border-l border-outline-variant pl-4">
+                                    <span class="text-[10px] uppercase font-bold text-outline" style="">VAT ID</span>
+                                    <span class="text-xs font-semibold" style="">vat_id</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-span-4 p-6 border-r border-outline-variant flex gap-4">
+                            <div class="flex-1 space-y-2">
+                                <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
+                                    style="">Notified</div>
+                                <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
+                                    style="">Issued</div>
+                                <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
+                                    style="">TMF Registered</div>
+                            </div>
+                            <div class="w-px bg-outline-variant h-full"></div>
+                            <div class="flex-1 space-y-2">
+                                <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
+                                    style="">LEAR Completed</div>
+                                <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
+                                    style="">Files Uploaded</div>
+                            </div>
+                        </div>
+                        <div class="col-span-3 p-6 flex flex-col items-center justify-center gap-3">
+                            <span
+                                class="px-8 py-2 bg-blue-100 text-blue-700 border-2 border-blue-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
+                                style="">PENDING</span>
+                            <button
+                                class="text-xs font-bold text-primary underline underline-offset-4 hover:text-on-primary-fixed-variant"
+                                style="">View Full Dossier</button>
+                        </div>
+                    </div>
+                </template>
                 
                 <div
-                    class="hidden md:flex items-center bg-surface-container-low border border-outline-variant rounded-lg px-3 py-1.5 w-80 focus-within:border-primary transition-colors">
-                    <span class="material-symbols-outlined text-outline mr-2" data-icon="search" style="">search</span>
-                    <input class="bg-transparent border-none focus:ring-0 text-sm w-full font-label"
-                        placeholder="Search registrations..." type="text" />
-                </div>
-            </div>
-            
-            <div class="flex items-center gap-4">
-                <div class="flex flex-col items-end hidden sm:flex">
-                    <span class="font-bold text-sm text-slate-900 dark:text-slate-100" style="">Alex Rivera</span>
-                    <span class="text-xs text-indigo-600 dark:text-indigo-400 font-medium" style="">Administrator</span>
-                </div>
-                <div
-                    class="h-10 w-10 rounded-full border-2 border-primary overflow-hidden hover:scale-95 transition-transform cursor-pointer">
-                    <img alt="Alex Rivera" class="h-full w-full object-cover"
-                        data-alt="professional headshot of a middle-aged male administrator with a confident smile in a corporate setting"
-                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuBevmhMBC6VdCzeb04ZRhSTj4NUFBDTObZ4btp4nUtwIFyTSDy8Nssa70wEnMcweTiMnxsS95kFxrWfxvkC8GNA5a6yU8SMe2MpvmyrvqA6OpyP8LGr1KUla0f9a9V8kEC1nihdq-hSZIGelvfwQH5zIsHCffvhjgXta1Ps3jmWONJZy2CDb_pO85HT_m36XPO0H4JXom3Dhpv8Y7fK6ueFm4V40vwUIAy-VzbPGZjcFjuXcmsn6C1zykVNhnD5d9dMocGMJkRvMQaK"
-                        style="" />
-                </div>
-            </div>
-        </div>
-        
-        <nav class="flex px-6 space-x-8">
-            <a class="text-indigo-600 dark:text-indigo-400 font-bold border-b-2 border-indigo-600 py-2 text-sm uppercase tracking-wider"
-                href="#" style="">Records</a>
-            <a class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 py-2 text-sm uppercase tracking-wider transition-colors duration-200"
-                href="#" style="">Analytics</a>
-            <a class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 py-2 text-sm uppercase tracking-wider transition-colors duration-200"
-                href="#" style="">Users</a>
-            <a class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 py-2 text-sm uppercase tracking-wider transition-colors duration-200"
-                href="#" style="">Settings</a>
-        </nav>
-    </header>
-    <main class="max-w-7xl mx-auto px-6 py-8">
-        
-        <div class="mb-10">
-            <h1 class="text-4xl font-extrabold text-on-surface tracking-tight leading-none mb-2" style="">Registration
-                Pipeline</h1>
-            <p class="text-on-surface-variant max-w-2xl font-medium" style="">Manage incoming entity registrations and
-                monitor the LEAR completion lifecycle across the platform.</p>
-        </div>
-        
-        <div
-            class="bg-surface-container-high p-4 rounded-xl border border-outline-variant mb-8 flex flex-col md:flex-row gap-6 items-start md:items-center">
-            <div class="flex flex-col gap-2">
-                <span class="text-xs font-bold uppercase tracking-widest text-on-surface-variant px-1" style="">Filter
-                    by Role</span>
-                <div class="inline-flex rounded-lg border border-outline bg-surface-container-lowest overflow-hidden">
-                    <button class="px-6 py-2 text-sm font-bold bg-primary text-on-primary transition-all"
-                        style="">All</button>
-                    <button
-                        class="px-6 py-2 text-sm font-bold text-on-surface hover:bg-surface-variant border-l border-outline transition-all"
-                        style="">Sellers</button>
-                    <button
-                        class="px-6 py-2 text-sm font-bold text-on-surface hover:bg-surface-variant border-l border-outline transition-all"
-                        style="">Buyers</button>
-                </div>
-            </div>
-            <div class="flex flex-col gap-2">
-                <span class="text-xs font-bold uppercase tracking-widest text-on-surface-variant px-1" style="">Approval
-                    Status</span>
-                <div class="inline-flex rounded-lg border border-outline bg-surface-container-lowest overflow-hidden">
-                    <button class="px-6 py-2 text-sm font-bold bg-primary text-on-primary transition-all"
-                        style="">All</button>
-                    <button
-                        class="px-6 py-2 text-sm font-bold text-on-surface hover:bg-surface-variant border-l border-outline transition-all"
-                        style="">Approved</button>
-                    <button
-                        class="px-6 py-2 text-sm font-bold text-on-surface hover:bg-surface-variant border-l border-outline transition-all"
-                        style="">Pending</button>
-                    <button
-                        class="px-6 py-2 text-sm font-bold text-on-surface hover:bg-surface-variant border-l border-outline transition-all"
-                        style="">Rejected</button>
-                </div>
-            </div>
-            <div class="md:ml-auto self-end md:self-center">
-                <button
-                    class="bg-surface-container-lowest text-on-surface border border-outline px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-white active:scale-95 transition-all"
-                    style="">
-                    <span class="material-symbols-outlined text-lg" data-icon="filter_list" style="">filter_list</span>
-                    Advanced Filters
-                </button>
-            </div>
-        </div>
-        
-        <div class="space-y-4 mb-8">
-            
-            <div
-                class="grid grid-cols-12 gap-0 bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden hd-shadow group hover:border-primary transition-all">
-                <div
-                    class="col-span-1 flex items-center justify-center bg-indigo-50 border-r border-outline-variant py-8">
+                    class="grid grid-cols-12 gap-0 bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden hd-shadow group hover:border-primary transition-all">
                     <div
-                        class="h-12 w-12 rounded-lg bg-primary-container flex items-center justify-center text-on-primary">
-                        <span class="material-symbols-outlined text-2xl" data-icon="store" style="">store</span>
-                    </div>
-                </div>
-                <div class="col-span-4 p-6 flex flex-col justify-center border-r border-outline-variant">
-                    <h3 class="text-xl font-extrabold text-on-surface mb-1" style="">first_name last_name</h3>
-                    <p class="text-sm font-medium text-on-surface-variant mb-3" style="">email@domain.com</p>
-                    <div class="flex items-center gap-4">
-                        <div class="flex flex-col">
-                            <span class="text-[10px] uppercase font-bold text-outline" style="">Company</span>
-                            <span class="text-xs font-semibold" style="">company_name</span>
-                        </div>
-                        <div class="flex flex-col border-l border-outline-variant pl-4">
-                            <span class="text-[10px] uppercase font-bold text-outline" style="">VAT ID</span>
-                            <span class="text-xs font-semibold" style="">vat_id</span>
+                        class="col-span-1 flex items-center justify-center bg-slate-50 border-r border-outline-variant py-8">
+                        <div
+                            class="h-12 w-12 rounded-lg bg-secondary-container flex items-center justify-center text-on-secondary-container">
+                            <span class="material-symbols-outlined text-2xl" data-icon="shopping_cart"
+                                style="">shopping_cart</span>
                         </div>
                     </div>
-                </div>
-                <div class="col-span-4 p-6 border-r border-outline-variant flex gap-4">
-                    <div class="flex-1 space-y-2">
-                        <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
-                            style="">Notified</div>
-                        <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
-                            style="">Issued</div>
-                        <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
-                            style="">TMF Registered</div>
+                    <div class="col-span-4 p-6 flex flex-col justify-center border-r border-outline-variant">
+                        <h3 class="text-xl font-extrabold text-on-surface mb-1" style="">Elena Rodriguez</h3>
+                        <p class="text-sm font-medium text-on-surface-variant mb-3" style="">
+                            e.rodriguez@global-import.es
+                        </p>
+                        <div class="flex items-center gap-4">
+                            <div class="flex flex-col">
+                                <span class="text-[10px] uppercase font-bold text-outline" style="">Company</span>
+                                <span class="text-xs font-semibold" style="">Global Import SL</span>
+                            </div>
+                            <div class="flex flex-col border-l border-outline-variant pl-4">
+                                <span class="text-[10px] uppercase font-bold text-outline" style="">VAT ID</span>
+                                <span class="text-xs font-semibold" style="">ESB44910233</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="w-px bg-outline-variant h-full"></div>
-                    <div class="flex-1 space-y-2">
-                        <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
-                            style="">LEAR Completed</div>
-                        <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
-                            style="">Files Uploaded</div>
+                    <div class="col-span-4 p-6 border-r border-outline-variant flex gap-4">
+                        <div class="flex-1 space-y-2">
+                            <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
+                                style="">Notified</div>
+                            <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
+                                style="">Issued</div>
+                            <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
+                                style="">TMF Registered</div>
+                        </div>
+                        <div class="w-px bg-outline-variant h-full"></div>
+                        <div class="flex-1 space-y-2">
+                            <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
+                                style="">LEAR Completed</div>
+                            <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
+                                style="">Files Uploaded</div>
+                        </div>
+                    </div>
+                    <div class="col-span-3 p-6 flex flex-col items-center justify-center gap-3">
+                        <span
+                            class="px-8 py-2 bg-green-100 text-green-700 border-2 border-green-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
+                            style="">APPROVED</span>
+                        <button
+                            class="text-xs font-bold text-primary underline underline-offset-4 hover:text-on-primary-fixed-variant"
+                            style="">Review History</button>
                     </div>
                 </div>
-                <div class="col-span-3 p-6 flex flex-col items-center justify-center gap-3">
-                    <span
-                        class="px-8 py-2 bg-blue-100 text-blue-700 border-2 border-blue-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
-                        style="">PENDING</span>
-                    <button
-                        class="text-xs font-bold text-primary underline underline-offset-4 hover:text-on-primary-fixed-variant"
-                        style="">View Full Dossier</button>
-                </div>
-            </div>
-            
-            <div
-                class="grid grid-cols-12 gap-0 bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden hd-shadow group hover:border-primary transition-all">
+                
                 <div
-                    class="col-span-1 flex items-center justify-center bg-slate-50 border-r border-outline-variant py-8">
+                    class="grid grid-cols-12 gap-0 bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden hd-shadow group hover:border-primary transition-all">
                     <div
-                        class="h-12 w-12 rounded-lg bg-secondary-container flex items-center justify-center text-on-secondary-container">
-                        <span class="material-symbols-outlined text-2xl" data-icon="shopping_cart"
-                            style="">shopping_cart</span>
-                    </div>
-                </div>
-                <div class="col-span-4 p-6 flex flex-col justify-center border-r border-outline-variant">
-                    <h3 class="text-xl font-extrabold text-on-surface mb-1" style="">Elena Rodriguez</h3>
-                    <p class="text-sm font-medium text-on-surface-variant mb-3" style="">e.rodriguez@global-import.es
-                    </p>
-                    <div class="flex items-center gap-4">
-                        <div class="flex flex-col">
-                            <span class="text-[10px] uppercase font-bold text-outline" style="">Company</span>
-                            <span class="text-xs font-semibold" style="">Global Import SL</span>
-                        </div>
-                        <div class="flex flex-col border-l border-outline-variant pl-4">
-                            <span class="text-[10px] uppercase font-bold text-outline" style="">VAT ID</span>
-                            <span class="text-xs font-semibold" style="">ESB44910233</span>
+                        class="col-span-1 flex items-center justify-center bg-red-50 border-r border-outline-variant py-8">
+                        <div
+                            class="h-12 w-12 rounded-lg bg-error-container flex items-center justify-center text-error">
+                            <span class="material-symbols-outlined text-2xl" data-icon="warning" style="">warning</span>
                         </div>
                     </div>
-                </div>
-                <div class="col-span-4 p-6 border-r border-outline-variant flex gap-4">
-                    <div class="flex-1 space-y-2">
-                        <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
-                            style="">Notified</div>
-                        <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
-                            style="">Issued</div>
-                        <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
-                            style="">TMF Registered</div>
-                    </div>
-                    <div class="w-px bg-outline-variant h-full"></div>
-                    <div class="flex-1 space-y-2">
-                        <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
-                            style="">LEAR Completed</div>
-                        <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
-                            style="">Files Uploaded</div>
-                    </div>
-                </div>
-                <div class="col-span-3 p-6 flex flex-col items-center justify-center gap-3">
-                    <span
-                        class="px-8 py-2 bg-green-100 text-green-700 border-2 border-green-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
-                        style="">APPROVED</span>
-                    <button
-                        class="text-xs font-bold text-primary underline underline-offset-4 hover:text-on-primary-fixed-variant"
-                        style="">Review History</button>
-                </div>
-            </div>
-            
-            <div
-                class="grid grid-cols-12 gap-0 bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden hd-shadow group hover:border-primary transition-all">
-                <div class="col-span-1 flex items-center justify-center bg-red-50 border-r border-outline-variant py-8">
-                    <div class="h-12 w-12 rounded-lg bg-error-container flex items-center justify-center text-error">
-                        <span class="material-symbols-outlined text-2xl" data-icon="warning" style="">warning</span>
-                    </div>
-                </div>
-                <div class="col-span-4 p-6 flex flex-col justify-center border-r border-outline-variant">
-                    <h3 class="text-xl font-extrabold text-on-surface mb-1" style="">Jordan Smith</h3>
-                    <p class="text-sm font-medium text-on-surface-variant mb-3" style="">js@apex-holdings.co.uk</p>
-                    <div class="flex items-center gap-4">
-                        <div class="flex flex-col">
-                            <span class="text-[10px] uppercase font-bold text-outline" style="">Company</span>
-                            <span class="text-xs font-semibold" style="">Apex Holdings Ltd</span>
-                        </div>
-                        <div class="flex flex-col border-l border-outline-variant pl-4">
-                            <span class="text-[10px] uppercase font-bold text-outline" style="">VAT ID</span>
-                            <span class="text-xs font-semibold" style="">GB772100411</span>
+                    <div class="col-span-4 p-6 flex flex-col justify-center border-r border-outline-variant">
+                        <h3 class="text-xl font-extrabold text-on-surface mb-1" style="">Jordan Smith</h3>
+                        <p class="text-sm font-medium text-on-surface-variant mb-3" style="">js@apex-holdings.co.uk</p>
+                        <div class="flex items-center gap-4">
+                            <div class="flex flex-col">
+                                <span class="text-[10px] uppercase font-bold text-outline" style="">Company</span>
+                                <span class="text-xs font-semibold" style="">Apex Holdings Ltd</span>
+                            </div>
+                            <div class="flex flex-col border-l border-outline-variant pl-4">
+                                <span class="text-[10px] uppercase font-bold text-outline" style="">VAT ID</span>
+                                <span class="text-xs font-semibold" style="">GB772100411</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="col-span-4 p-6 border-r border-outline-variant flex gap-4">
-                    <div class="flex-1 space-y-2">
-                        <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
-                            style="">Notified</div>
-                        <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
-                            style="">Issued</div>
-                        <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
-                            style="">TMF Registered</div>
+                    <div class="col-span-4 p-6 border-r border-outline-variant flex gap-4">
+                        <div class="flex-1 space-y-2">
+                            <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
+                                style="">Notified</div>
+                            <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
+                                style="">Issued</div>
+                            <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
+                                style="">TMF Registered</div>
+                        </div>
+                        <div class="w-px bg-outline-variant h-full"></div>
+                        <div class="flex-1 space-y-2">
+                            <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
+                                style="">LEAR Completed</div>
+                            <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
+                                style="">Files Uploaded</div>
+                        </div>
                     </div>
-                    <div class="w-px bg-outline-variant h-full"></div>
-                    <div class="flex-1 space-y-2">
-                        <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
-                            style="">LEAR Completed</div>
-                        <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
-                            style="">Files Uploaded</div>
+                    <div class="col-span-3 p-6 flex flex-col items-center justify-center gap-3">
+                        <span
+                            class="px-8 py-2 bg-red-100 text-red-700 border-2 border-red-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
+                            style="">REJECTED</span>
+                        <button
+                            class="text-xs font-bold text-error underline underline-offset-4 hover:text-on-error-container"
+                            style="">View Reason</button>
                     </div>
                 </div>
-                <div class="col-span-3 p-6 flex flex-col items-center justify-center gap-3">
-                    <span
-                        class="px-8 py-2 bg-red-100 text-red-700 border-2 border-red-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
-                        style="">REJECTED</span>
-                    <button
-                        class="text-xs font-bold text-error underline underline-offset-4 hover:text-on-error-container"
-                        style="">View Reason</button>
-                </div>
-            </div>
-            
-            <div
-                class="grid grid-cols-12 gap-0 bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden hd-shadow group hover:border-primary transition-all">
+                
                 <div
-                    class="col-span-1 flex items-center justify-center bg-indigo-50 border-r border-outline-variant py-8">
+                    class="grid grid-cols-12 gap-0 bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden hd-shadow group hover:border-primary transition-all">
                     <div
-                        class="h-12 w-12 rounded-lg bg-primary-container flex items-center justify-center text-on-primary">
-                        <span class="material-symbols-outlined text-2xl" data-icon="store" style="">store</span>
-                    </div>
-                </div>
-                <div class="col-span-4 p-6 flex flex-col justify-center border-r border-outline-variant">
-                    <h3 class="text-xl font-extrabold text-on-surface mb-1" style="">Li Wei</h3>
-                    <p class="text-sm font-medium text-on-surface-variant mb-3" style="">li.wei@shenzhen-logistics.cn
-                    </p>
-                    <div class="flex items-center gap-4">
-                        <div class="flex flex-col">
-                            <span class="text-[10px] uppercase font-bold text-outline" style="">Company</span>
-                            <span class="text-xs font-semibold" style="">SZ Logistics Co.</span>
-                        </div>
-                        <div class="flex flex-col border-l border-outline-variant pl-4">
-                            <span class="text-[10px] uppercase font-bold text-outline" style="">VAT ID</span>
-                            <span class="text-xs font-semibold" style="">CN110922831</span>
+                        class="col-span-1 flex items-center justify-center bg-indigo-50 border-r border-outline-variant py-8">
+                        <div
+                            class="h-12 w-12 rounded-lg bg-primary-container flex items-center justify-center text-on-primary">
+                            <span class="material-symbols-outlined text-2xl" data-icon="store" style="">store</span>
                         </div>
                     </div>
-                </div>
-                <div class="col-span-4 p-6 border-r border-outline-variant flex gap-4">
-                    <div class="flex-1 space-y-2">
-                        <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
-                            style="">Notified</div>
-                        <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
-                            style="">Issued</div>
-                        <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
-                            style="">TMF Registered</div>
+                    <div class="col-span-4 p-6 flex flex-col justify-center border-r border-outline-variant">
+                        <h3 class="text-xl font-extrabold text-on-surface mb-1" style="">Li Wei</h3>
+                        <p class="text-sm font-medium text-on-surface-variant mb-3" style="">
+                            li.wei@shenzhen-logistics.cn
+                        </p>
+                        <div class="flex items-center gap-4">
+                            <div class="flex flex-col">
+                                <span class="text-[10px] uppercase font-bold text-outline" style="">Company</span>
+                                <span class="text-xs font-semibold" style="">SZ Logistics Co.</span>
+                            </div>
+                            <div class="flex flex-col border-l border-outline-variant pl-4">
+                                <span class="text-[10px] uppercase font-bold text-outline" style="">VAT ID</span>
+                                <span class="text-xs font-semibold" style="">CN110922831</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="w-px bg-outline-variant h-full"></div>
-                    <div class="flex-1 space-y-2">
-                        <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
-                            style="">LEAR Completed</div>
-                        <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
-                            style="">Files Uploaded</div>
+                    <div class="col-span-4 p-6 border-r border-outline-variant flex gap-4">
+                        <div class="flex-1 space-y-2">
+                            <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
+                                style="">Notified</div>
+                            <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
+                                style="">Issued</div>
+                            <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
+                                style="">TMF Registered</div>
+                        </div>
+                        <div class="w-px bg-outline-variant h-full"></div>
+                        <div class="flex-1 space-y-2">
+                            <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
+                                style="">LEAR Completed</div>
+                            <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
+                                style="">Files Uploaded</div>
+                        </div>
                     </div>
-                </div>
-                <div class="col-span-3 p-6 flex flex-col items-center justify-center gap-3">
-                    <span
-                        class="px-8 py-2 bg-blue-100 text-blue-700 border-2 border-blue-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
-                        style="">PENDING</span>
-                    <button
-                        class="text-xs font-bold text-primary underline underline-offset-4 hover:text-on-primary-fixed-variant"
-                        style="">View Full Dossier</button>
+                    <div class="col-span-3 p-6 flex flex-col items-center justify-center gap-3">
+                        <span
+                            class="px-8 py-2 bg-blue-100 text-blue-700 border-2 border-blue-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
+                            style="">PENDING</span>
+                        <button
+                            class="text-xs font-bold text-primary underline underline-offset-4 hover:text-on-primary-fixed-variant"
+                            style="">View Full Dossier</button>
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="flex flex-col md:flex-row items-center justify-between gap-4 pt-6 border-t border-outline-variant">
-            <div class="text-sm font-medium text-on-surface-variant">
-                Showing <span class="font-bold text-on-surface">1</span> to <span
-                    class="font-bold text-on-surface">4</span> of <span class="font-bold text-on-surface">48</span>
-                records
-            </div>
-            <nav class="inline-flex items-center -space-x-px gap-2">
-                <button
-                    class="px-4 py-2 text-sm font-bold text-on-surface bg-surface-container-lowest border border-outline-variant rounded-lg hover:bg-surface-variant transition-all disabled:opacity-50 flex items-center gap-1">
-                    <span class="material-symbols-outlined text-lg">chevron_left</span>
-                    Previous
-                </button>
-                <div class="flex items-center gap-1">
-                    <button
-                        class="w-10 h-10 flex items-center justify-center text-sm font-bold bg-primary text-on-primary rounded-lg shadow-sm transition-all shadow-indigo-200">1</button>
-                    <button
-                        class="w-10 h-10 flex items-center justify-center text-sm font-bold text-on-surface hover:bg-surface-variant rounded-lg transition-all">2</button>
-                    <button
-                        class="w-10 h-10 flex items-center justify-center text-sm font-bold text-on-surface hover:bg-surface-variant rounded-lg transition-all">3</button>
-                    <span class="px-2 text-outline">...</span>
-                    <button
-                        class="w-10 h-10 flex items-center justify-center text-sm font-bold text-on-surface hover:bg-surface-variant rounded-lg transition-all">12</button>
+            <div
+                class="flex flex-col md:flex-row items-center justify-between gap-4 pt-6 border-t border-outline-variant">
+                <div class="text-sm font-medium text-on-surface-variant">
+                    Showing <span class="font-bold text-on-surface">1</span> to <span
+                        class="font-bold text-on-surface">4</span> of <span class="font-bold text-on-surface">48</span>
+                    records
                 </div>
-                <button
-                    class="px-4 py-2 text-sm font-bold text-on-surface bg-surface-container-lowest border border-outline-variant rounded-lg hover:bg-surface-variant transition-all flex items-center gap-1">
-                    Next
-                    <span class="material-symbols-outlined text-lg">chevron_right</span>
-                </button>
-            </nav>
-        </div>
-    </main>
-    
-    <footer
-        class="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center px-4 py-3 pb-safe bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-50">
-        <a class="flex flex-col items-center justify-center text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg py-1 px-3 active:translate-y-0.5 transition-all"
-            href="#" style="">
-            <span class="material-symbols-outlined" data-icon="assignment" style="">assignment</span>
-            <span class="font-['Inter'] text-xs font-semibold uppercase tracking-wider mt-1" style="">Records</span>
-        </a>
-        <a class="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 hover:text-indigo-500 active:translate-y-0.5 transition-all"
-            href="#" style="">
-            <span class="material-symbols-outlined" data-icon="monitoring" style="">monitoring</span>
-            <span class="font-['Inter'] text-xs font-semibold uppercase tracking-wider mt-1" style="">Analytics</span>
-        </a>
-        <a class="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 hover:text-indigo-500 active:translate-y-0.5 transition-all"
-            href="#" style="">
-            <span class="material-symbols-outlined" data-icon="group" style="">group</span>
-            <span class="font-['Inter'] text-xs font-semibold uppercase tracking-wider mt-1" style="">Users</span>
-        </a>
-        <a class="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 hover:text-indigo-500 active:translate-y-0.5 transition-all"
-            href="#" style="">
-            <span class="material-symbols-outlined" data-icon="settings" style="">settings</span>
-            <span class="font-['Inter'] text-xs font-semibold uppercase tracking-wider mt-1" style="">Settings</span>
-        </a>
-    </footer>
-    
+                <nav class="inline-flex items-center -space-x-px gap-2">
+                    <button
+                        class="px-4 py-2 text-sm font-bold text-on-surface bg-surface-container-lowest border border-outline-variant rounded-lg hover:bg-surface-variant transition-all disabled:opacity-50 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-lg">chevron_left</span>
+                        Previous
+                    </button>
+                    <div class="flex items-center gap-1">
+                        <button
+                            class="w-10 h-10 flex items-center justify-center text-sm font-bold bg-primary text-on-primary rounded-lg shadow-sm transition-all shadow-indigo-200">1</button>
+                        <button
+                            class="w-10 h-10 flex items-center justify-center text-sm font-bold text-on-surface hover:bg-surface-variant rounded-lg transition-all">2</button>
+                        <button
+                            class="w-10 h-10 flex items-center justify-center text-sm font-bold text-on-surface hover:bg-surface-variant rounded-lg transition-all">3</button>
+                        <span class="px-2 text-outline">...</span>
+                        <button
+                            class="w-10 h-10 flex items-center justify-center text-sm font-bold text-on-surface hover:bg-surface-variant rounded-lg transition-all">12</button>
+                    </div>
+                    <button
+                        class="px-4 py-2 text-sm font-bold text-on-surface bg-surface-container-lowest border border-outline-variant rounded-lg hover:bg-surface-variant transition-all flex items-center gap-1">
+                        Next
+                        <span class="material-symbols-outlined text-lg">chevron_right</span>
+                    </button>
+                </nav>
+            </div>
+        </main>
+        
+        <footer
+            class="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center px-4 py-3 pb-safe bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-50">
+            <a class="flex flex-col items-center justify-center text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg py-1 px-3 active:translate-y-0.5 transition-all"
+                href="#" style="">
+                <span class="material-symbols-outlined" data-icon="assignment" style="">assignment</span>
+                <span class="font-['Inter'] text-xs font-semibold uppercase tracking-wider mt-1" style="">Records</span>
+            </a>
+            <a class="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 hover:text-indigo-500 active:translate-y-0.5 transition-all"
+                href="#" style="">
+                <span class="material-symbols-outlined" data-icon="monitoring" style="">monitoring</span>
+                <span class="font-['Inter'] text-xs font-semibold uppercase tracking-wider mt-1"
+                    style="">Analytics</span>
+            </a>
+            <a class="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 hover:text-indigo-500 active:translate-y-0.5 transition-all"
+                href="#" style="">
+                <span class="material-symbols-outlined" data-icon="group" style="">group</span>
+                <span class="font-['Inter'] text-xs font-semibold uppercase tracking-wider mt-1" style="">Users</span>
+            </a>
+            <a class="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 hover:text-indigo-500 active:translate-y-0.5 transition-all"
+                href="#" style="">
+                <span class="material-symbols-outlined" data-icon="settings" style="">settings</span>
+                <span class="font-['Inter'] text-xs font-semibold uppercase tracking-wider mt-1"
+                    style="">Settings</span>
+            </a>
+        </footer>
+        
+    </div>
+    <script>
+        function adminDashboard() {
+            return {
+                registrations: [],
+                filesCache: {}, 
+                errorsCache: {}, 
+                expandedRow: null, 
+                loading: false,
+                loadingSub: null,
+                message: '',
+                messageType: '',
+
+                async initData() {
+                    
+                    await this.fetchRegistrations();
+                    
+                    await this.fetchErrors();
+                },
+
+                async callApi(endpoint) {
+                    try {
+                        const res = await fetch(endpoint, {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/json'
+                            }
+                        });
+                        const data = await res.json();
+                        if (!data.success) {
+                            throw new Error(data.message || 'API error');
+                        }
+                        return data;
+                    } catch (err) {
+                        this.messageType = 'error';
+                        this.message = 'Error communicating with server: ' + err.message;
+                        return null;
+                    }
+                },
+
+                async fetchRegistrations() {
+                    this.loading = true;
+                    const data = await this.callApi('/api/admin/registrations?limit=1000');
+                    if (data && data.data) {
+                        this.registrations = data.data;
+                    }
+                    this.loading = false;
+                },
+
+                async fetchFiles() {
+                    if (Object.keys(this.filesCache).length === 0) {
+                        const data = await this.callApi('/api/admin/registration-files?limit=5000');
+                        if (data && data.data) {
+                            data.data.forEach(f => {
+                                if (!this.filesCache[f.vat_id]) {
+                                    this.filesCache[f.vat_id] = [];
+                                }
+                                this.filesCache[f.vat_id].push(f);
+                            });
+                        }
+                    }
+                },
+
+                async fetchErrors() {
+                    if (Object.keys(this.errorsCache).length === 0) {
+                        const data = await this.callApi('/api/admin/registration-logs?limit=5000');
+                        if (data && data.data) {
+                            data.data.forEach(e => {
+                                if (!this.errorsCache[e.registration_id]) {
+                                    this.errorsCache[e.registration_id] = [];
+                                }
+                                this.errorsCache[e.registration_id].push(e);
+                            });
+                        }
+                    }
+                },
+
+                async toggleExpansion(reg, type) {
+                    const key = reg.registration_id + ':' + type;
+                    if (this.expandedRow === key) {
+                        this.expandedRow = null;
+                        return;
+                    }
+
+                    this.expandedRow = key;
+
+                    if (type === 'files') {
+                        this.loadingSub = 'files';
+                        await this.fetchFiles();
+                        this.loadingSub = null;
+                    } else if (type === 'errors') {
+                        this.loadingSub = 'errors';
+                        await this.fetchErrors();
+                        this.loadingSub = null;
+                    }
+                },
+
+                isExpanded(reg, type) {
+                    return this.expandedRow === reg.registration_id + ':' + type;
+                },
+
+                getFiles(vatId) {
+                    return this.filesCache[vatId] || [];
+                },
+
+                getErrors(regId) {
+                    return this.errorsCache[regId] || [];
+                },
+
+                formatDate(d) {
+                    if (!d) return '';
+                    const date = new Date(d);
+                    const yyyy = date.getFullYear();
+                    const mm = String(date.getMonth() + 1).padStart(2, '0');
+                    const dd = String(date.getDate()).padStart(2, '0');
+                    const hh = String(date.getHours()).padStart(2, '0');
+                    const min = String(date.getMinutes()).padStart(2, '0');
+                    const ss = String(date.getSeconds()).padStart(2, '0');
+                    return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+                },
+
+                formatBytes(bytes, decimals = 2) {
+                    if (!+bytes) return '0 Bytes';
+                    const k = 1024;
+                    const dm = decimals < 0 ? 0 : decimals;
+                    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+                    const i = Math.floor(Math.log(bytes) / Math.log(k));
+                    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+                }
+            }
+        }
+    </script>
+
 </body>
 
 </html>
