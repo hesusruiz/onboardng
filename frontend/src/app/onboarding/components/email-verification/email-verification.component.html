@@ -7,7 +7,7 @@
   Please enter the code below to confirm your email and complete the registration.
 </p>
 
-<div class="flex gap-3 mb-2">
+<div class="flex gap-2 md:gap-3 mb-2">
   @for (digit of otpDigits; track $index) {
     <input
       #otpInput
@@ -18,7 +18,7 @@
       (keydown)="onKeydown($index, $event)"
       (focus)="onFocus($index, $event)"
       (paste)="onPaste($event)"
-      class="w-12 h-12 text-center text-xl font-semibold border rounded-lg bg-white focus:ring-primary-100 focus:border-primary-100"
+      class="w-10 h-10 md:w-12 md:h-12 text-center text-lg md:text-xl font-semibold border rounded-lg bg-white focus:ring-primary-100 focus:border-primary-100"
       [ngClass]="errorMessage ? 'border-[#AD1F36]' : 'border-gray-300'" />
   }
 </div>

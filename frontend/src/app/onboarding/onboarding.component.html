@@ -1,9 +1,10 @@
-@if (currentStep >= 1 && currentStep <= 3) {
-  <div class="absolute bottom-16 w-[420px] pointer-events-none select-none" style="left: calc(50% + 423px)">
+@if (currentStep >= 1 && currentStep <= 4) {
+  <div class="hidden md:block absolute bottom-16 w-[420px] pointer-events-none select-none z-[1]" style="left: max(calc(50% + 423px), calc(100% - 315px))">
     <div class="w-full watermark-logo" style="aspect-ratio: 1030/945"></div>
   </div>
 }
 
+<div class="relative z-[2] h-full">
 @switch (currentStep) {
   @case (0) {
     <app-landing
@@ -41,6 +42,7 @@
     <app-success></app-success>
   }
 }
+</div>
 
 @if (showCompanyRegisteredModal) {
   <div class="fixed inset-0 z-50 flex items-center justify-center">
@@ -117,7 +119,7 @@
 @if (showVerificationModal) {
   <div class="fixed inset-0 z-50 flex items-center justify-center">
     <div class="absolute inset-0" style="background: rgba(11, 21, 40, 0.5); backdrop-filter: blur(8px)"></div>
-    <div class="relative bg-white rounded-2xl shadow-2xl p-10 w-full max-w-[846px] mx-6">
+    <div class="relative bg-white rounded-2xl shadow-2xl p-6 md:p-10 w-full max-w-[846px] mx-4 md:mx-6">
       <app-email-verification
         [email]="representativeGroup.get('email')?.value"
         [isLoading]="isVerifyingCode"

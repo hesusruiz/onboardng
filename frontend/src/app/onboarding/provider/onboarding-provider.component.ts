@@ -8,7 +8,9 @@ import { TermsComponent } from '../components/terms/terms.component';
 import { RepresentativeComponent } from '../components/representative/representative.component';
 import { CompanyInfoComponent } from '../components/company-info/company-info.component';
 import { EmailVerificationComponent } from '../components/email-verification/email-verification.component';
+import { ROLES } from '../constants';
 import { ProviderSuccessComponent } from './components/success/provider-success.component';
+import { RegistrationContextService } from '../services/registration-context.service';
 
 @Component({
   selector: 'app-onboarding-provider',
@@ -29,6 +31,7 @@ import { ProviderSuccessComponent } from './components/success/provider-success.
 export class OnboardingProviderComponent {
   private http = inject(HttpClient);
   private cdr = inject(ChangeDetectorRef);
+  private registrationContext = inject(RegistrationContextService);
 
   currentStep = 0;
   showVerificationModal = false;
@@ -215,6 +218,7 @@ export class OnboardingProviderComponent {
       streetAddress: company.street,
       postalCode: company.postalCode,
       code: this.verifiedCode,
+      role: ROLES.SELLER,
     };
 
     this.http.post<any>('/api/register', body, { headers })
@@ -226,6 +230,11 @@ export class OnboardingProviderComponent {
         next: (res: any) => {
           this.isRegistering = false;
           if (res && res.success === true) {
+            this.registrationContext.setContext({
+              vatId: company.vatNumber,
+              email: rep.email,
+              code: this.verifiedCode
+            });
             this.currentStep = 5;
           } else {
             this.registerError = res?.message || 'Registration failed. Please try again.';
