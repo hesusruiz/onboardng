@@ -574,19 +574,19 @@ type RepresentativesRequest struct {
 	VatID            string `json:"vatId"`
 	Email            string `json:"email"`
 	Code             string `json:"code"`
-	LRFirstName      string `json:"lrFirstName"`
-	LRLastName       string `json:"lrLastName"`
-	LREmail          string `json:"lrEmail"`
-	LRCountry        string `json:"lrCountry"`
-	LRIdCard         string `json:"lrIdCard"`
-	LEARFirstName    string `json:"learFirstName"`
-	LEARLastName     string `json:"learLastName"`
-	LEAREmail        string `json:"learEmail"`
-	LEARCountry      string `json:"learCountry"`
-	LEARAddress      string `json:"learAddress"`
-	LEARIdCard       string `json:"learIdCard"`
-	LEARMobileNumber string `json:"learMobileNumber"`
-	LEARCompleted    bool   `json:"learCompleted"`
+	LRFirstName      string `json:"lr_first_name"`
+	LRLastName       string `json:"lr_last_name"`
+	LREmail          string `json:"lr_email"`
+	LRCountry        string `json:"lr_country"`
+	LRIdCard         string `json:"lr_id_card"`
+	LEARFirstName    string `json:"lear_first_name"`
+	LEARLastName     string `json:"lear_last_name"`
+	LEAREmail        string `json:"lear_email"`
+	LEARCountry      string `json:"lear_country"`
+	LEARAddress      string `json:"lear_address"`
+	LEARIdCard       string `json:"lear_id_card"`
+	LEARMobileNumber string `json:"lear_mobile_number"`
+	LEARCompleted    bool   `json:"lear_completed"`
 }
 
 // HandleUpdateRepresentatives handles updating the LR and LEAR info
@@ -606,6 +606,8 @@ func (s *Server) HandleUpdateRepresentatives(w http.ResponseWriter, r *http.Requ
 		s.SendJSON(w, r, http.StatusBadRequest, false, "Invalid request body", nil)
 		return
 	}
+	out, _ := json.MarshalIndent(req, "", "  ")
+	slog.Info("Representatives request", "request", string(out))
 
 	if req.VatID == "" {
 		s.SendJSON(w, r, http.StatusBadRequest, false, "VAT ID is required", nil)
@@ -635,6 +637,8 @@ func (s *Server) HandleUpdateRepresentatives(w http.ResponseWriter, r *http.Requ
 		s.SendJSON(w, r, http.StatusNotFound, false, "Registration not found", nil)
 		return
 	}
+	slog.Info("Registration found", "registration", current)
+
 	// Check if the email matches the registration email
 	if current.Email != strings.ToLower(req.Email) {
 		s.SendJSON(w, r, http.StatusForbidden, false, "Email does not match the registration", nil)
@@ -659,7 +663,7 @@ func (s *Server) HandleUpdateRepresentatives(w http.ResponseWriter, r *http.Requ
 		LEARAddress:      req.LEARAddress,
 		LEARIdCard:       req.LEARIdCard,
 		LEARMobileNumber: req.LEARMobileNumber,
-		LEARCompleted:    req.LEARCompleted,
+		LEARCompleted:    true,
 		Role:             "Seller",
 	}
 
