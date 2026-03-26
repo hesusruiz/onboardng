@@ -149,6 +149,7 @@
         <main class="max-w-7xl mx-auto px-6 py-8">
             
             <div class="mb-10">
+
                 <h1 class="text-4xl font-extrabold text-on-surface tracking-tight leading-none mb-2" style="">
                     Registration
                     Pipeline</h1>
@@ -207,15 +208,27 @@
             
             <div class="space-y-4 mb-8">
                 <template x-for="reg in registrations" :key="reg.registration_id">
+
                     
                     <div
                         class="grid grid-cols-12 gap-0 bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden hd-shadow group hover:border-primary transition-all">
                         <div
                             class="col-span-1 flex items-center justify-center bg-indigo-50 border-r border-outline-variant py-8">
-                            <div
-                                class="h-12 w-12 rounded-lg bg-primary-container flex items-center justify-center text-on-primary">
-                                <span class="material-symbols-outlined text-2xl" data-icon="store" style="">store</span>
-                            </div>
+                            <template x-if="isSeller(reg) == true">
+                                <div
+                                    class="h-12 w-12 rounded-lg bg-primary-container flex items-center justify-center text-on-primary">
+                                    <span class="material-symbols-outlined text-2xl" data-icon="store"
+                                        style="">store</span>
+                                </div>
+                            </template>
+                            <template x-if="isSeller(reg) == false">
+                                <div
+                                    class="h-12 w-12 rounded-lg bg-secondary-container flex items-center justify-center text-on-secondary-container">
+                                    <span class="material-symbols-outlined text-2xl" data-icon="shopping_cart"
+                                        style="">shopping_cart</span>
+                                </div>
+                            </template>
+
                         </div>
                         <div class="col-span-4 p-6 flex flex-col justify-center border-r border-outline-variant">
                             <h3 x-text="reg.first_name + ' ' + reg.last_name"
@@ -224,197 +237,63 @@
                             <div class="flex items-center gap-4">
                                 <div class="flex flex-col">
                                     <span class="text-[10px] uppercase font-bold text-outline" style="">Company</span>
-                                    <span class="text-xs font-semibold" style="">company_name</span>
+                                    <span x-text="reg.company_name" class="text-xs font-semibold" style=" "></span>
                                 </div>
                                 <div class="flex flex-col border-l border-outline-variant pl-4">
                                     <span class="text-[10px] uppercase font-bold text-outline" style="">VAT ID</span>
-                                    <span class="text-xs font-semibold" style="">vat_id</span>
+                                    <span x-text="reg.vat_id" class="text-xs font-semibold" style=""></span>
                                 </div>
                             </div>
                         </div>
                         <div class="col-span-4 p-6 border-r border-outline-variant flex gap-4">
                             <div class="flex-1 space-y-2">
-                                <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
+                                <div class="w-full py-1.5 px-3 rounded border text-[10px] font-bold text-center uppercase"
+                                    :class="{'bg-green-100 text-green-800 border-green-200': reg.notified, 'bg-slate-100 text-slate-400 border-slate-200': !reg.notified}"
                                     style="">Notified</div>
-                                <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
+                                <div class="w-full py-1.5 px-3 rounded border text-[10px] font-bold text-center uppercase"
+                                    :class="{'bg-green-100 text-green-800 border-green-200': reg.issued, 'bg-slate-100 text-slate-400 border-slate-200': !reg.issued}"
                                     style="">Issued</div>
-                                <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
+                                <div class="w-full py-1.5 px-3 rounded border text-[10px] font-bold text-center uppercase"
+                                    :class="{'bg-green-100 text-green-800 border-green-200': reg.tmf_registered, 'bg-slate-100 text-slate-400 border-slate-200': !reg.tmf_registered}"
                                     style="">TMF Registered</div>
                             </div>
                             <div class="w-px bg-outline-variant h-full"></div>
                             <div class="flex-1 space-y-2">
-                                <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
+                                <div class="w-full py-1.5 px-3 rounded border text-[10px] font-bold text-center uppercase"
+                                    :class="{'bg-green-100 text-green-800 border-green-200': reg.lear_completed, 'bg-slate-100 text-slate-400 border-slate-200': !reg.lear_completed}"
                                     style="">LEAR Completed</div>
-                                <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
+                                <div class="w-full py-1.5 px-3 rounded border text-[10px] font-bold text-center uppercase"
+                                    :class="{'bg-green-100 text-green-800 border-green-200': reg.files_uploaded, 'bg-slate-100 text-slate-400 border-slate-200': !reg.files_uploaded}"
                                     style="">Files Uploaded</div>
                             </div>
                         </div>
                         <div class="col-span-3 p-6 flex flex-col items-center justify-center gap-3">
-                            <span
-                                class="px-8 py-2 bg-blue-100 text-blue-700 border-2 border-blue-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
-                                style="">PENDING</span>
+                            <template x-if="reg.approved == 'pending'">
+                                <span
+                                    class="px-8 py-2 bg-blue-100 text-blue-700 border-2 border-blue-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
+                                    style="">PENDING</span>
+                            </template>
+                            <template x-if="reg.approved == 'approved'">
+                                <span
+                                    class="px-8 py-2 bg-green-100 text-green-700 border-2 border-green-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
+                                    style="">APPROVED</span>
+                            </template>
+                            <template x-if="reg.approved == 'rejected'">
+                                <span
+                                    class="px-8 py-2 bg-red-100 text-red-700 border-2 border-red-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
+                                    style="">REJECTED</span>
+                            </template>
                             <button
                                 class="text-xs font-bold text-primary underline underline-offset-4 hover:text-on-primary-fixed-variant"
-                                style="">View Full Dossier</button>
+                                style="">View Details</button>
                         </div>
                     </div>
+
                 </template>
-                
-                <div
-                    class="grid grid-cols-12 gap-0 bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden hd-shadow group hover:border-primary transition-all">
-                    <div
-                        class="col-span-1 flex items-center justify-center bg-slate-50 border-r border-outline-variant py-8">
-                        <div
-                            class="h-12 w-12 rounded-lg bg-secondary-container flex items-center justify-center text-on-secondary-container">
-                            <span class="material-symbols-outlined text-2xl" data-icon="shopping_cart"
-                                style="">shopping_cart</span>
-                        </div>
-                    </div>
-                    <div class="col-span-4 p-6 flex flex-col justify-center border-r border-outline-variant">
-                        <h3 class="text-xl font-extrabold text-on-surface mb-1" style="">Elena Rodriguez</h3>
-                        <p class="text-sm font-medium text-on-surface-variant mb-3" style="">
-                            e.rodriguez@global-import.es
-                        </p>
-                        <div class="flex items-center gap-4">
-                            <div class="flex flex-col">
-                                <span class="text-[10px] uppercase font-bold text-outline" style="">Company</span>
-                                <span class="text-xs font-semibold" style="">Global Import SL</span>
-                            </div>
-                            <div class="flex flex-col border-l border-outline-variant pl-4">
-                                <span class="text-[10px] uppercase font-bold text-outline" style="">VAT ID</span>
-                                <span class="text-xs font-semibold" style="">ESB44910233</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-span-4 p-6 border-r border-outline-variant flex gap-4">
-                        <div class="flex-1 space-y-2">
-                            <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
-                                style="">Notified</div>
-                            <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
-                                style="">Issued</div>
-                            <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
-                                style="">TMF Registered</div>
-                        </div>
-                        <div class="w-px bg-outline-variant h-full"></div>
-                        <div class="flex-1 space-y-2">
-                            <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
-                                style="">LEAR Completed</div>
-                            <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
-                                style="">Files Uploaded</div>
-                        </div>
-                    </div>
-                    <div class="col-span-3 p-6 flex flex-col items-center justify-center gap-3">
-                        <span
-                            class="px-8 py-2 bg-green-100 text-green-700 border-2 border-green-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
-                            style="">APPROVED</span>
-                        <button
-                            class="text-xs font-bold text-primary underline underline-offset-4 hover:text-on-primary-fixed-variant"
-                            style="">Review History</button>
-                    </div>
-                </div>
-                
-                <div
-                    class="grid grid-cols-12 gap-0 bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden hd-shadow group hover:border-primary transition-all">
-                    <div
-                        class="col-span-1 flex items-center justify-center bg-red-50 border-r border-outline-variant py-8">
-                        <div
-                            class="h-12 w-12 rounded-lg bg-error-container flex items-center justify-center text-error">
-                            <span class="material-symbols-outlined text-2xl" data-icon="warning" style="">warning</span>
-                        </div>
-                    </div>
-                    <div class="col-span-4 p-6 flex flex-col justify-center border-r border-outline-variant">
-                        <h3 class="text-xl font-extrabold text-on-surface mb-1" style="">Jordan Smith</h3>
-                        <p class="text-sm font-medium text-on-surface-variant mb-3" style="">js@apex-holdings.co.uk</p>
-                        <div class="flex items-center gap-4">
-                            <div class="flex flex-col">
-                                <span class="text-[10px] uppercase font-bold text-outline" style="">Company</span>
-                                <span class="text-xs font-semibold" style="">Apex Holdings Ltd</span>
-                            </div>
-                            <div class="flex flex-col border-l border-outline-variant pl-4">
-                                <span class="text-[10px] uppercase font-bold text-outline" style="">VAT ID</span>
-                                <span class="text-xs font-semibold" style="">GB772100411</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-span-4 p-6 border-r border-outline-variant flex gap-4">
-                        <div class="flex-1 space-y-2">
-                            <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
-                                style="">Notified</div>
-                            <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
-                                style="">Issued</div>
-                            <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
-                                style="">TMF Registered</div>
-                        </div>
-                        <div class="w-px bg-outline-variant h-full"></div>
-                        <div class="flex-1 space-y-2">
-                            <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
-                                style="">LEAR Completed</div>
-                            <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
-                                style="">Files Uploaded</div>
-                        </div>
-                    </div>
-                    <div class="col-span-3 p-6 flex flex-col items-center justify-center gap-3">
-                        <span
-                            class="px-8 py-2 bg-red-100 text-red-700 border-2 border-red-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
-                            style="">REJECTED</span>
-                        <button
-                            class="text-xs font-bold text-error underline underline-offset-4 hover:text-on-error-container"
-                            style="">View Reason</button>
-                    </div>
-                </div>
-                
-                <div
-                    class="grid grid-cols-12 gap-0 bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden hd-shadow group hover:border-primary transition-all">
-                    <div
-                        class="col-span-1 flex items-center justify-center bg-indigo-50 border-r border-outline-variant py-8">
-                        <div
-                            class="h-12 w-12 rounded-lg bg-primary-container flex items-center justify-center text-on-primary">
-                            <span class="material-symbols-outlined text-2xl" data-icon="store" style="">store</span>
-                        </div>
-                    </div>
-                    <div class="col-span-4 p-6 flex flex-col justify-center border-r border-outline-variant">
-                        <h3 class="text-xl font-extrabold text-on-surface mb-1" style="">Li Wei</h3>
-                        <p class="text-sm font-medium text-on-surface-variant mb-3" style="">
-                            li.wei@shenzhen-logistics.cn
-                        </p>
-                        <div class="flex items-center gap-4">
-                            <div class="flex flex-col">
-                                <span class="text-[10px] uppercase font-bold text-outline" style="">Company</span>
-                                <span class="text-xs font-semibold" style="">SZ Logistics Co.</span>
-                            </div>
-                            <div class="flex flex-col border-l border-outline-variant pl-4">
-                                <span class="text-[10px] uppercase font-bold text-outline" style="">VAT ID</span>
-                                <span class="text-xs font-semibold" style="">CN110922831</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-span-4 p-6 border-r border-outline-variant flex gap-4">
-                        <div class="flex-1 space-y-2">
-                            <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
-                                style="">Notified</div>
-                            <div class="w-full py-1.5 px-3 bg-green-100 text-green-800 rounded border border-green-200 text-[10px] font-bold text-center uppercase"
-                                style="">Issued</div>
-                            <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
-                                style="">TMF Registered</div>
-                        </div>
-                        <div class="w-px bg-outline-variant h-full"></div>
-                        <div class="flex-1 space-y-2">
-                            <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
-                                style="">LEAR Completed</div>
-                            <div class="w-full py-1.5 px-3 bg-slate-100 text-slate-400 rounded border border-slate-200 text-[10px] font-bold text-center uppercase"
-                                style="">Files Uploaded</div>
-                        </div>
-                    </div>
-                    <div class="col-span-3 p-6 flex flex-col items-center justify-center gap-3">
-                        <span
-                            class="px-8 py-2 bg-blue-100 text-blue-700 border-2 border-blue-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
-                            style="">PENDING</span>
-                        <button
-                            class="text-xs font-bold text-primary underline underline-offset-4 hover:text-on-primary-fixed-variant"
-                            style="">View Full Dossier</button>
-                    </div>
-                </div>
+
             </div>
+
+            
             <div
                 class="flex flex-col md:flex-row items-center justify-between gap-4 pt-6 border-t border-outline-variant">
                 <div class="text-sm font-medium text-on-surface-variant">
@@ -519,6 +398,110 @@
                     const data = await this.callApi('/api/admin/registrations?limit=1000');
                     if (data && data.data) {
                         this.registrations = data.data;
+                    } else {
+                        
+                        this.registrations = [
+                            {
+                                "registration_id": "20260325-34789221",
+                                "email": "hesus.ruiz@gmail.com",
+                                "first_name": "Jesus",
+                                "last_name": "Ruiz",
+                                "company_name": "My Company",
+                                "country": "ES",
+                                "vat_id": "77777T",
+                                "street_address": "Fantastic Avenue 33",
+                                "city": "Madrid",
+                                "postal_code": "33333",
+                                "role": "Seller",
+                                "created_at": "2026-03-25T19:31:30.075472789Z",
+                                "updated_at": "2026-03-25T20:29:20.117604666Z",
+                                "notified": true,
+                                "issued": true,
+                                "tmf_registered": false,
+                                "lr_first_name": "Jesus",
+                                "lr_last_name": "Ruiz",
+                                "lr_email": "jesus@alastria.io",
+                                "lr_country": "AT",
+                                "lr_id_card": "12345678J",
+                                "lear_first_name": "Lear",
+                                "lear_last_name": "Lopez",
+                                "lear_email": "hesus.ruiz@gmail.com",
+                                "lear_country": "",
+                                "lear_address": "",
+                                "lear_id_card": "",
+                                "lear_mobile_number": "",
+                                "lear_completed": true,
+                                "files_uploaded": false,
+                                "approved": "pending"
+                            },
+                            {
+                                "registration_id": "20260325-222222",
+                                "email": "one.buyer@gmail.com",
+                                "first_name": "Perico",
+                                "last_name": "Perez",
+                                "company_name": "My Company",
+                                "country": "ES",
+                                "vat_id": "77777T",
+                                "street_address": "Fantastic Avenue 33",
+                                "city": "Madrid",
+                                "postal_code": "33333",
+                                "role": "Buyer",
+                                "created_at": "2026-03-25T19:31:30.075472789Z",
+                                "updated_at": "2026-03-25T20:29:20.117604666Z",
+                                "notified": true,
+                                "issued": true,
+                                "tmf_registered": false,
+                                "lr_first_name": "Jesus",
+                                "lr_last_name": "Ruiz",
+                                "lr_email": "jesus@alastria.io",
+                                "lr_country": "AT",
+                                "lr_id_card": "12345678J",
+                                "lear_first_name": "Lear",
+                                "lear_last_name": "Lopez",
+                                "lear_email": "hesus.ruiz@gmail.com",
+                                "lear_country": "",
+                                "lear_address": "",
+                                "lear_id_card": "",
+                                "lear_mobile_number": "",
+                                "lear_completed": false,
+                                "files_uploaded": false,
+                                "approved": "approved"
+                            },
+                            {
+                                "registration_id": "20260325-333333",
+                                "email": "juan.lopez@gmail.com",
+                                "first_name": "Juan",
+                                "last_name": "Lopez",
+                                "company_name": "My Company",
+                                "country": "ES",
+                                "vat_id": "77777T",
+                                "street_address": "Fantastic Avenue 33",
+                                "city": "Madrid",
+                                "postal_code": "33333",
+                                "role": "Buyer",
+                                "created_at": "2026-03-25T19:31:30.075472789Z",
+                                "updated_at": "2026-03-25T20:29:20.117604666Z",
+                                "notified": true,
+                                "issued": true,
+                                "tmf_registered": false,
+                                "lr_first_name": "Jesus",
+                                "lr_last_name": "Ruiz",
+                                "lr_email": "jesus@alastria.io",
+                                "lr_country": "AT",
+                                "lr_id_card": "12345678J",
+                                "lear_first_name": "Lear",
+                                "lear_last_name": "Lopez",
+                                "lear_email": "hesus.ruiz@gmail.com",
+                                "lear_country": "",
+                                "lear_address": "",
+                                "lear_id_card": "",
+                                "lear_mobile_number": "",
+                                "lear_completed": false,
+                                "files_uploaded": false,
+                                "approved": "rejected"
+                            }
+
+                        ]
                     }
                     this.loading = false;
                 },
@@ -573,6 +556,10 @@
 
                 isExpanded(reg, type) {
                     return this.expandedRow === reg.registration_id + ':' + type;
+                },
+
+                isSeller(reg) {
+                    return reg.role === 'Seller';
                 },
 
                 getFiles(vatId) {
