@@ -89,41 +89,55 @@ type CliAssertion struct {
 	VpToken string `json:"vp_token"`
 }
 
+// NewCliAssertion generates a signed JWT (Client Assertion) used for client authentication
+// at the Token Endpoint, following RFC 7523.
+//
+// Parameters:
+//   - learCredential: The raw Verifiable Credential (VC) string, typically a LEARCredentialMachine.
+//   - didkey: The DID of the client, used as issuer (iss), subject (sub), and key ID (kid).
+//   - verifierURL: The audience (aud) of the assertion, usually the Token Endpoint.
+//   - privateKey: The ECDSA private key used to sign the nested JWT structure.
+//
+// The function creates a nested JWT structure:
+// 1. An inner VP Token containing a Verifiable Presentation.
+// 2. An outer Client Assertion containing the Base64URL-encoded VP Token in the "vp_token" claim.
 func NewCliAssertion(learCredential string, didkey string, verifierURL string, privateKey *ecdsa.PrivateKey) (string, error) {
 
+	// 1. Create the inner Verifiable Presentation (VP) Token
 	vpStringToken, err := NewVPToken(string(learCredential), didkey, privateKey, verifierURL)
 	if err != nil {
 		return "", errl.Errorf("error creating VP Token: %w", err)
 	}
 
-	// This is the object to create the Client Assertion
+	// 2. Initialize the Client Assertion claims with the Base64URL-encoded inner token
 	claims := CliAssertion{
 		VpToken: B64Encode([]byte(vpStringToken)),
 	}
 
-	// Set the claims with timestamps
+	// 3. Set standard JWT registered claims (RFC 7519)
 	now := time.Now()
 	claims.ExpiresAt = jwt.NewNumericDate(now.Add(1 * time.Hour))
 	claims.IssuedAt = jwt.NewNumericDate(now)
 	claims.NotBefore = jwt.NewNumericDate(now)
 
-	// I am the issuer of this token
+	// Client authentication claims (RFC 7523)
 	claims.Issuer = didkey
 	claims.Subject = didkey
 
-	// The audience is the Verifier, and we set the aud field as a single string
+	// Set the audience as a single string (not array) for compatibility with some verifiers
 	jwt.MarshalSingleStringAsArray = false
 	claims.Audience = jwt.ClaimStrings{verifierURL}
 
-	// The nonce for the token
+	// Unique JWT ID to prevent replay attacks
 	claims.ID = GenerateNonce()
 
-	// Generate and sign the token
+	// 4. Generate the JWT using ES256 (ECDSA with P-256 and SHA-256)
 	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
 
-	// Add the kid header
+	// 5. Add the 'kid' (Key ID) header to identify the signing key
 	token.Header["kid"] = didkey
 
+	// 6. Sign the outer token with the client's private key
 	return token.SignedString(privateKey)
 
 }

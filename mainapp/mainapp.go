@@ -218,6 +218,7 @@ func run(cfg configuration.Config, envFlag string, port string, watchFlag bool, 
 	maintenanceService.AddTask("Database Maintenance", maintenance.Schedule{Hour: 3, Minute: 0}, dbService.RunMaintenance)
 	maintenanceService.Start()
 
+	// Run the database maintenance once at startup
 	dbService.RunMaintenance(context.Background())
 
 	srv := server.NewServer(runtimeEnv, dbService, issuanceService, mailService, cfg.DestDir)
