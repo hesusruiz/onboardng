@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"log/slog"
 	"net"
 	"net/http"
@@ -39,11 +40,11 @@ type MailServiceProvider interface {
 // IssuanceServiceProvider enables easy testing or replacing of the issuance implementation
 type IssuanceServiceProvider interface {
 	GetAccessToken() (string, error)
-	TMFGetOrganizationByELSI(accessToken string, elsi string) ([]credissuance.Organization, error)
-	TMFDeleteOrganization(accessToken string, id string) error
-	LEARIssuanceRequest(accessToken string, learCredData *credissuance.LEARIssuanceRequestBody) ([]byte, error)
-	TMFCreateOrganization(accessToken string, org *credissuance.Organization_Create) (*credissuance.Organization, error)
-	TMFUpdateOrganization(accessToken string, id string, org *credissuance.Organization_Update) (*credissuance.Organization, error)
+	TMFGetOrganizationByELSI(ctx context.Context, accessToken string, elsi string) ([]credissuance.Organization, error)
+	TMFDeleteOrganization(ctx context.Context, accessToken string, id string) error
+	LEARIssuanceRequest(ctx context.Context, accessToken string, learCredData *credissuance.LEARIssuanceRequestBody) ([]byte, error)
+	TMFCreateOrganization(ctx context.Context, accessToken string, org *credissuance.Organization_Create) (*credissuance.Organization, error)
+	TMFUpdateOrganization(ctx context.Context, accessToken string, id string, org *credissuance.Organization_Update) (*credissuance.Organization, error)
 }
 
 type Server struct {

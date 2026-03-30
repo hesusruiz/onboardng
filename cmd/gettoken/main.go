@@ -26,9 +26,10 @@ func main() {
 		}
 	}
 
+	//Load encrypted config
 	cfg := mainapp.LoadEncryptedConfig(*configPath, secretKey)
 
-	// Get the environment config
+	// Get the environment config for the runtime environment
 	srvConfig, ok := cfg.Environments[*envFlag]
 	if !ok {
 		log.Fatalf("Environment %s not found in config", *envFlag)
@@ -37,7 +38,7 @@ func main() {
 	// Pass the runtime environment
 	runtimeEnv := configuration.RuntimeEnv(*envFlag)
 
-	// Initialize Issuer
+	// Configuration for the Issuer service
 	issuerCfg := configuration.EnvConfig{
 		Runtime:           runtimeEnv,
 		Debug:             srvConfig.Debug,
@@ -56,11 +57,13 @@ func main() {
 		},
 	}
 
+	// Create the Issuer service (acting as client of the Issuer server)
 	issuanceService, err := credissuance.NewLEARIssuance(issuerCfg)
 	if err != nil {
 		log.Fatalf("Error creating issuance service: %v", err)
 	}
 
+	// Get an access token from the Verifier
 	token, err := issuanceService.GetAccessToken()
 	if err != nil {
 		log.Fatalf("Error obtaining access token: %v", err)

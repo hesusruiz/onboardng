@@ -16,6 +16,16 @@ import (
 	"github.com/hesusruiz/utils/errl"
 )
 
+// TokenRequest performs an OAuth 2.0 Access Token Request at the specified token endpoint.
+// It generates a Client Assertion (a signed JWT) using the provided credentials and 
+// returns the access token string if successful.
+//
+// Parameters:
+//   - tokenEndpoint: The URL of the OAuth 2.0 Token Endpoint.
+//   - machineCredential: The raw Verifiable Credential (VC) string.
+//   - didkey: The DID of the client used for identification (client_id).
+//   - verifierURL: The audience URL for the assertion.
+//   - privateKey: The ECDSA private key for signing the assertion.
 func TokenRequest(
 	tokenEndpoint string,
 	machineCredential string,
@@ -24,35 +34,24 @@ func TokenRequest(
 	privateKey *ecdsa.PrivateKey,
 ) (string, error) {
 
-	fmt.Println("Machine Credential:")
-	fmt.Println(machineCredential)
-	fmt.Println("===")
-	fmt.Println("Didkey:")
-	fmt.Println(didkey)
-	fmt.Println("===")
-
-	// The assertion to authenticate to the token endpoint
+	// 1. Generate the Client Assertion (the signed JWT) to authenticate with the Token Endpoint
 	cliAssertion, err := NewCliAssertion(machineCredential, didkey, verifierURL, privateKey)
 	if err != nil {
 		return "", errl.Errorf("error creating client assertion: %w", err)
 	}
 
-	// Build the request body for calling the token endpoint
+	// 2. Build the x-www-form-urlencoded request body for the token endpoint (RFC 7523)
 	var b bytes.Buffer
 	b.WriteString("client_id=" + didkey + "&")
 	b.WriteString("grant_type=client_credentials&")
 	b.WriteString("client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer&")
 	b.WriteString("client_assertion=" + cliAssertion)
 
-	requestBody := b.String()
-	_ = requestBody
-	fmt.Println(requestBody)
-
-	// Initialize the request to the token endpoint
+	// 3. Initialize the POST request to the token endpoint
 	req, _ := http.NewRequest("POST", tokenEndpoint, &b)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-	// Send the request to the token endpoint and get the response
+	// 4. Send the request and handle the response
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", errl.Errorf("error calling token endpoint: %w", err)
@@ -69,7 +68,7 @@ func TokenRequest(
 		return "", errl.Errorf("error reading response body: %w", err)
 	}
 
-	// The access token is one of the fields in the response body
+	// 5. Unmarshal the response body to extract the access token
 	type accessTokenResponse struct {
 		AccessToken string `json:"access_token"`
 	}
@@ -79,11 +78,11 @@ func TokenRequest(
 	if err != nil {
 		return "", errl.Errorf("error unmarshalling response body: %w", err)
 	}
-	accessToken := at.AccessToken
 
-	return accessToken, nil
+	return at.AccessToken, nil
 }
 
+// CliAssertion represents the claims for the outer JWT used in client authentication.
 type CliAssertion struct {
 	jwt.RegisteredClaims
 	VpToken string `json:"vp_token"`
@@ -142,17 +141,20 @@ func NewCliAssertion(learCredential string, didkey string, verifierURL string, p
 
 }
 
+// VPToken represents the structure for the inner JWT claims, containing the Verifiable Presentation.
 type VPToken struct {
 	jwt.RegisteredClaims
 	VP    VP     `json:"vp"`
 	Nonce string `json:"nonce,omitempty"`
 }
 
+// String returns a pretty-printed JSON representation of the VPToken.
 func (o *VPToken) String() string {
 	out, _ := json.MarshalIndent(o, "", "  ")
 	return string(out)
 }
 
+// VP represents a Verifiable Presentation structure as defined in the W3C VC Data Model.
 type VP struct {
 	Context              []string `json:"@context"`
 	Type                 []string `json:"type"`
@@ -161,14 +163,17 @@ type VP struct {
 	VerifiableCredential []string `json:"verifiableCredential"`
 }
 
+// String returns a compact JSON representation of the VP.
 func (o *VP) String() string {
 	out, _ := json.Marshal(o)
 	return string(out)
 }
 
+// NewVPToken creates a signed JWT containing a Verifiable Presentation (VP).
+// This JWT is then encoded and placed within the 'vp_token' claim of the outer Client Assertion.
 func NewVPToken(vcStringToken string, didkey string, privateKey *ecdsa.PrivateKey, verifierSBX string) (string, error) {
 
-	// This is the Verifiable Presentation object
+	// 1. Construct the Verifiable Presentation object
 	vp := VP{
 		Context: []string{
 			"https://www.w3.org/2018/credentials/v1",
@@ -181,32 +186,26 @@ func NewVPToken(vcStringToken string, didkey string, privateKey *ecdsa.PrivateKe
 		VerifiableCredential: []string{vcStringToken},
 	}
 
-	// This is the object to create the vp_token
+	// 2. Initialize the JWT claims for the VP Token
 	claims := VPToken{
 		VP:    vp,
 		Nonce: GenerateNonce(),
 	}
 
-	// Set the claims with timestamps
+	// Set standard claims
 	now := time.Now()
 	claims.ExpiresAt = jwt.NewNumericDate(now.Add(1 * time.Hour))
 	claims.IssuedAt = jwt.NewNumericDate(now)
 	claims.NotBefore = jwt.NewNumericDate(now)
-
-	// I am the issuer of this token
 	claims.Issuer = didkey
 
-	// The audience is the Verifier, and we set the aud field as a single string
+	// Set the audience for the verifier
 	jwt.MarshalSingleStringAsArray = false
 	claims.Audience = jwt.ClaimStrings{verifierSBX}
-
-	// The nonce for the token
 	claims.ID = GenerateNonce()
 
-	// Generate and sign the token
+	// 3. Generate and sign the inner token using ES256
 	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
-
-	// Add the kid header
 	token.Header["kid"] = didkey
 
 	signed, err := token.SignedString(privateKey)
@@ -218,6 +217,7 @@ func NewVPToken(vcStringToken string, didkey string, privateKey *ecdsa.PrivateKe
 
 }
 
+// GenerateNonce creates a random 16-byte nonce, encoded as a Base64 RawURL string.
 func GenerateNonce() string {
 	b := make([]byte, 16)
 	io.ReadFull(rand.Reader, b)
@@ -225,6 +225,7 @@ func GenerateNonce() string {
 	return nonce
 }
 
+// B64Encode performs a custom Base64URL encoding (RFC 4648) without padding characters.
 func B64Encode(data []byte) string {
 	result := base64.StdEncoding.EncodeToString(data)
 	result = strings.Replace(result, "+", "-", -1) // 62nd char of encoding
