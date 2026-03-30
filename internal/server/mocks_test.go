@@ -76,7 +76,7 @@ func (m *MockMail) SendIssuerError(reg *db.RegistrationRecord, payload string, e
 }
 
 type MockIssuance struct {
-	GetAccessTokenFunc           func() (string, error)
+	GetAccessTokenFunc           func(context.Context) (string, error)
 	TMFGetOrganizationByELSIFunc func(context context.Context, accessToken string, elsi string) ([]credissuance.Organization, error)
 	TMFDeleteOrganizationFunc    func(context context.Context, accessToken string, id string) error
 	LEARIssuanceRequestFunc      func(context context.Context, accessToken string, learCredData *credissuance.LEARIssuanceRequestBody) ([]byte, error)
@@ -84,8 +84,8 @@ type MockIssuance struct {
 	TMFUpdateOrganizationFunc    func(context context.Context, accessToken string, id string, org *credissuance.Organization_Update) (*credissuance.Organization, error)
 }
 
-func (m *MockIssuance) GetAccessToken() (string, error) {
-	return m.GetAccessTokenFunc()
+func (m *MockIssuance) GetAccessToken(ctx context.Context) (string, error) {
+	return m.GetAccessTokenFunc(ctx)
 }
 func (m *MockIssuance) TMFGetOrganizationByELSI(context context.Context, accessToken string, elsi string) ([]credissuance.Organization, error) {
 	return m.TMFGetOrganizationByELSIFunc(context, accessToken, elsi)

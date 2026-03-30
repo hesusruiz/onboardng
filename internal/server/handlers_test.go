@@ -231,7 +231,7 @@ func TestHandleRegister(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		// Setup mocks
-		mockIssuance.GetAccessTokenFunc = func() (string, error) { return "token", nil }
+		mockIssuance.GetAccessTokenFunc = func(context.Context) (string, error) { return "token", nil }
 		mockIssuance.TMFGetOrganizationByELSIFunc = func(context context.Context, token, elsi string) ([]credissuance.Organization, error) {
 			return []credissuance.Organization{{ID: "org1"}}, nil
 		}
@@ -274,7 +274,7 @@ func TestHandleRegister(t *testing.T) {
 		req.Header.Set("X-Requested-With", "XMLHttpRequest")
 		w := httptest.NewRecorder()
 
-		mockIssuance.GetAccessTokenFunc = func() (string, error) { return "token", nil }
+		mockIssuance.GetAccessTokenFunc = func(context.Context) (string, error) { return "token", nil }
 		mockDB.GetRegistrationByEmailOrVatIDFunc = func(email, vatID string) (*db.RegistrationRecord, error) {
 			return &db.RegistrationRecord{
 				Email: email,
@@ -297,7 +297,7 @@ func TestHandleRegister(t *testing.T) {
 		req.Header.Set("X-Requested-With", "XMLHttpRequest")
 		w := httptest.NewRecorder()
 
-		mockIssuance.GetAccessTokenFunc = func() (string, error) { return "", fmt.Errorf("token error") }
+		mockIssuance.GetAccessTokenFunc = func(context.Context) (string, error) { return "", fmt.Errorf("token error") }
 
 		s.HandleRegister(w, req)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -310,7 +310,7 @@ func TestHandleRegister(t *testing.T) {
 		req.Header.Set("X-Requested-With", "XMLHttpRequest")
 		w := httptest.NewRecorder()
 
-		mockIssuance.GetAccessTokenFunc = func() (string, error) { return "token", nil }
+		mockIssuance.GetAccessTokenFunc = func(context.Context) (string, error) { return "token", nil }
 		mockIssuance.TMFGetOrganizationByELSIFunc = func(context context.Context, token, elsi string) ([]credissuance.Organization, error) {
 			return nil, nil
 		}

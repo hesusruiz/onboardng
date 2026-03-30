@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -64,7 +65,7 @@ func main() {
 	}
 
 	// Get an access token from the Verifier
-	token, err := issuanceService.GetAccessToken()
+	token, err := issuanceService.GetAccessToken(context.Background())
 	if err != nil {
 		log.Fatalf("Error obtaining access token: %v", err)
 	}

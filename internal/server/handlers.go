@@ -299,7 +299,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get an access token to authenticate in the Issuer and TM Forum APIs
-	token, err := s.Issuer.GetAccessToken()
+	token, err := s.Issuer.GetAccessToken(r.Context())
 	if err != nil {
 		err = errl.Errorf("Failed to get access token for credential issuance: %v", err)
 		slog.Error("❌ Error getting access token", "error", err)

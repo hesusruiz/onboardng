@@ -124,33 +124,11 @@ func NewLEARIssuance(config configuration.EnvConfig) (*LEARIssuance, error) {
 		return nil, errl.Errorf("error parsing private key: %w", err)
 	}
 
-	// For safety, we are going to derive the associated did:key and compare to the one in the config
-	// We have to represent the public key as a compressed array of bytes,
-	// and then apply the encoding for did:key.
-
-	// This is the uncompressed public key
-	uncompressed, err := privateKey.PublicKey.Bytes()
+	// For safety, derive the associated did:key from the private key and compare it to the configured value.
+	didKey, err := deriveDidKeyFromPrivateKey(privateKey)
 	if err != nil {
-		return nil, errl.Errorf("error getting public key: %w", err)
+		return nil, errl.Errorf("error deriving did:key from private key: %w", err)
 	}
-
-	// Extract X and Y from the slice
-	// X is bytes [1:33], Y is bytes [33:65]
-	xBytes := uncompressed[1:33]
-	yLastByte := uncompressed[64]
-
-	// Determine the compressedPrefix (0x02 if Y is even, 0x03 if Y is odd)
-	var compressedPrefix byte = 0x02
-	if yLastByte%2 != 0 {
-		compressedPrefix = 0x03
-	}
-
-	// Construct the 33-byte compressed key
-	compressedBytes := append([]byte{compressedPrefix}, xBytes...)
-
-	// Compress the public key for the DID
-	varintPrefix := []byte{0x80, 0x24} // Varint for P-256
-	didKey := "did:key:z" + base58.Encode(append(varintPrefix, compressedBytes...))
 
 	if didKey != config.MyDidkey {
 		return nil, errl.Errorf("the private key does not correspond to the did:key in the configuration")
@@ -184,15 +162,39 @@ func NewLEARIssuance(config configuration.EnvConfig) (*LEARIssuance, error) {
 
 }
 
+func deriveDidKeyFromPrivateKey(privateKey *ecdsa.PrivateKey) (string, error) {
+	curve := elliptic.P256()
+	uncompressed := elliptic.Marshal(curve, privateKey.PublicKey.X, privateKey.PublicKey.Y)
+	if len(uncompressed) != 65 {
+		return "", errl.Errorf("unexpected public key length: %d", len(uncompressed))
+	}
+
+	xBytes := uncompressed[1:33]
+	yLastByte := uncompressed[64]
+	var compressedPrefix byte = 0x02
+	if yLastByte%2 != 0 {
+		compressedPrefix = 0x03
+	}
+
+	compressedBytes := append([]byte{compressedPrefix}, xBytes...)
+	varintPrefix := []byte{0x80, 0x24} // Varint for P-256
+	return "did:key:z" + base58.Encode(append(varintPrefix, compressedBytes...)), nil
+}
+
 // GetAccessToken initiates the first step of the process: obtaining an OAuth 2.0 access token
 // by presenting a Client Assertion (containing a LEARCredentialMachine).
-func (l *LEARIssuance) GetAccessToken() (string, error) {
+func (l *LEARIssuance) GetAccessToken(ctx context.Context) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	return TokenRequest(
+		ctx,
 		l.verifierTokenEndpoint,
 		l.machineCredential,
 		l.myDidkey,
 		l.verifierURL,
 		l.privateKey,
+		l.httpClient,
 	)
 }
 

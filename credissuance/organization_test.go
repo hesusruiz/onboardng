@@ -130,7 +130,6 @@ func TestOrganizationAPI(t *testing.T) {
 }
 
 func TestMyOrganization(t *testing.T) {
-	ctx := context.Background()
 	tests := []struct {
 		name    string // description of this test case
 		want    *Organization
@@ -146,7 +145,7 @@ func TestMyOrganization(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, gotErr := TMFMyOrganization(ctx)
+			got, gotErr := TMFMyOrganization()
 			if gotErr != nil {
 				if !tt.wantErr {
 					t.Errorf("TMFMyOrganization() failed: %v", gotErr)

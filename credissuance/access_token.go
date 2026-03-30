@@ -2,6 +2,7 @@ package credissuance
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"encoding/base64"
@@ -17,7 +18,7 @@ import (
 )
 
 // TokenRequest performs an OAuth 2.0 Access Token Request at the specified token endpoint.
-// It generates a Client Assertion (a signed JWT) using the provided credentials and 
+// It generates a Client Assertion (a signed JWT) using the provided credentials and
 // returns the access token string if successful.
 //
 // Parameters:
@@ -27,12 +28,32 @@ import (
 //   - verifierURL: The audience URL for the assertion.
 //   - privateKey: The ECDSA private key for signing the assertion.
 func TokenRequest(
+	ctx context.Context,
 	tokenEndpoint string,
 	machineCredential string,
 	didkey string,
 	verifierURL string,
 	privateKey *ecdsa.PrivateKey,
+	client *http.Client,
 ) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if tokenEndpoint == "" {
+		return "", errl.Errorf("token endpoint is required")
+	}
+	if machineCredential == "" {
+		return "", errl.Errorf("machine credential is required")
+	}
+	if didkey == "" {
+		return "", errl.Errorf("didkey is required")
+	}
+	if verifierURL == "" {
+		return "", errl.Errorf("verifier URL is required")
+	}
+	if privateKey == nil {
+		return "", errl.Errorf("private key is required")
+	}
 
 	// 1. Generate the Client Assertion (the signed JWT) to authenticate with the Token Endpoint
 	cliAssertion, err := NewCliAssertion(machineCredential, didkey, verifierURL, privateKey)
@@ -48,11 +69,18 @@ func TokenRequest(
 	b.WriteString("client_assertion=" + cliAssertion)
 
 	// 3. Initialize the POST request to the token endpoint
-	req, _ := http.NewRequest("POST", tokenEndpoint, &b)
+	req, err := http.NewRequestWithContext(ctx, "POST", tokenEndpoint, &b)
+	if err != nil {
+		return "", errl.Errorf("error creating token request: %w", err)
+	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
+	if client == nil {
+		client = http.DefaultClient
+	}
+
 	// 4. Send the request and handle the response
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", errl.Errorf("error calling token endpoint: %w", err)
 	}
@@ -113,22 +141,7 @@ func NewCliAssertion(learCredential string, didkey string, verifierURL string, p
 		VpToken: B64Encode([]byte(vpStringToken)),
 	}
 
-	// 3. Set standard JWT registered claims (RFC 7519)
-	now := time.Now()
-	claims.ExpiresAt = jwt.NewNumericDate(now.Add(1 * time.Hour))
-	claims.IssuedAt = jwt.NewNumericDate(now)
-	claims.NotBefore = jwt.NewNumericDate(now)
-
-	// Client authentication claims (RFC 7523)
-	claims.Issuer = didkey
-	claims.Subject = didkey
-
-	// Set the audience as a single string (not array) for compatibility with some verifiers
-	jwt.MarshalSingleStringAsArray = false
-	claims.Audience = jwt.ClaimStrings{verifierURL}
-
-	// Unique JWT ID to prevent replay attacks
-	claims.ID = GenerateNonce()
+	setRegisteredClaims(&claims.RegisteredClaims, didkey, didkey, verifierURL, time.Hour)
 
 	// 4. Generate the JWT using ES256 (ECDSA with P-256 and SHA-256)
 	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
@@ -139,6 +152,18 @@ func NewCliAssertion(learCredential string, didkey string, verifierURL string, p
 	// 6. Sign the outer token with the client's private key
 	return token.SignedString(privateKey)
 
+}
+
+func setRegisteredClaims(claims *jwt.RegisteredClaims, issuer, subject, audience string, duration time.Duration) {
+	now := time.Now().UTC()
+	claims.Issuer = issuer
+	claims.Subject = subject
+	claims.ExpiresAt = jwt.NewNumericDate(now.Add(duration))
+	claims.IssuedAt = jwt.NewNumericDate(now)
+	claims.NotBefore = jwt.NewNumericDate(now)
+	jwt.MarshalSingleStringAsArray = false
+	claims.Audience = jwt.ClaimStrings{audience}
+	claims.ID = GenerateNonce()
 }
 
 // VPToken represents the structure for the inner JWT claims, containing the Verifiable Presentation.
@@ -192,17 +217,7 @@ func NewVPToken(vcStringToken string, didkey string, privateKey *ecdsa.PrivateKe
 		Nonce: GenerateNonce(),
 	}
 
-	// Set standard claims
-	now := time.Now()
-	claims.ExpiresAt = jwt.NewNumericDate(now.Add(1 * time.Hour))
-	claims.IssuedAt = jwt.NewNumericDate(now)
-	claims.NotBefore = jwt.NewNumericDate(now)
-	claims.Issuer = didkey
-
-	// Set the audience for the verifier
-	jwt.MarshalSingleStringAsArray = false
-	claims.Audience = jwt.ClaimStrings{verifierSBX}
-	claims.ID = GenerateNonce()
+	setRegisteredClaims(&claims.RegisteredClaims, didkey, didkey, verifierSBX, time.Hour)
 
 	// 3. Generate and sign the inner token using ES256
 	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)

@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -106,96 +105,49 @@ func (l *LEARIssuance) doHTTPList(ctx context.Context, url string, accessToken s
 	return nil, errl.Error(ErrorNotFound)
 }
 
-// TMFMyOrganization is a helper function to create a sample organization (used for testing).
-// It currently uses global accessToken and hardcoded URL as per user instructions.
-func TMFMyOrganization(ctx context.Context) (*Organization, error) {
-
-	org := Organization_Create{}
-	org.Type = "organization"
-	org.Name = "My Company"
-	org.Status = "initialized"
-
-	org.IsHeadOffice = true
-	org.IsLegalEntity = true
-	org.TradingName = "My Company"
-	org.OrganizationType = "company"
-
-	org.OrganizationIdentification = []OrganizationIdentification{
-		{
-			Type:               "OrganizationIdentification",
-			IdentificationID:   "VAT-TEST-777777J",
-			IdentificationType: "elsi", // ETSI Legal person Semantic Identifier, as in eIDAS certificates
-			IssuingAuthority:   "eIDAS",
+// TMFMyOrganization returns a sample TM Forum organization object used for testing.
+func TMFMyOrganization() (*Organization, error) {
+	org := Organization{
+		Type:             "organization",
+		Name:             "My Company",
+		Status:           OrganizationStateInitialized,
+		IsHeadOffice:     true,
+		IsLegalEntity:    true,
+		TradingName:      "My Company",
+		OrganizationType: "company",
+		OrganizationIdentification: []OrganizationIdentification{
+			{
+				Type:               "OrganizationIdentification",
+				IdentificationID:   "VAT-TEST-777777J",
+				IdentificationType: "elsi",
+				IssuingAuthority:   "eIDAS",
+			},
 		},
-	}
-
-	org.ExternalReference = []ExternalReference{
-		{
-			ExternalReferenceType: "idm_id",
-			Name:                  "VAT-TEST-777777J",
+		ExternalReference: []ExternalReference{
+			{
+				ExternalReferenceType: "idm_id",
+				Name:                  "VAT-TEST-777777J",
+			},
 		},
-	}
-
-	org.ContactMedium = []ContactMedium{
-		{
-			MediumType: "email",
-			Preferred:  true,
-			Characteristic: &MediumCharacteristic{
-				EmailAddress: "perico@pepe.com",
+		ContactMedium: []ContactMedium{
+			{
+				MediumType: "email",
+				Preferred:  true,
+				Characteristic: &MediumCharacteristic{
+					EmailAddress: "perico@pepe.com",
+				},
+			},
+		},
+		PartyCharacteristic: []Characteristic{
+			{
+				Name:      "country",
+				Value:     "ES",
+				ValueType: "string",
 			},
 		},
 	}
 
-	org.PartyCharacteristic = []Characteristic{
-		{
-			Name:      "country",
-			Value:     "ES",
-			ValueType: "string",
-		},
-	}
-
-	buf, err := json.Marshal(org)
-	if err != nil {
-		return nil, errl.Errorf("error marshalling request body: %w", err)
-	}
-
-	// NOTE: Hardcoded URL and global accessToken as per user instruction
-	url := "https://tmf.dome-marketplace-sbx.org/tmf-api/party/v4/organization"
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(buf))
-	if err != nil {
-		return nil, errl.Errorf("error creating http request: %w", err)
-	}
-
-	req.Header.Add("Content-Type", "application/json")
-	if accessToken != "" {
-		req.Header.Add("Authorization", "Bearer "+accessToken)
-	}
-
-	slog.Info("Creating organization", "url", url)
-	fmt.Println(string(buf))
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, errl.Errorf("error calling CreateOrganization at %s: %w", url, err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusCreated {
-		// Read the body because contains the error
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, errl.Errorf("error reading CreateOrganization response body: %w", err)
-		}
-		return nil, errl.Errorf("error calling CreateOrganization at %s: %v - %s", url, resp.Status, string(body))
-	}
-
-	var createdOrg Organization
-	if err := json.NewDecoder(resp.Body).Decode(&createdOrg); err != nil {
-		return nil, errl.Errorf("error decoding CreateOrganization response: %w", err)
-	}
-
-	return &createdOrg, nil
-
+	return &org, nil
 }
 
 func TMFOrganizationFromRequest(requestData RegistrationRequest) *Organization_Create {
@@ -481,6 +433,3 @@ func (l *LEARIssuance) TMFDeleteAllOrganizationsByELSI(ctx context.Context, acce
 	return nil
 
 }
-
-// NOTE: Retaining global state as requested by the user
-var accessToken = "eyJraWQiOiJkaWQ6a2V5OnpEbmFldk44NVo3VkpnY0JvUWVxUVU3ZDhrWnB1VmhEU2RtOGhRdEpZV2p2ZWszVkwiLCJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJhdWQiOiJodHRwczovL3ZlcmlmaWVyLmRvbWUtbWFya2V0cGxhY2Utc2J4Lm9yZyIsInN1YiI6ImRpZDprZXk6ekRuYWVhanczRm1NZ3NHSnhXZ2dNTGJYRmdyN3lvZVRCS0JzUEFkRXJiTHBTRkxadCIsInNjb3BlIjoibWFjaGluZSBsZWFyY3JlZGVudGlhbCIsImlzcyI6Imh0dHBzOi8vdmVyaWZpZXIuZG9tZS1tYXJrZXRwbGFjZS1zYngub3JnIiwiZXhwIjoxNzcyNzc4NjQ2LCJpYXQiOjE3NzI3NzUwNDYsInZjIjp7IkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy9ucy9jcmVkZW50aWFscy92MiIsImh0dHBzOi8vY3JlZGVudGlhbHMuZXVkaXN0YWNrLmV1Ly53ZWxsLWtub3duL2NyZWRlbnRpYWxzL2xlYXJfY3JlZGVudGlhbF9tYWNoaW5lL3czYy92MiJdLCJjcmVkZW50aWFsU3RhdHVzIjp7ImlkIjoiaHR0cHM6Ly9pc3N1ZXIuZG9tZS1tYXJrZXRwbGFjZS1zYngub3JnL3czYy92MS9jcmVkZW50aWFscy9zdGF0dXMvMSM5NDMyMyIsInN0YXR1c0xpc3RDcmVkZW50aWFsIjoiaHR0cHM6Ly9pc3N1ZXIuZG9tZS1tYXJrZXRwbGFjZS1zYngub3JnL3czYy92MS9jcmVkZW50aWFscy9zdGF0dXMvMSIsInN0YXR1c0xpc3RJbmRleCI6Ijk0MzIzIiwic3RhdHVzUHVycG9zZSI6InJldm9jYXRpb24iLCJ0eXBlIjoiQml0c3RyaW5nU3RhdHVzTGlzdEVudHJ5In0sImNyZWRlbnRpYWxTdWJqZWN0Ijp7ImlkIjoiZGlkOmtleTp6RG5hZWFqdzNGbU1nc0dKeFdnZ01MYlhGZ3I3eW9lVEJLQnNQQWRFcmJMcFNGTFp0IiwibWFuZGF0ZSI6eyJtYW5kYXRlZSI6eyJkb21haW4iOiJ0bWYuc2J4LmV2aWRlbmNlbGVkZ2VyLmV1IiwiaWQiOiJkaWQ6a2V5OnpEbmFlYWp3M0ZtTWdzR0p4V2dnTUxiWEZncjd5b2VUQktCc1BBZEVyYkxwU0ZMWnQiLCJpcEFkZHJlc3MiOiIyMTIuMjI3LjYxLjIwNiJ9LCJtYW5kYXRvciI6eyJjb21tb25OYW1lIjoiQ29uc3RhbnRpbm8gRmVybsOhbmRleiIsImNvdW50cnkiOiJFUyIsImVtYWlsIjoiZXhhbXBsZUBleGFtcGxlLm9yZyIsImlkIjoiZGlkOmVsc2k6VkFURVMtQTE1NDU2NTg1Iiwib3JnYW5pemF0aW9uIjoiQUxUSUEgQ09OU1VMVE9SRVMgU0EiLCJvcmdhbml6YXRpb25JZGVudGlmaWVyIjoiVkFURVMtQTE1NDU2NTg1Iiwic2VyaWFsTnVtYmVyIjoiMzI3NzEzODVMIn0sInBvd2VyIjpbeyJhY3Rpb24iOlsiRXhlY3V0ZSJdLCJkb21haW4iOiJET01FIiwiZnVuY3Rpb24iOiJPbmJvYXJkaW5nIiwidHlwZSI6ImRvbWFpbiJ9XX19LCJpZCI6InVybjp1dWlkOjg5MzEzOWU0LTE2YjgtNGFjZS1hN2QzLWZjNWNhMjkyYWY3ZCIsImlzc3VlciI6eyJjb21tb25OYW1lIjoiU2VhbCBTaWduYXR1cmUgQ3JlZGVudGlhbHMgaW4gU0JYIGZvciB0ZXN0aW5nIiwiY291bnRyeSI6IkVTIiwiaWQiOiJkaWQ6ZWxzaTpWQVRF..."

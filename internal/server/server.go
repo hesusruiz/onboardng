@@ -39,7 +39,7 @@ type MailServiceProvider interface {
 
 // IssuanceServiceProvider enables easy testing or replacing of the issuance implementation
 type IssuanceServiceProvider interface {
-	GetAccessToken() (string, error)
+	GetAccessToken(ctx context.Context) (string, error)
 	TMFGetOrganizationByELSI(ctx context.Context, accessToken string, elsi string) ([]credissuance.Organization, error)
 	TMFDeleteOrganization(ctx context.Context, accessToken string, id string) error
 	LEARIssuanceRequest(ctx context.Context, accessToken string, learCredData *credissuance.LEARIssuanceRequestBody) ([]byte, error)
