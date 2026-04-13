@@ -18,8 +18,8 @@ import (
 	"time"
 
 	"github.com/hesusruiz/onboardng/internal/configuration"
+	"github.com/hesusruiz/onboardng/internal/crypto"
 	"github.com/hesusruiz/utils/errl"
-	"github.com/mr-tron/base58/base58"
 )
 
 // LEARIssuanceRequestBody represents the JSON structure for a credential issuance request to the Issuer machine.
@@ -125,7 +125,7 @@ func NewLEARIssuance(config configuration.EnvConfig) (*LEARIssuance, error) {
 	}
 
 	// For safety, derive the associated did:key from the private key and compare it to the configured value.
-	didKey, err := deriveDidKeyFromPrivateKey(privateKey)
+	didKey, err := crypto.DeriveDidKeyFromPrivateKey(privateKey)
 	if err != nil {
 		return nil, errl.Errorf("error deriving did:key from private key: %w", err)
 	}
@@ -160,25 +160,6 @@ func NewLEARIssuance(config configuration.EnvConfig) (*LEARIssuance, error) {
 
 	return l, nil
 
-}
-
-func deriveDidKeyFromPrivateKey(privateKey *ecdsa.PrivateKey) (string, error) {
-	curve := elliptic.P256()
-	uncompressed := elliptic.Marshal(curve, privateKey.PublicKey.X, privateKey.PublicKey.Y)
-	if len(uncompressed) != 65 {
-		return "", errl.Errorf("unexpected public key length: %d", len(uncompressed))
-	}
-
-	xBytes := uncompressed[1:33]
-	yLastByte := uncompressed[64]
-	var compressedPrefix byte = 0x02
-	if yLastByte%2 != 0 {
-		compressedPrefix = 0x03
-	}
-
-	compressedBytes := append([]byte{compressedPrefix}, xBytes...)
-	varintPrefix := []byte{0x80, 0x24} // Varint for P-256
-	return "did:key:z" + base58.Encode(append(varintPrefix, compressedBytes...)), nil
 }
 
 // GetAccessToken initiates the first step of the process: obtaining an OAuth 2.0 access token

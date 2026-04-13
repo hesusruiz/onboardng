@@ -10,13 +10,14 @@ import (
 type MockDB struct {
 	SaveRegistrationFunc              func(reg *db.RegistrationRecord) error
 	UpdateRegistrationStatusFunc      func(reg *db.RegistrationRecord) error
+	UpdateApprovalFunc                func(registrationID string, approved int) error
 	SaveRegistrationLogFunc           func(logEntry *db.RegistrationLog) error
 	GetRegistrationByVatIDFunc        func(vatID string) (*db.RegistrationRecord, error)
 	GetRegistrationByEmailFunc        func(email string) (*db.RegistrationRecord, error)
 	GetRegistrationByEmailOrVatIDFunc func(email, vatID string) (*db.RegistrationRecord, error)
 	GetRegistrationsFunc              func(limit, offset int) ([]db.RegistrationRecord, error)
-	GetRegistrationLogsFunc           func(limit, offset int) ([]db.RegistrationLog, error)
-	GetRegistrationFilesFunc          func(limit, offset int) ([]db.RegistrationFile, error)
+	GetRegistrationLogsFunc           func(vatID string, limit, offset int) ([]db.RegistrationLog, error)
+	GetRegistrationFilesFunc          func(vatID string, limit, offset int) ([]db.RegistrationFile, error)
 	GetRegistrationFileFunc           func(fileID string) (*db.RegistrationFile, error)
 	GetRegistrationByIDFunc           func(registrationID string) (*db.RegistrationRecord, error)
 	UpdateRepresentativesByVatIDFunc  func(vatID string, rep *db.RegistrationRecord) error
@@ -27,6 +28,9 @@ func (m *MockDB) SaveRegistration(reg *db.RegistrationRecord) error {
 }
 func (m *MockDB) UpdateRegistrationStatus(reg *db.RegistrationRecord) error {
 	return m.UpdateRegistrationStatusFunc(reg)
+}
+func (m *MockDB) UpdateApproval(registrationID string, approved int) error {
+	return m.UpdateApprovalFunc(registrationID, approved)
 }
 func (m *MockDB) SaveRegistrationLog(logEntry *db.RegistrationLog) error {
 	return m.SaveRegistrationLogFunc(logEntry)
@@ -43,11 +47,11 @@ func (m *MockDB) GetRegistrationByEmailOrVatID(email, vatID string) (*db.Registr
 func (m *MockDB) GetRegistrations(limit, offset int) ([]db.RegistrationRecord, error) {
 	return m.GetRegistrationsFunc(limit, offset)
 }
-func (m *MockDB) GetRegistrationLogs(limit, offset int) ([]db.RegistrationLog, error) {
-	return m.GetRegistrationLogsFunc(limit, offset)
+func (m *MockDB) GetRegistrationLogs(vatID string, limit, offset int) ([]db.RegistrationLog, error) {
+	return m.GetRegistrationLogsFunc(vatID, limit, offset)
 }
-func (m *MockDB) GetRegistrationFiles(limit, offset int) ([]db.RegistrationFile, error) {
-	return m.GetRegistrationFilesFunc(limit, offset)
+func (m *MockDB) GetRegistrationFiles(vatID string, limit, offset int) ([]db.RegistrationFile, error) {
+	return m.GetRegistrationFilesFunc(vatID, limit, offset)
 }
 func (m *MockDB) GetRegistrationFile(fileID string) (*db.RegistrationFile, error) {
 	return m.GetRegistrationFileFunc(fileID)

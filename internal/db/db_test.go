@@ -14,7 +14,7 @@ func TestRegistrationConstraints(t *testing.T) {
 
 	// --- PRODUCTION ENVIRONMENT TESTS ---
 	t.Log("Testing Production strict constraints")
-	svcPro, err := NewService(configuration.Production, dbPath)
+	svcPro, err := NewDBService(configuration.Production, dbPath)
 	if err != nil {
 		t.Fatalf("failed to create pro service: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestRegistrationConstraints(t *testing.T) {
 
 	// --- DEVELOPMENT ENVIRONMENT TESTS ---
 	t.Log("Testing Development overwrite and conflict logic")
-	svcDev, err := NewService(configuration.Development, dbPath)
+	svcDev, err := NewDBService(configuration.Development, dbPath)
 	if err != nil {
 		t.Fatalf("failed to create dev service: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestRegistrationLogs(t *testing.T) {
 	os.Remove(dbPath) // Start fresh
 	defer os.Remove(dbPath)
 
-	svc, err := NewService(configuration.Development, dbPath)
+	svc, err := NewDBService(configuration.Development, dbPath)
 	if err != nil {
 		t.Fatalf("failed to create service: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestRegistrationStatusFields(t *testing.T) {
 	os.Remove(dbPath) // Start fresh
 	defer os.Remove(dbPath)
 
-	svc, err := NewService(configuration.Development, dbPath)
+	svc, err := NewDBService(configuration.Development, dbPath)
 	if err != nil {
 		t.Fatalf("failed to create service: %v", err)
 	}
@@ -199,7 +199,7 @@ func TestRegistrationFiles(t *testing.T) {
 	os.Remove(dbPath) // Start fresh
 	defer os.Remove(dbPath)
 
-	svc, err := NewService(configuration.Development, dbPath)
+	svc, err := NewDBService(configuration.Development, dbPath)
 	if err != nil {
 		t.Fatalf("failed to create service: %v", err)
 	}

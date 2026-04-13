@@ -261,6 +261,11 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO: this is temporal
+	if requestData.City == "" {
+		requestData.City = "Las Rozas de Madrid"
+	}
+
 	if err := requestData.Validate(); err != nil {
 		s.SendJSON(w, r, http.StatusBadRequest, false, err.Error(), nil)
 		return
@@ -431,6 +436,12 @@ func saveToDB(requestData RegistrationRequest, s *Server) (*db.RegistrationRecor
 
 func performIssuance(ctx context.Context, token string, reg *db.RegistrationRecord, s *Server, requestData RegistrationRequest) error {
 
+	organizationIdentifierPrefix := "VAT" + requestData.Country
+	organizationIdentifier := requestData.VatId
+	if !strings.HasPrefix(requestData.VatId, organizationIdentifierPrefix) {
+		organizationIdentifier = organizationIdentifierPrefix + "-" + requestData.VatId
+	}
+
 	// Create the struct needed by the Issuer API for a credential for the self-registration
 	soloCredential := &credissuance.LEARIssuanceRequestBody{
 		Schema:        "LEARCredentialEmployee",
@@ -438,7 +449,7 @@ func performIssuance(ctx context.Context, token string, reg *db.RegistrationReco
 		Format:        "jwt_vc_json",
 		Payload: credissuance.Payload{
 			Mandator: credissuance.Mandator{
-				OrganizationIdentifier: requestData.Country + "-" + requestData.VatId,
+				OrganizationIdentifier: organizationIdentifier,
 				Organization:           requestData.CompanyName,
 				Country:                requestData.Country,
 				CommonName:             requestData.FirstName + " " + requestData.LastName,
@@ -645,8 +656,8 @@ func (s *Server) HandleUpdateRepresentatives(w http.ResponseWriter, r *http.Requ
 		s.SendJSON(w, r, http.StatusForbidden, false, "Email does not match the registration", nil)
 		return
 	}
-	if current.Approved {
-		s.SendJSON(w, r, http.StatusForbidden, false, "Registration is already approved and immutable", nil)
+	if current.Approved > 0 {
+		s.SendJSON(w, r, http.StatusForbidden, false, "Registration is already approved or denied and immutable", nil)
 		return
 	}
 

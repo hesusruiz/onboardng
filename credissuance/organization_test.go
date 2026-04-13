@@ -145,15 +145,15 @@ func TestMyOrganization(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, gotErr := TMFMyOrganization()
+			got, gotErr := NewSampleTMFOrganization()
 			if gotErr != nil {
 				if !tt.wantErr {
-					t.Errorf("TMFMyOrganization() failed: %v", gotErr)
+					t.Errorf("NewSampleTMFOrganization() failed: %v", gotErr)
 				}
 				return
 			}
 			if tt.wantErr {
-				t.Fatal("TMFMyOrganization() succeeded unexpectedly")
+				t.Fatal("NewSampleTMFOrganization() succeeded unexpectedly")
 			}
 			_ = got
 		})

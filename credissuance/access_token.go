@@ -129,6 +129,12 @@ type CliAssertion struct {
 // 1. An inner VP Token containing a Verifiable Presentation.
 // 2. An outer Client Assertion containing the Base64URL-encoded VP Token in the "vp_token" claim.
 func NewCliAssertion(learCredential string, didkey string, verifierURL string, privateKey *ecdsa.PrivateKey) (string, error) {
+	if !strings.HasPrefix(didkey, "did:key:") {
+		return "", errl.Errorf("didkey must start with 'did:key:'")
+	}
+	if verifierURL == "" {
+		return "", errl.Errorf("verifierURL cannot be empty")
+	}
 
 	// 1. Create the inner Verifiable Presentation (VP) Token
 	vpStringToken, err := NewVPToken(string(learCredential), didkey, privateKey, verifierURL)
@@ -197,6 +203,12 @@ func (o *VP) String() string {
 // NewVPToken creates a signed JWT containing a Verifiable Presentation (VP).
 // This JWT is then encoded and placed within the 'vp_token' claim of the outer Client Assertion.
 func NewVPToken(vcStringToken string, didkey string, privateKey *ecdsa.PrivateKey, verifierSBX string) (string, error) {
+	if !strings.HasPrefix(didkey, "did:key:") {
+		return "", errl.Errorf("didkey must start with 'did:key:'")
+	}
+	if verifierSBX == "" {
+		return "", errl.Errorf("verifierSBX cannot be empty")
+	}
 
 	// 1. Construct the Verifiable Presentation object
 	vp := VP{

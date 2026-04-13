@@ -16,31 +16,68 @@ import (
 
 // RegistrationRecord represents a user registration record in the database
 type RegistrationRecord struct {
-	RegistrationID string    `json:"registration_id"`
-	Email          string    `json:"email"`
-	FirstName      string    `json:"first_name"`
-	LastName       string    `json:"last_name"`
-	CompanyName    string    `json:"company_name"`
-	Country        string    `json:"country"`
-	VatID          string    `json:"vat_id"`
-	StreetAddress  string    `json:"street_address"`
-	City           string    `json:"city"`
-	PostalCode     string    `json:"postal_code"`
-	Role           string    `json:"role"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
-	Notified      bool      `json:"notified"`
-	Issued        bool      `json:"issued"`
-	TMFRegistered bool      `json:"tmf_registered"`
 
-	// Legal Representative
+	// The first step of registration, called a "solo" registration, without real verification
+	//
+
+	// Unique identifier of the registration
+	RegistrationID string `json:"registration_id"`
+
+	// Email of the person/user performing the registration. The email will be verified by sending a verification code
+	// to the email supplied.
+	Email string `json:"email"`
+
+	// Name and surname of the user
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+
+	// Identification of the company that the user is registering
+	// Official name of the company as it appears in the registry of incorporation
+	CompanyName string `json:"company_name"`
+
+	// Country code (two-letter code) of incorporation of the company
+	Country string `json:"country"`
+
+	// VAT ID of the company. Together with the country code, it is the unique identifier of the company
+	VatID string `json:"vat_id"`
+
+	// Street address of the company
+	StreetAddress string `json:"street_address"`
+
+	// City of the company
+	City string `json:"city"`
+
+	// Postal code of the company
+	PostalCode string `json:"postal_code"`
+
+	// Role of the company in DOME (Seller or Buyer)
+	Role string `json:"role"`
+
+	// Timestamps of the registration record
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+
+	// Flags for the sub-steps of the first step of registration
+	// true if an email has been sent to the user to notify him about the registration
+	Notified bool `json:"notified"`
+	// true if the Verifiable credential has been issued to the user
+	Issued bool `json:"issued"`
+	// true if the user has been registered in the TMF
+	TMFRegistered bool `json:"tmf_registered"`
+
+	//
+	// The second step of the registration, when the company formalizes the registration
+	//
+
+	// Identification data about the Legal Representative of the company
 	LRFirstName string `json:"lr_first_name"`
 	LRLastName  string `json:"lr_last_name"`
 	LREmail     string `json:"lr_email"`
 	LRCountry   string `json:"lr_country"`
 	LRIdCard    string `json:"lr_id_card"`
 
-	// LEAR
+	// Identification data about the Legal Entity Authorized Representative (LEAR) of the company
+	// This is the person who will represent the company in DOME and act as the main contact for the company
 	LEARFirstName    string `json:"lear_first_name"`
 	LEARLastName     string `json:"lear_last_name"`
 	LEAREmail        string `json:"lear_email"`
@@ -49,10 +86,15 @@ type RegistrationRecord struct {
 	LEARIdCard       string `json:"lear_id_card"`
 	LEARMobileNumber string `json:"lear_mobile_number"`
 
-	// State
+	// State of the second step of registration
+	// Data about the LR has been successfully registered
+	LRCompleted bool `json:"lr_completed"`
+	// Data about the LEAR has been successfully registered
 	LEARCompleted bool `json:"lear_completed"`
+	// Files about the company's official registration and the LEAR have been provided, but may be pending its verification
 	FilesUploaded bool `json:"files_uploaded"`
-	Approved      bool `json:"approved"`
+	// Status of the second step: 0 = pending, 1 = approved, 2 = rejected
+	Approved int `json:"approved"`
 }
 
 // RegistrationLog represents a log entry (info, warning, error) during the registration process
@@ -86,7 +128,7 @@ type Service struct {
 	runtime configuration.RuntimeEnv
 }
 
-func NewService(runtime configuration.RuntimeEnv, path string) (*Service, error) {
+func NewDBService(runtime configuration.RuntimeEnv, path string) (*Service, error) {
 
 	// Create the directory if it does not exist
 	dir := filepath.Dir(path)
@@ -100,20 +142,9 @@ func NewService(runtime configuration.RuntimeEnv, path string) (*Service, error)
 		return nil, errl.Errorf("failed to open database: %w", err)
 	}
 
-	// TODO: add the fields to store the info for the second step of onboarding:
-	// For Legal Representative:
-	// - required fields: lr_first_name, lr_last_name, lr_email, lr_country
-	// - optional fields: lr_id_card
-	// For LEAR (Legal Entity Authorized Representative):
-	// - required fields: lear_first_name, lear_last_name, lear_email, lear_country
-	// - optional fields: lear_address, lear_id_card, lear_mobile_number
-	//
-	// Also, add the fields to record the completion of sub-steps for this onboarding step:
-	// - lear_completed (boolean), implies also lr_completed, as they are updated at the same time
-	// - files_uploaded (boolean), as soon as the first file is uploaded
-	// - approved (boolean), as soon as the whole process is approved, which will be done by an admin manually
-
 	// Create table if not exists
+	// Note: Older DB versions may have 'approved' defined as BOOLEAN.
+	// SQLite affinity treats both as NUMERIC/INTEGER, so it's compatible with values > 1.
 	query := `
 	CREATE TABLE IF NOT EXISTS registrations (
 		registration_id TEXT UNIQUE,
@@ -146,7 +177,7 @@ func NewService(runtime configuration.RuntimeEnv, path string) (*Service, error)
 		lear_mobile_number TEXT,
 		lear_completed BOOLEAN,
 		files_uploaded BOOLEAN,
-		approved BOOLEAN
+		approved INTEGER
 	);
 	CREATE TABLE IF NOT EXISTS registration_log (
 		registration_id TEXT,
@@ -353,6 +384,24 @@ func (s *Service) UpdateRegistrationStatus(reg *RegistrationRecord) error {
 	)
 	if err != nil {
 		return errl.Errorf("failed to update registration: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) UpdateApproval(vatID string, approved int) error {
+	now := time.Now()
+	query := `
+	UPDATE registrations SET
+		approved = :approved,
+		updated_at = :updated_at
+	WHERE vat_id = :vat_id`
+	_, err := s.conn.Exec(query,
+		sql.Named("approved", approved),
+		sql.Named("updated_at", now),
+		sql.Named("vat_id", vatID),
+	)
+	if err != nil {
+		return errl.Errorf("failed to update approval: %w", err)
 	}
 	return nil
 }
@@ -708,18 +757,35 @@ func (s *Service) UpdateRegistrationFileContent(fileID string, content []byte) e
 	return nil
 }
 
-func (s *Service) GetRegistrationLogs(limit, offset int) ([]RegistrationLog, error) {
-	query := `
-	SELECT 
-		registration_id, email, vat_id, type, message, created_at
-	FROM registration_log
-	ORDER BY created_at DESC
-	LIMIT :limit OFFSET :offset`
+func (s *Service) GetRegistrationLogs(vatID string, limit, offset int) ([]RegistrationLog, error) {
 
-	rows, err := s.conn.Query(query,
-		sql.Named("limit", limit),
-		sql.Named("offset", offset),
-	)
+	var rows *sql.Rows
+	var err error
+
+	if vatID != "" {
+		query := `
+		SELECT 
+			registration_id, email, vat_id, type, message, created_at
+		FROM registration_log
+		WHERE vat_id = :vat_id
+		ORDER BY created_at DESC`
+
+		rows, err = s.conn.Query(query,
+			sql.Named("vat_id", vatID),
+		)
+	} else {
+		query := `
+		SELECT 
+			registration_id, email, vat_id, type, message, created_at
+		FROM registration_log
+		ORDER BY created_at DESC
+		LIMIT :limit OFFSET :offset`
+
+		rows, err = s.conn.Query(query,
+			sql.Named("limit", limit),
+			sql.Named("offset", offset),
+		)
+	}
 	if err != nil {
 		return nil, errl.Errorf("failed to get registration logs: %w", err)
 	}
@@ -744,18 +810,35 @@ func (s *Service) GetRegistrationLogs(limit, offset int) ([]RegistrationLog, err
 	return logsList, nil
 }
 
-func (s *Service) GetRegistrationFiles(limit, offset int) ([]RegistrationFile, error) {
-	query := `
-	SELECT 
-		file_id, registration_id, vat_id, name, mime_type, size, status, content, created_at, updated_at
-	FROM registration_files
-	ORDER BY created_at DESC
-	LIMIT :limit OFFSET :offset`
+func (s *Service) GetRegistrationFiles(vatID string, limit, offset int) ([]RegistrationFile, error) {
 
-	rows, err := s.conn.Query(query,
-		sql.Named("limit", limit),
-		sql.Named("offset", offset),
-	)
+	var rows *sql.Rows
+	var err error
+
+	if vatID != "" {
+		query := `
+		SELECT 
+			file_id, registration_id, vat_id, name, mime_type, size, status, content, created_at, updated_at
+			FROM registration_files
+			WHERE vat_id = :vat_id
+			ORDER BY created_at DESC`
+
+		rows, err = s.conn.Query(query,
+			sql.Named("vat_id", vatID),
+		)
+	} else {
+		query := `
+		SELECT 
+			file_id, registration_id, vat_id, name, mime_type, size, status, content, created_at, updated_at
+			FROM registration_files
+			ORDER BY created_at DESC
+			LIMIT :limit OFFSET :offset`
+
+		rows, err = s.conn.Query(query,
+			sql.Named("limit", limit),
+			sql.Named("offset", offset),
+		)
+	}
 	if err != nil {
 		return nil, errl.Errorf("failed to get registration files: %w", err)
 	}
