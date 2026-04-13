@@ -1,20 +1,29 @@
 package server
 
 import (
+	"crypto/x509"
 	"embed"
+	"fmt"
 	"log/slog"
+	"slices"
+	"strings"
 	"text/template"
 	"time"
 
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/hesusruiz/onboardng/internal/db"
+	"github.com/hesusruiz/onboardng/internal/x509util"
 	"github.com/hesusruiz/utils/errl"
 
 	"github.com/go-sprout/sprout"
 	"github.com/go-sprout/sprout/group/all"
 )
+
+const stdCertHeader = "tls-client-certificate"
+const kubeCertHeader = "X-Amzn-Mtls-Clientcert"
 
 //go:embed templates
 var templatesFS embed.FS
@@ -264,9 +273,27 @@ func (s *Server) APIAdminGetFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fileID := r.URL.Path[len("/api/admin/file/"):]
+	fileID := r.PathValue("file_id")
 	if fileID == "" {
 		http.Error(w, "Missing file ID", http.StatusBadRequest)
+		return
+	}
+
+	if fileID == "test-file-id" {
+		file := db.RegistrationFile{
+			FileID:         "test-file-id",
+			RegistrationID: "1234",
+			Name:           "test-file.txt",
+			MimeType:       "text/plain",
+			Size:           1024,
+			Status:         "uploaded",
+			Content:        []byte("Hello, how are you?\nThis is a test file."),
+			CreatedAt:      time.Now(),
+			UpdatedAt:      time.Now(),
+		}
+		w.Header().Set("Content-Type", file.MimeType)
+		w.Header().Set("Content-Disposition", "inline; filename=\""+file.Name+"\"")
+		w.Write(file.Content)
 		return
 	}
 
@@ -279,4 +306,100 @@ func (s *Server) APIAdminGetFile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", file.MimeType)
 	w.Header().Set("Content-Disposition", "inline; filename=\""+file.Name+"\"")
 	w.Write(file.Content)
+}
+
+var adminIssuerOrganizationIdentifiers = []string{
+	"VATES-G87936159", // Alastria
+	"VATES-11111111K", // Fake ISBE Foundation
+}
+
+var adminSubjectSerialNumbers = []string{
+	"IDCES-21442837Y",
+	"A12345678",
+}
+
+// isAdmin checks if the certificate is issued by any organization which is an authorized issuer.
+// It additionally checks for a specific user.
+func isAdmin(issuer *x509util.ELSIName, subject *x509util.ELSIName) bool {
+	return slices.Contains(adminIssuerOrganizationIdentifiers, issuer.OrganizationIdentifier) || slices.Contains(adminSubjectSerialNumbers, subject.SerialNumber)
+}
+
+func (s *Server) checkAdminAuthentication(r *http.Request) (*x509util.ELSIName, error) {
+
+	_, issuer, subject, _, err := s.retrieveCertificate(r)
+	if err != nil {
+		return nil, errl.Errorf("retrieving certificate: %w", err)
+	}
+
+	// Check for admin
+	if !isAdmin(issuer, subject) {
+		return nil, errl.Errorf("Certificate serial number '%s' or issuer.organizationIdentifier '%s' is invalid", subject.SerialNumber, issuer.OrganizationIdentifier)
+	}
+
+	return subject, nil
+}
+
+func (s *Server) retrieveCertificate(r *http.Request) (
+	cert *x509.Certificate,
+	issuer *x509util.ELSIName,
+	subject *x509util.ELSIName,
+	b64der string,
+	err error) {
+	// Check both the std and kube cert headers to see if we received a certificate
+	certFromHeader := r.Header.Get(stdCertHeader)
+	if certFromHeader != "" {
+		slog.Debug("Certificate data found in standard header", "header", stdCertHeader, "cert_length", len(certFromHeader))
+	} else {
+		certFromHeader = r.Header.Get(kubeCertHeader)
+		if certFromHeader != "" {
+			slog.Debug("Certificate data found in kube header", "header", kubeCertHeader, "cert_length", len(certFromHeader))
+		} else {
+			return nil, nil, nil, "", errl.Errorf("No certificate provided, neither in %s nor in %s", stdCertHeader, kubeCertHeader)
+		}
+	}
+
+	// Parse the certificate, which may come as DER or PEM format
+	// First, detect if it seems PEM
+	if strings.HasPrefix(certFromHeader, "-----BEGIN") {
+		// It's PEM, so decode it from base64 and then PEM decode it
+
+		// This header contains the URL-encoded PEM format of the entire client certificate chain presented in the connection, with +=/ as safe characters.
+		// We have to first decode
+		certFromHeaderDecoded, err := url.PathUnescape(certFromHeader)
+		if err != nil {
+			fmt.Printf("Failed to decode base64url certificate from header: %s\n", certFromHeader)
+			return nil, nil, nil, "", errl.Errorf("Failed to decode base64url certificate from header: %w", err)
+		}
+
+		cert, issuer, subject, b64der, err = x509util.ParseCertificateFromPEM([]byte(certFromHeaderDecoded))
+		if err != nil {
+			fmt.Printf("Bad PEM certificate: %s\n", certFromHeader)
+			return nil, nil, nil, "", errl.Errorf("Failed to parse certificate from PEM: %w", err)
+		}
+	} else {
+		// Assume it is DER, so decode it directly
+		cert, issuer, subject, err = x509util.ParseEIDASCertB64Der(certFromHeader)
+		if err != nil {
+			fmt.Printf("Bad DER certificate: %s\n", certFromHeader)
+			return nil, nil, nil, "", errl.Errorf("Failed to parse certificate: %w", err)
+		}
+		b64der = certFromHeader
+	}
+
+	// For testing we accept personal certificates, but we do not accept that both
+	// the organizationIdentifier and the serialNumber are empty.
+	if subject.OrganizationIdentifier == "" && subject.SerialNumber == "" {
+		return nil, nil, nil, "", errl.Errorf("Both organizationIdentifier and serialNumber are empty")
+	}
+
+	// Check certificate expiration
+	now := time.Now()
+	if now.Before(cert.NotBefore) {
+		return nil, nil, nil, "", errl.Errorf("Certificate not yet valid, not_before: %s", cert.NotBefore.Format(time.RFC3339))
+	}
+	if now.After(cert.NotAfter) {
+		return nil, nil, nil, "", errl.Errorf("Certificate expired not_after: %s", cert.NotAfter.Format(time.RFC3339))
+	}
+
+	return cert, issuer, subject, b64der, nil
 }

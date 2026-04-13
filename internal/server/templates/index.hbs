@@ -356,7 +356,7 @@
 
                 async fetchRegistrations() {
                     this.loading = true;
-                    const data = await this.callApi('/api/admin/registrations?limit=1000');
+                    const data = await this.callApi('/admin/api/registrations?limit=1000');
                     if (data && data.data) {
                         this.registrations = data.data;
                     } else {
@@ -469,7 +469,7 @@
 
                 async fetchFiles() {
                     if (Object.keys(this.filesCache).length === 0) {
-                        const data = await this.callApi('/api/admin/registration-files?limit=5000');
+                        const data = await this.callApi('/admin/api/registration-files?limit=5000');
                         if (data && data.data) {
                             data.data.forEach(f => {
                                 if (!this.filesCache[f.vat_id]) {
@@ -483,7 +483,7 @@
 
                 async fetchErrors() {
                     if (Object.keys(this.errorsCache).length === 0) {
-                        const data = await this.callApi('/api/admin/registration-logs?limit=5000');
+                        const data = await this.callApi('/admin/api/registration-logs?limit=5000');
                         if (data && data.data) {
                             data.data.forEach(e => {
                                 if (!this.errorsCache[e.registration_id]) {

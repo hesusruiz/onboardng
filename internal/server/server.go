@@ -115,11 +115,11 @@ func NewServer(runtime configuration.RuntimeEnv,
 	// Admin routes for pages and APIs
 	mux.HandleFunc("/admin/index", s.LogRequest(s.EnableCORS(s.PageAdminIndex)))
 	mux.HandleFunc("/admin/registration", s.LogRequest(s.EnableCORS(s.PageAdminDetailsByVatID)))
-	mux.HandleFunc("/api/admin/registrations", s.LogRequest(s.EnableCORS(s.APIAdminGetRegistrations)))
-	mux.HandleFunc("/api/admin/registration", s.LogRequest(s.EnableCORS(s.APIAdminGetRegistrationByVatID)))
-	mux.HandleFunc("/api/admin/registration-logs", s.LogRequest(s.EnableCORS(s.APIAdminGetRegistrationLogs)))
-	mux.HandleFunc("/api/admin/registration-files", s.LogRequest(s.EnableCORS(s.APIAdminGetRegistrationFiles)))
-	mux.HandleFunc("/api/admin/file/", s.LogRequest(s.EnableCORS(s.APIAdminGetFile)))
+	mux.HandleFunc("/admin/api/registrations", s.LogRequest(s.EnableCORS(s.APIAdminGetRegistrations)))
+	mux.HandleFunc("/admin/api/registration", s.LogRequest(s.EnableCORS(s.APIAdminGetRegistrationByVatID)))
+	mux.HandleFunc("/admin/api/registration-logs", s.LogRequest(s.EnableCORS(s.APIAdminGetRegistrationLogs)))
+	mux.HandleFunc("/admin/api/registration-files", s.LogRequest(s.EnableCORS(s.APIAdminGetRegistrationFiles)))
+	mux.HandleFunc("/admin/api/file/{file_id}", s.LogRequest(s.EnableCORS(s.APIAdminGetFile)))
 
 	// Serve Angular SPA routes
 	serveIndex := func(w http.ResponseWriter, r *http.Request) {
