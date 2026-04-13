@@ -60,13 +60,17 @@ type Server struct {
 	IPLimiters        map[string]*rate.Limiter
 	IPLimitersMu      sync.Mutex
 	Handler           http.Handler
+	AdminUser         string
+	AdminPassword     string
 }
 
 func NewServer(runtime configuration.RuntimeEnv,
 	dbService DBServiceProvider,
 	issuer IssuanceServiceProvider,
 	mailService MailServiceProvider,
-	staticFilesDir string) *Server {
+	staticFilesDir string,
+	adminUser string,
+	adminPassword string) *Server {
 
 	s := &Server{
 		Runtime:           runtime,
@@ -76,6 +80,8 @@ func NewServer(runtime configuration.RuntimeEnv,
 		EmailRateLimiter:  make(map[string]*RateLimitEntry),
 		VerificationCodes: make(map[string]*VerificationCodeEntry),
 		IPLimiters:        make(map[string]*rate.Limiter),
+		AdminUser:         adminUser,
+		AdminPassword:     adminPassword,
 	}
 
 	mux := http.NewServeMux()
@@ -112,14 +118,19 @@ func NewServer(runtime configuration.RuntimeEnv,
 	mux.HandleFunc("/api/representatives", s.LogRequest(s.EnableCORS(s.HandleUpdateRepresentatives)))
 	mux.HandleFunc("/health", s.HandleHealth)
 
+	// Admin routes
+	adminChain := func(next http.HandlerFunc) http.HandlerFunc {
+		return s.LogRequest(s.EnableCORS(s.BasicAuth(next)))
+	}
+
 	// Admin routes for pages and APIs
-	mux.HandleFunc("/admin/index", s.LogRequest(s.EnableCORS(s.PageAdminIndex)))
-	mux.HandleFunc("/admin/registration", s.LogRequest(s.EnableCORS(s.PageAdminDetailsByVatID)))
-	mux.HandleFunc("/admin/api/registrations", s.LogRequest(s.EnableCORS(s.APIAdminGetRegistrations)))
-	mux.HandleFunc("/admin/api/registration", s.LogRequest(s.EnableCORS(s.APIAdminGetRegistrationByVatID)))
-	mux.HandleFunc("/admin/api/registration-logs", s.LogRequest(s.EnableCORS(s.APIAdminGetRegistrationLogs)))
-	mux.HandleFunc("/admin/api/registration-files", s.LogRequest(s.EnableCORS(s.APIAdminGetRegistrationFiles)))
-	mux.HandleFunc("/admin/api/file/{file_id}", s.LogRequest(s.EnableCORS(s.APIAdminGetFile)))
+	mux.HandleFunc("/admin/index", adminChain(s.PageAdminIndex))
+	mux.HandleFunc("/admin/registration", adminChain(s.PageAdminDetailsByVatID))
+	mux.HandleFunc("/admin/api/registrations", adminChain(s.APIAdminGetRegistrations))
+	mux.HandleFunc("/admin/api/registration", adminChain(s.APIAdminGetRegistrationByVatID))
+	mux.HandleFunc("/admin/api/registration-logs", adminChain(s.APIAdminGetRegistrationLogs))
+	mux.HandleFunc("/admin/api/registration-files", adminChain(s.APIAdminGetRegistrationFiles))
+	mux.HandleFunc("/admin/api/file/{file_id}", adminChain(s.APIAdminGetFile))
 
 	// Serve Angular SPA routes
 	serveIndex := func(w http.ResponseWriter, r *http.Request) {
@@ -136,6 +147,18 @@ func NewServer(runtime configuration.RuntimeEnv,
 func (s *Server) LogRequest(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		slog.Info("Entry", "method", r.Method, "url", r.URL.Path)
+		next(w, r)
+	}
+}
+
+func (s *Server) BasicAuth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, pass, ok := r.BasicAuth()
+		if !ok || user != s.AdminUser || pass != s.AdminPassword {
+			w.Header().Set("WWW-Authenticate", `Basic realm="Admin"`)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
 		next(w, r)
 	}
 }

@@ -510,7 +510,8 @@
 
                             <tr class="hover:bg-slate-50 transition-colors">
                                 <td class="px-6 py-4">
-                                    <a download class="font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
+                                    <a download="{{ .Name }}"
+                                        class="font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
                                         href="/admin/api/file/{{ .FileID }}" style="">{{ .Name }}</a>
                                 </td>
                                 <td class="px-6 py-4 text-sm font-medium text-slate-500" style="">{{ .Size }}</td>

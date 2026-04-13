@@ -226,7 +226,24 @@ func run(cfg configuration.Config, envFlag string, port string, watchFlag bool, 
 	// Run the database maintenance once at startup
 	dbService.RunMaintenance(context.Background())
 
-	srv := server.NewServer(runtimeEnv, dbService, issuanceService, mailService, cfg.DestDir)
+	adminUser := os.Getenv("ADMIN_USER")
+	if adminUser == "" {
+		if runtimeEnv != configuration.Production {
+			adminUser = "admin"
+		} else {
+			log.Fatalf("Error: ADMIN_USER environment variable is not set")
+		}
+	}
+	adminPassword := os.Getenv("ADMIN_PASSWORD")
+	if adminPassword == "" {
+		if runtimeEnv != configuration.Production {
+			adminPassword = "pepe"
+		} else {
+			log.Fatalf("Error: ADMIN_PASSWORD environment variable is not set")
+		}
+	}
+
+	srv := server.NewServer(runtimeEnv, dbService, issuanceService, mailService, cfg.DestDir, adminUser, adminPassword)
 
 	// Start Watcher if requested
 	if watchFlag {

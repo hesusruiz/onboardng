@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"strconv"
 
+	"github.com/hesusruiz/onboardng/internal/configuration"
 	"github.com/hesusruiz/onboardng/internal/db"
 	"github.com/hesusruiz/onboardng/internal/x509util"
 	"github.com/hesusruiz/utils/errl"
@@ -212,12 +213,12 @@ func (s *Server) APIAdminGetRegistrationLogs(w http.ResponseWriter, r *http.Requ
 	limit := 100
 	offset := 0
 
-	if l := r.URL.Query().Get("limit"); l != "" {
+	if l := r.FormValue("limit"); l != "" {
 		if parsedLimit, err := strconv.Atoi(l); err == nil {
 			limit = parsedLimit
 		}
 	}
-	if o := r.URL.Query().Get("offset"); o != "" {
+	if o := r.FormValue("offset"); o != "" {
 		if parsedOffset, err := strconv.Atoi(o); err == nil {
 			offset = parsedOffset
 		}
@@ -242,12 +243,12 @@ func (s *Server) APIAdminGetRegistrationFiles(w http.ResponseWriter, r *http.Req
 	limit := 100
 	offset := 0
 
-	if l := r.URL.Query().Get("limit"); l != "" {
+	if l := r.FormValue("limit"); l != "" {
 		if parsedLimit, err := strconv.Atoi(l); err == nil {
 			limit = parsedLimit
 		}
 	}
-	if o := r.URL.Query().Get("offset"); o != "" {
+	if o := r.FormValue("offset"); o != "" {
 		if parsedOffset, err := strconv.Atoi(o); err == nil {
 			offset = parsedOffset
 		}
@@ -279,7 +280,7 @@ func (s *Server) APIAdminGetFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if fileID == "test-file-id" {
+	if s.Runtime != configuration.Production && fileID == "test-file-id" { // This is for testing purposes only
 		file := db.RegistrationFile{
 			FileID:         "test-file-id",
 			RegistrationID: "1234",
