@@ -25,9 +25,10 @@ func (l *LEARIssuance) TMFListOrganizations(ctx context.Context, accessToken str
 }
 
 // TMFGetOrganizationByELSI retrieves Organization objects by ELSI identifier.
-// If the error is nil, the returned array has at least one element. Otherwise, the array is empty.
-// The function accepts an ELSI identifier with or without "did:elsi:" prefix, and performs two searches to the server,
-// one with the prefix and the second without, to make sure that it finds the Organization in the server.
+// It returns a non-nil slice (possibly empty) and a nil error when all searches succeed.
+// An error is only returned for transport/HTTP failures or JSON decode errors.
+// The function accepts an ELSI identifier with or without "did:elsi:" prefix and tries three
+// search strategies in order, returning on the first successful (non-error) response.
 func (l *LEARIssuance) TMFGetOrganizationByELSI(ctx context.Context, accessToken string, elsi string) ([]Organization, error) {
 
 	// Strip the prefix "did:elsi:" if it exists
@@ -53,7 +54,8 @@ func (l *LEARIssuance) TMFGetOrganizationByELSI(ctx context.Context, accessToken
 	url = fmt.Sprintf("%s%s/organization?externalReference.name=%s", l.tmForumURL, partyPathPrefix, elsi)
 
 	orgs, err = l.doHTTPList(ctx, url, accessToken)
-	if err == nil && len(orgs) > 0 {
+	if err == nil {
+		// Return the slice whether it is empty or not; callers check len(orgs).
 		return orgs, nil
 	}
 
@@ -61,7 +63,8 @@ func (l *LEARIssuance) TMFGetOrganizationByELSI(ctx context.Context, accessToken
 }
 
 // doHTTPList retrieves Organization objects from the TM Forum API.
-// If the error is nil, the returned array has at least one element. Otherwise, the array is empty.
+// If the error is nil, the returned slice is non-nil (but may be empty). Callers must check len().
+// An error is only returned for transport/HTTP failures or JSON decode errors.
 func (l *LEARIssuance) doHTTPList(ctx context.Context, url string, accessToken string) ([]Organization, error) {
 
 	httpClient := l.httpClient
@@ -91,18 +94,14 @@ func (l *LEARIssuance) doHTTPList(ctx context.Context, url string, accessToken s
 			return nil, errl.Errorf("error decoding response: %w", err)
 		}
 
-		// If no organization was found, return an error
-		if len(orgs) == 0 {
-			return nil, errl.Error(ErrorNotFound)
-		}
-
-		// It is OK to retrieve more than one organization with the same ELSI for this function.
-		// This is an error in the backend that will be solved in another way. The caller will decide what to do.
+		// Return whatever the server gave us (empty or not); callers check len().
+		// It is OK to retrieve more than one organization with the same ELSI.
+		// Duplicates are a backend data issue; the caller decides what to do.
 		return orgs, nil
 	}
 
-	// If the organization was not found, return an error
-	return nil, errl.Error(ErrorNotFound)
+	// Non-200 status: signal a transport/protocol-level failure to the caller.
+	return nil, errl.Errorf("unexpected HTTP status %s", http.StatusText(resp.StatusCode))
 }
 
 // TMFCreateOrganization creates a Organization.
