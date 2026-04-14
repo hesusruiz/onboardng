@@ -320,7 +320,7 @@ func ParseCertificateFromPEM(pemData []byte) (cert *x509.Certificate, issuer *EL
 		}
 
 		// Try to parse the certificate from the block
-		cert, issuer, subject, err := ParseEIDASCertDer(block.Bytes)
+		cert, issuer, subject, err = ParseEIDASCertDer(block.Bytes)
 		if err != nil {
 			return nil, nil, nil, "", errors.Wrap(err, "error parsing certificate")
 		}

@@ -14,7 +14,6 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/hesusruiz/onboardng/internal/configuration"
 	"github.com/hesusruiz/onboardng/internal/db"
 	"github.com/hesusruiz/onboardng/internal/x509util"
 	"github.com/hesusruiz/utils/errl"
@@ -277,24 +276,6 @@ func (s *Server) APIAdminGetFile(w http.ResponseWriter, r *http.Request) {
 	fileID := r.PathValue("file_id")
 	if fileID == "" {
 		http.Error(w, "Missing file ID", http.StatusBadRequest)
-		return
-	}
-
-	if s.Runtime != configuration.Production && fileID == "test-file-id" { // This is for testing purposes only
-		file := db.RegistrationFile{
-			FileID:         "test-file-id",
-			RegistrationID: "1234",
-			Name:           "test-file.txt",
-			MimeType:       "text/plain",
-			Size:           1024,
-			Status:         "uploaded",
-			Content:        []byte("Hello, how are you?\nThis is a test file."),
-			CreatedAt:      time.Now(),
-			UpdatedAt:      time.Now(),
-		}
-		w.Header().Set("Content-Type", file.MimeType)
-		w.Header().Set("Content-Disposition", "inline; filename=\""+file.Name+"\"")
-		w.Write(file.Content)
 		return
 	}
 
