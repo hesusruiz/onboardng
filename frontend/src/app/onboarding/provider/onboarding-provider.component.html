@@ -1,0 +1,135 @@
+@if (currentStep >= 1 && currentStep <= 4) {
+  <div class="hidden md:block absolute bottom-16 w-[420px] pointer-events-none select-none z-[1]" style="left: max(calc(50% + 423px), calc(100% - 315px))">
+    <div class="w-full watermark-logo" style="aspect-ratio: 1030/945"></div>
+  </div>
+}
+
+<div class="relative z-[2] h-full">
+@switch (currentStep) {
+  @case (0) {
+    <app-provider-landing
+      [meetsRequirementsControl]="meetsRequirementsControl"
+      (next)="goNext()">
+    </app-provider-landing>
+  }
+  @case (1) {
+    <app-terms
+      [acceptTermsControl]="acceptTermsControl"
+      termsLabel="DOME Terms and Conditions for Providers"
+      termsUrl="https://onboard.dome.mycredential.eu/api/files/pbc_365946868/ki9zjz96v7re63n/20250303_dome_t_c_for_cloud_customers_6zqyb3yz7d.pdf"
+      (next)="goNext()"
+      (back)="goBack()">
+    </app-terms>
+  }
+  @case (2) {
+    <app-representative
+      [formGroup]="representativeGroup"
+      [isLoading]="isValidatingEmail"
+      [errorMessage]="emailError"
+      confirmText="I confirm I am authorised to manage this account on behalf of my organisation."
+      (next)="validateEmailAndNext()"
+      (back)="goBack()">
+    </app-representative>
+  }
+  @case (4) {
+    <app-company-info
+      [formGroup]="companyGroup"
+      [isLoading]="isRegistering"
+      [errorMessage]="registerError"
+      (complete)="onComplete()"
+      (back)="goBackToRepresentative()">
+    </app-company-info>
+  }
+  @case (5) {
+    <app-provider-success></app-provider-success>
+  }
+}
+</div>
+
+@if (showCompanyRegisteredModal) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center">
+    <div class="absolute inset-0" style="background: rgba(11, 21, 40, 0.5); backdrop-filter: blur(8px)"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl p-10 w-full max-w-[627px] mx-6 flex flex-col items-center gap-8">
+      <button
+        type="button"
+        class="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+        (click)="showCompanyRegisteredModal = false">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+      <div class="flex flex-col items-center gap-4 text-center">
+        <div class="w-16 h-16 rounded-full flex items-center justify-center" style="background-color: #F7F9FD">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-11 h-11" fill="none" viewBox="0 0 24 24" stroke="#668ED6" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 110 20A10 10 0 0112 2z" />
+          </svg>
+        </div>
+        <h2 class="text-2xl font-bold text-gray-900">Company profile already registered</h2>
+        <p class="text-base text-gray-600">
+          A company profile with this ID already exists.<br>
+          If you belong to this organisation, please contact us.
+        </p>
+      </div>
+      <a
+        href="mailto:support@dome-marketplace.eu"
+        class="px-10 py-3 text-sm font-medium text-white rounded-md bg-[#2D58A7] hover:bg-[#254d96] transition-colors">
+        Contact us
+      </a>
+    </div>
+  </div>
+}
+
+@if (showAlreadyRegisteredModal) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center">
+    <div class="absolute inset-0" style="background: rgba(11, 21, 40, 0.5); backdrop-filter: blur(8px)"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl p-10 w-full max-w-[627px] mx-6 flex flex-col items-center gap-8">
+      <button
+        type="button"
+        class="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+        (click)="showAlreadyRegisteredModal = false">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+      <div class="flex flex-col items-center gap-4 text-center">
+        <div class="w-16 h-16 rounded-full flex items-center justify-center" style="background-color: #F7F9FD">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-11 h-11" fill="none" viewBox="0 0 24 24" stroke="#668ED6" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 110 20A10 10 0 0112 2z" />
+          </svg>
+        </div>
+        <h2 class="text-2xl font-bold text-gray-900">Email already registered</h2>
+        <p class="text-base text-gray-600 max-w-md">
+          This email address is already registered, please log in using your credentials or contact us if you need support.
+        </p>
+      </div>
+      <div class="flex gap-4 w-full">
+        <a
+          href="mailto:support@dome-marketplace.eu"
+          class="flex-1 text-center py-3 text-sm font-medium text-primary-100 border border-primary-100 rounded-md hover:bg-primary-100 hover:text-white transition-colors">
+          Contact us
+        </a>
+        <a
+          href="https://verifier.dome-marketplace-sbx.org/login?authRequest=openid4vp%3A%2F%2F%3Fclient_id%3Ddid%253Akey%253AzDnaevN85Z7VJgcBoQeqQU7d8kZpuVhDSdm8hQtJYWjvek3VL%26request_uri%3Dhttps%253A%252F%252Fverifier.dome-marketplace-sbx.org%252Foid4vp%252Fauth-request%252F3232d6db-49c7-4ddd-aa86-6bf0e90ca88f&state=f415d4e4-11d9-45ea-b2f6-f3cfcff7d2b5&homeUri=https%3A%2F%2Fdome-marketplace-sbx.org"
+          class="flex-1 text-center py-3 text-sm font-medium text-white rounded-md bg-[#2D58A7] hover:bg-[#254d96] transition-colors">
+          Login
+        </a>
+      </div>
+    </div>
+  </div>
+}
+
+@if (showVerificationModal) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center">
+    <div class="absolute inset-0" style="background: rgba(11, 21, 40, 0.5); backdrop-filter: blur(8px)"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl p-6 md:p-10 w-full max-w-[846px] mx-4 md:mx-6">
+      <app-email-verification
+        [email]="representativeGroup.get('email')?.value"
+        [isLoading]="isVerifyingCode"
+        [errorMessage]="verifyError"
+        (verify)="onVerify($event)"
+        (resend)="onResendCode()"
+        (editEmail)="onEditEmail()">
+      </app-email-verification>
+    </div>
+  </div>
+}

@@ -1,6 +1,7 @@
 package credissuance
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -32,6 +33,9 @@ func TestLEARIssuanceRequest(t *testing.T) {
 		credentialIssuancePath: server.URL + "/issuances",
 	}
 
+	// Create an http.Client and set it to the LEARIssuance struct
+	issuer.httpClient = server.Client()
+
 	// Use a sample credential
 	cred := &LEARIssuanceRequestBody{
 		Payload: Payload{
@@ -40,7 +44,7 @@ func TestLEARIssuanceRequest(t *testing.T) {
 	}
 
 	// Perform the issuance request
-	resp, err := issuer.LEARIssuanceRequest("test-token", cred)
+	resp, err := issuer.LEARIssuanceRequest(context.Background(), "test-token", cred)
 	if err != nil {
 		t.Fatalf("LEARIssuanceRequest failed: %v", err)
 	}

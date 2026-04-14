@@ -37,6 +37,7 @@ WORKDIR /
 COPY --from=onboardngbuilder /onboardng /onboardng
 COPY src /src
 COPY docs /docs
+COPY dist/browser /dist/browser
 COPY --from=sqlite3_rsync --chmod=755 /usr/local/bin/sqlite3_rsync /usr/local/bin/sqlite3_rsync
 
 HEALTHCHECK \

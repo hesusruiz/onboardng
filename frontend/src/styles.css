@@ -1,0 +1,18 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/forms";
+
+@source "../src/**/*.html";
+@source "../src/**/*.ts";
+
+@theme {
+  --color-primary-50: #1E4A8F;
+  --color-primary-100: #2D58A7;
+  --font-sans: "Blinker", system-ui, sans-serif;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: "Blinker", system-ui, sans-serif;
+}

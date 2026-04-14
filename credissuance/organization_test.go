@@ -1,6 +1,7 @@
 package credissuance
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -8,6 +9,8 @@ import (
 )
 
 func TestOrganizationAPI(t *testing.T) {
+	ctx := context.Background()
+
 	// Simple mock server to respond to Organization API calls
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check for Authorization header
@@ -16,7 +19,7 @@ func TestOrganizationAPI(t *testing.T) {
 		}
 
 		switch r.URL.Path {
-		case "/organization":
+		case "/tmf-api/party/v4/organization":
 			if r.Method == "GET" {
 				orgs := []Organization{{ID: "1", Name: "Org 1"}}
 				json.NewEncoder(w).Encode(orgs)
@@ -27,7 +30,7 @@ func TestOrganizationAPI(t *testing.T) {
 				w.WriteHeader(http.StatusCreated)
 				json.NewEncoder(w).Encode(org)
 			}
-		case "/organization/1":
+		case "/tmf-api/party/v4/organization/1":
 			if r.Method == "GET" {
 				org := Organization{ID: "1", Name: "Org 1"}
 				json.NewEncoder(w).Encode(org)
@@ -48,13 +51,15 @@ func TestOrganizationAPI(t *testing.T) {
 	// Create a dummy LEARIssuance instance
 	l := &LEARIssuance{
 		verifierURL: server.URL,
+		tmForumURL:  server.URL,
+		httpClient:  server.Client(),
 	}
 
 	// Token
 	accessToken := "test-token"
 
 	t.Run("ListOrganizations", func(t *testing.T) {
-		orgs, err := l.ListOrganizations(accessToken, "", 0, 0)
+		orgs, err := l.TMFListOrganizations(ctx, accessToken, "", 0, 0)
 		if err != nil {
 			t.Fatalf("ListOrganizations failed: %v", err)
 		}
@@ -65,7 +70,7 @@ func TestOrganizationAPI(t *testing.T) {
 
 	t.Run("CreateOrganization", func(t *testing.T) {
 		newOrg := Organization_Create{TradingName: "Test Org"}
-		org, err := l.CreateOrganization(accessToken, &newOrg)
+		org, err := l.TMFCreateOrganization(ctx, accessToken, &newOrg)
 		if err != nil {
 			t.Fatalf("CreateOrganization failed: %v", err)
 		}
@@ -75,7 +80,7 @@ func TestOrganizationAPI(t *testing.T) {
 	})
 
 	t.Run("RetrieveOrganization", func(t *testing.T) {
-		org, err := l.RetrieveOrganization(accessToken, "1", "")
+		org, err := l.TMFRetrieveOrganization(ctx, accessToken, "1", "")
 		if err != nil {
 			t.Fatalf("RetrieveOrganization failed: %v", err)
 		}
@@ -84,11 +89,11 @@ func TestOrganizationAPI(t *testing.T) {
 		}
 	})
 
-	t.Run("PatchOrganization", func(t *testing.T) {
+	t.Run("UpdateOrganization", func(t *testing.T) {
 		update := Organization_Update{Name: "Updated Name"}
-		org, err := l.PatchOrganization(accessToken, "1", &update)
+		org, err := l.TMFUpdateOrganization(ctx, accessToken, "1", &update)
 		if err != nil {
-			t.Fatalf("PatchOrganization failed: %v", err)
+			t.Fatalf("UpdateOrganization failed: %v", err)
 		}
 		if org.ID != "1" {
 			t.Errorf("expected org ID 1, got %s", org.ID)
@@ -96,7 +101,7 @@ func TestOrganizationAPI(t *testing.T) {
 	})
 
 	t.Run("DeleteOrganization", func(t *testing.T) {
-		err := l.DeleteOrganization(accessToken, "1")
+		err := l.TMFDeleteOrganization(ctx, accessToken, "1")
 		if err != nil {
 			t.Fatalf("DeleteOrganization failed: %v", err)
 		}
@@ -112,8 +117,12 @@ func TestOrganizationAPI(t *testing.T) {
 		}))
 		defer serverEmpty.Close()
 
-		lEmpty := &LEARIssuance{verifierURL: serverEmpty.URL}
-		err := lEmpty.DeleteOrganization("", "1")
+		lEmpty := &LEARIssuance{
+			verifierURL: serverEmpty.URL,
+			tmForumURL:  serverEmpty.URL,
+			httpClient:  serverEmpty.Client(),
+		}
+		err := lEmpty.TMFDeleteOrganization(ctx, "", "1")
 		if err != nil {
 			t.Fatalf("DeleteOrganization failed: %v", err)
 		}
@@ -136,15 +145,15 @@ func TestMyOrganization(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, gotErr := MyOrganization()
+			got, gotErr := NewSampleTMFOrganization()
 			if gotErr != nil {
 				if !tt.wantErr {
-					t.Errorf("MyOrganization() failed: %v", gotErr)
+					t.Errorf("NewSampleTMFOrganization() failed: %v", gotErr)
 				}
 				return
 			}
 			if tt.wantErr {
-				t.Fatal("MyOrganization() succeeded unexpectedly")
+				t.Fatal("NewSampleTMFOrganization() succeeded unexpectedly")
 			}
 			_ = got
 		})

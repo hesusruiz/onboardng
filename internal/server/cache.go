@@ -12,10 +12,12 @@ type RateLimitEntry struct {
 type VerificationCodeEntry struct {
 	Code      string
 	CreatedAt time.Time
+	Attempts  int
 }
 
 // RegisterEmailAttempt checks if an email is allowed to receive a code and updates the rate limiter.
 func (s *Server) RegisterEmailAttempt(email string) bool {
+	// Cleanup expired entries
 	s.cleanupExpired()
 
 	s.RateLimiterMu.Lock()
@@ -41,6 +43,9 @@ func (s *Server) RegisterEmailAttempt(email string) bool {
 
 // StoreVerificationCode saves a new verification code for an email.
 func (s *Server) StoreVerificationCode(email, code string) {
+	// Cleanup expired entries
+	s.cleanupExpired()
+
 	s.CodesMu.Lock()
 	defer s.CodesMu.Unlock()
 	s.VerificationCodes[email] = &VerificationCodeEntry{
@@ -50,12 +55,21 @@ func (s *Server) StoreVerificationCode(email, code string) {
 }
 
 // VerifyCode checks if the provided code is correct for the given email.
+// It tracks failed attempts and deletes the code if a limit is reached to prevent brute force.
 func (s *Server) VerifyCode(email, code string) bool {
-	s.CodesMu.RLock()
-	defer s.CodesMu.RUnlock()
+	s.CodesMu.Lock()
+	defer s.CodesMu.Unlock()
 
 	entry, exists := s.VerificationCodes[email]
-	if !exists || entry.Code != code {
+	if !exists {
+		return false
+	}
+
+	if entry.Code != code {
+		entry.Attempts++
+		if entry.Attempts >= 3 {
+			delete(s.VerificationCodes, email)
+		}
 		return false
 	}
 
@@ -69,10 +83,10 @@ func (s *Server) DeleteVerificationCode(email string) {
 	delete(s.VerificationCodes, email)
 }
 
-// cleanupExpired removes entries older than 15 minutes from the in-memory caches.
+// cleanupExpired removes entries older than 1 hour from the in-memory caches.
 func (s *Server) cleanupExpired() {
 	now := time.Now()
-	expirationLimit := 15 * time.Minute
+	expirationLimit := 1 * time.Hour
 
 	// Cleanup EmailRateLimiter
 	s.RateLimiterMu.Lock()

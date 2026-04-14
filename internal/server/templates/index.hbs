@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>AdminRegistry - Registration Dashboard</title>
+    <!-- Google Fonts: Inter for High-Definition Editorial feel -->
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap"
+        rel="stylesheet" />
+    <!-- Material Symbols for Literal Transcription -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "outline-variant": "#c7c4d8",
+                        "secondary-fixed-dim": "#b9c7df",
+                        "surface-bright": "#f6fafe",
+                        "tertiary-container": "#a44100",
+                        "secondary-container": "#d5e3fc",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "error": "#ba1a1a",
+                        "primary-fixed-dim": "#c3c0ff",
+                        "surface-container": "#eaeef2",
+                        "secondary": "#515f74",
+                        "on-tertiary-container": "#ffd2be",
+                        "surface-variant": "#dfe3e7",
+                        "surface": "#f6fafe",
+                        "primary": "#3525cd",
+                        "inverse-surface": "#2c3134",
+                        "on-secondary-fixed": "#0d1c2e",
+                        "on-primary-container": "#dad7ff",
+                        "primary-fixed": "#e2dfff",
+                        "tertiary": "#7e3000",
+                        "secondary-fixed": "#d5e3fc",
+                        "surface-container-highest": "#dfe3e7",
+                        "outline": "#777587",
+                        "on-primary-fixed-variant": "#3323cc",
+                        "primary-container": "#4f46e5",
+                        "on-primary": "#ffffff",
+                        "surface-tint": "#4d44e3",
+                        "on-secondary-fixed-variant": "#3a485b",
+                        "surface-container-high": "#e4e9ed",
+                        "inverse-on-surface": "#edf1f5",
+                        "on-surface-variant": "#464555",
+                        "on-error": "#ffffff",
+                        "on-secondary-container": "#57657a",
+                        "surface-dim": "#d6dade",
+                        "on-secondary": "#ffffff",
+                        "on-surface": "#171c1f",
+                        "background": "#f6fafe",
+                        "inverse-primary": "#c3c0ff",
+                        "on-primary-fixed": "#0f0069",
+                        "tertiary-fixed": "#ffdbcc",
+                        "on-tertiary-fixed": "#351000",
+                        "on-error-container": "#93000a",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary-fixed-dim": "#ffb695",
+                        "on-background": "#171c1f",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-low": "#f0f4f8",
+                        "error-container": "#ffdad6"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" },
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .hd-shadow {
+            box-shadow: 0 2px 2px rgba(23, 28, 31, 0.1), 0 12px 24px -8px rgba(23, 28, 31, 0.05);
+        }
+    </style>
+</head>
+
+<body class="bg-surface font-body text-on-surface min-h-screen">
+    <div class="admin-dashboard" x-data="adminDashboard()" x-init="initData()" x-cloak>
+
+        <!-- TopNavBar (Shared Component) -->
+        <header
+            class="bg-white dark:bg-slate-950 flex justify-between items-center w-full px-6 py-3 max-w-full mx-auto border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50">
+            <div class="flex items-center gap-8">
+                <div class="text-xl font-black text-indigo-600 dark:text-indigo-400 tracking-tighter uppercase"
+                    style="">
+                    Onboarding Admin</div>
+            </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto px-6 py-8">
+            <!-- Editorial Header -->
+            <div class="mb-10">
+
+                <h1 class="text-3xl font-extrabold text-on-surface tracking-tight leading-none mb-2" style="">
+                    Registration
+                    Pipeline</h1>
+            </div>
+            <!-- Filter Section: The "Command Center" -->
+            <div
+                class="bg-surface-container-high p-4 rounded-xl border border-outline-variant mb-8 flex flex-col md:flex-row gap-6 items-start md:items-center">
+                <div class="flex flex-col gap-2">
+                    <span class="text-xs font-bold uppercase tracking-widest text-on-surface-variant px-1"
+                        style="">Filter
+                        by Role</span>
+                    <div
+                        class="inline-flex rounded-lg border border-outline bg-surface-container-lowest overflow-hidden">
+                        <button class="px-6 py-2 text-sm font-bold bg-primary text-on-primary transition-all"
+                            style="">All</button>
+                        <button
+                            class="px-6 py-2 text-sm font-bold text-on-surface hover:bg-surface-variant border-l border-outline transition-all"
+                            style="">Sellers</button>
+                        <button
+                            class="px-6 py-2 text-sm font-bold text-on-surface hover:bg-surface-variant border-l border-outline transition-all"
+                            style="">Buyers</button>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <span class="text-xs font-bold uppercase tracking-widest text-on-surface-variant px-1"
+                        style="">Approval
+                        Status</span>
+                    <div
+                        class="inline-flex rounded-lg border border-outline bg-surface-container-lowest overflow-hidden">
+                        <button class="px-6 py-2 text-sm font-bold bg-primary text-on-primary transition-all"
+                            style="">All</button>
+                        <button
+                            class="px-6 py-2 text-sm font-bold text-on-surface hover:bg-surface-variant border-l border-outline transition-all"
+                            style="">Approved</button>
+                        <button
+                            class="px-6 py-2 text-sm font-bold text-on-surface hover:bg-surface-variant border-l border-outline transition-all"
+                            style="">Pending</button>
+                        <button
+                            class="px-6 py-2 text-sm font-bold text-on-surface hover:bg-surface-variant border-l border-outline transition-all"
+                            style="">Rejected</button>
+                    </div>
+                </div>
+                <div class="md:ml-auto self-end md:self-center">
+                    <button
+                        class="bg-surface-container-lowest text-on-surface border border-outline px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-white active:scale-95 transition-all"
+                        style="">
+                        <span class="material-symbols-outlined text-lg" data-icon="filter_list"
+                            style="">filter_list</span>
+                        Advanced Filters
+                    </button>
+                </div>
+            </div>
+            <!-- Registration Table (As Cards) -->
+            <div class="space-y-4 mb-8">
+                <template x-for="reg in registrations" :key="reg.registration_id">
+
+                    <!-- Rows -->
+                    <div
+                        class="grid grid-cols-12 gap-0 bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden hd-shadow group hover:border-primary transition-all">
+                        <div
+                            class="col-span-1 flex items-center justify-center bg-indigo-50 border-r border-outline-variant py-8">
+                            <template x-if="isSeller(reg) == true">
+                                <div
+                                    class="h-12 w-12 rounded-lg bg-primary-container flex items-center justify-center text-on-primary">
+                                    <span class="material-symbols-outlined text-2xl" data-icon="store"
+                                        style="">store</span>
+                                </div>
+                            </template>
+                            <template x-if="isSeller(reg) == false">
+                                <div
+                                    class="h-12 w-12 rounded-lg bg-secondary-container flex items-center justify-center text-on-secondary-container">
+                                    <span class="material-symbols-outlined text-2xl" data-icon="shopping_cart"
+                                        style="">shopping_cart</span>
+                                </div>
+                            </template>
+
+                        </div>
+                        <div class="col-span-4 p-6 flex flex-col justify-center border-r border-outline-variant">
+                            <h3 x-text="reg.first_name + ' ' + reg.last_name"
+                                class="text-xl font-extrabold text-on-surface mb-1" style=""></h3>
+                            <p x-text="reg.email" class="text-sm font-medium text-on-surface-variant mb-3" style=""></p>
+                            <div class="flex items-center gap-4">
+                                <div class="flex flex-col">
+                                    <span class="text-[10px] uppercase font-bold text-outline" style="">Company</span>
+                                    <span x-text="reg.company_name" class="text-xs font-semibold" style=" "></span>
+                                </div>
+                                <div class="flex flex-col border-l border-outline-variant pl-4">
+                                    <span class="text-[10px] uppercase font-bold text-outline" style="">VAT ID</span>
+                                    <span x-text="reg.vat_id" class="text-xs font-semibold" style=""></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-span-4 p-6 border-r border-outline-variant flex gap-4">
+                            <div class="flex-1 space-y-2">
+                                <div class="w-full py-1.5 px-3 rounded border text-[10px] font-bold text-center uppercase"
+                                    :class="{'bg-green-100 text-green-800 border-green-200': reg.notified, 'bg-slate-100 text-slate-400 border-slate-200': !reg.notified}"
+                                    style="">Notified</div>
+                                <div class="w-full py-1.5 px-3 rounded border text-[10px] font-bold text-center uppercase"
+                                    :class="{'bg-green-100 text-green-800 border-green-200': reg.issued, 'bg-slate-100 text-slate-400 border-slate-200': !reg.issued}"
+                                    style="">Issued</div>
+                                <div class="w-full py-1.5 px-3 rounded border text-[10px] font-bold text-center uppercase"
+                                    :class="{'bg-green-100 text-green-800 border-green-200': reg.tmf_registered, 'bg-slate-100 text-slate-400 border-slate-200': !reg.tmf_registered}"
+                                    style="">TMF Registered</div>
+                            </div>
+                            <div class="w-px bg-outline-variant h-full"></div>
+                            <div class="flex-1 space-y-2">
+                                <div class="w-full py-1.5 px-3 rounded border text-[10px] font-bold text-center uppercase"
+                                    :class="{'bg-green-100 text-green-800 border-green-200': reg.lear_completed, 'bg-slate-100 text-slate-400 border-slate-200': !reg.lear_completed}"
+                                    style="">LEAR Completed</div>
+                                <div class="w-full py-1.5 px-3 rounded border text-[10px] font-bold text-center uppercase"
+                                    :class="{'bg-green-100 text-green-800 border-green-200': reg.files_uploaded, 'bg-slate-100 text-slate-400 border-slate-200': !reg.files_uploaded}"
+                                    style="">Files Uploaded</div>
+                            </div>
+                        </div>
+                        <div class="col-span-3 p-6 flex flex-col items-center justify-center gap-3">
+                            <template x-if="reg.approved == 0">
+                                <span
+                                    class="px-8 py-2 bg-blue-100 text-blue-700 border-2 border-blue-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
+                                    style="">PENDING</span>
+                            </template>
+                            <template x-if="reg.approved == 1">
+                                <span
+                                    class="px-8 py-2 bg-green-100 text-green-700 border-2 border-green-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
+                                    style="">APPROVED</span>
+                            </template>
+                            <template x-if="reg.approved == 2">
+                                <span
+                                    class="px-8 py-2 bg-red-100 text-red-700 border-2 border-red-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
+                                    style="">REJECTED</span>
+                            </template>
+                            <a :href="'/admin/registration?vat_id=' + reg.vat_id"
+                                class="text-xs font-bold text-primary underline underline-offset-4 hover:text-on-primary-fixed-variant"
+                                style="">View Details</a>
+                        </div>
+                    </div>
+
+                </template>
+
+            </div>
+
+            <!-- Pagination Section -->
+            <div
+                class="flex flex-col md:flex-row items-center justify-between gap-4 pt-6 border-t border-outline-variant">
+                <div class="text-sm font-medium text-on-surface-variant">
+                    Showing <span class="font-bold text-on-surface">1</span> to <span x-text="registrations.length"
+                        class="font-bold text-on-surface"></span> of <span x-text="registrations.length"
+                        class="font-bold text-on-surface"></span>
+                    records
+                </div>
+                <nav class="inline-flex items-center -space-x-px gap-2">
+                    <button
+                        class="px-4 py-2 text-sm font-bold text-on-surface bg-surface-container-lowest border border-outline-variant rounded-lg hover:bg-surface-variant transition-all disabled:opacity-50 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-lg">chevron_left</span>
+                        Previous
+                    </button>
+                    <div class="flex items-center gap-1">
+                        <button
+                            class="w-10 h-10 flex items-center justify-center text-sm font-bold bg-primary text-on-primary rounded-lg shadow-sm transition-all shadow-indigo-200">1</button>
+                        <button
+                            class="w-10 h-10 flex items-center justify-center text-sm font-bold text-on-surface hover:bg-surface-variant rounded-lg transition-all">2</button>
+                        <button
+                            class="w-10 h-10 flex items-center justify-center text-sm font-bold text-on-surface hover:bg-surface-variant rounded-lg transition-all">3</button>
+                        <span class="px-2 text-outline">...</span>
+                        <button
+                            class="w-10 h-10 flex items-center justify-center text-sm font-bold text-on-surface hover:bg-surface-variant rounded-lg transition-all">12</button>
+                    </div>
+                    <button
+                        class="px-4 py-2 text-sm font-bold text-on-surface bg-surface-container-lowest border border-outline-variant rounded-lg hover:bg-surface-variant transition-all flex items-center gap-1">
+                        Next
+                        <span class="material-symbols-outlined text-lg">chevron_right</span>
+                    </button>
+                </nav>
+            </div>
+        </main>
+        <!-- BottomNavBar (Shared Component - Mobile Only) -->
+        <footer
+            class="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center px-4 py-3 pb-safe bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-50">
+            <a class="flex flex-col items-center justify-center text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg py-1 px-3 active:translate-y-0.5 transition-all"
+                href="#" style="">
+                <span class="material-symbols-outlined" data-icon="assignment" style="">assignment</span>
+                <span class="font-['Inter'] text-xs font-semibold uppercase tracking-wider mt-1" style="">Records</span>
+            </a>
+            <a class="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 hover:text-indigo-500 active:translate-y-0.5 transition-all"
+                href="#" style="">
+                <span class="material-symbols-outlined" data-icon="monitoring" style="">monitoring</span>
+                <span class="font-['Inter'] text-xs font-semibold uppercase tracking-wider mt-1"
+                    style="">Analytics</span>
+            </a>
+            <a class="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 hover:text-indigo-500 active:translate-y-0.5 transition-all"
+                href="#" style="">
+                <span class="material-symbols-outlined" data-icon="group" style="">group</span>
+                <span class="font-['Inter'] text-xs font-semibold uppercase tracking-wider mt-1" style="">Users</span>
+            </a>
+            <a class="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 hover:text-indigo-500 active:translate-y-0.5 transition-all"
+                href="#" style="">
+                <span class="material-symbols-outlined" data-icon="settings" style="">settings</span>
+                <span class="font-['Inter'] text-xs font-semibold uppercase tracking-wider mt-1"
+                    style="">Settings</span>
+            </a>
+        </footer>
+        <!-- FAB Suppression: Not rendered on dashboard -->
+    </div>
+    <script>
+        function adminDashboard() {
+            return {
+                registrations: [],
+                filesCache: {}, // mapped by vat_id
+                errorsCache: {}, // mapped by registration_id
+                expandedRow: null, // "id:type", e.g. "REG-123:files"
+                loading: false,
+                loadingSub: null,
+                message: '',
+                messageType: '',
+
+                async initData() {
+                    // Fetch registrations first
+                    await this.fetchRegistrations();
+                    // Eagerly fetch errors so we can highlight rows immediately
+                    await this.fetchErrors();
+                },
+
+                async callApi(endpoint) {
+                    try {
+                        const res = await fetch(endpoint, {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/json'
+                            }
+                        });
+                        const data = await res.json();
+                        if (!data.success) {
+                            throw new Error(data.message || 'API error');
+                        }
+                        return data;
+                    } catch (err) {
+                        this.messageType = 'error';
+                        this.message = 'Error communicating with server: ' + err.message;
+                        return null;
+                    }
+                },
+
+                async fetchRegistrations() {
+                    this.loading = true;
+                    const data = await this.callApi('/admin/api/registrations?limit=1000');
+                    if (data && data.data) {
+                        this.registrations = data.data;
+                    } else {
+                        // Mock data for testing
+                        this.registrations = [
+                            {
+                                "registration_id": "20260325-34789221",
+                                "email": "hesus.ruiz@gmail.com",
+                                "first_name": "Jesus",
+                                "last_name": "Ruiz",
+                                "company_name": "My Company",
+                                "country": "ES",
+                                "vat_id": "77777T",
+                                "street_address": "Fantastic Avenue 33",
+                                "city": "Madrid",
+                                "postal_code": "33333",
+                                "role": "Seller",
+                                "created_at": "2026-03-25T19:31:30.075472789Z",
+                                "updated_at": "2026-03-25T20:29:20.117604666Z",
+                                "notified": true,
+                                "issued": true,
+                                "tmf_registered": false,
+                                "lr_first_name": "Jesus",
+                                "lr_last_name": "Ruiz",
+                                "lr_email": "jesus@alastria.io",
+                                "lr_country": "AT",
+                                "lr_id_card": "12345678J",
+                                "lear_first_name": "Lear",
+                                "lear_last_name": "Lopez",
+                                "lear_email": "hesus.ruiz@gmail.com",
+                                "lear_country": "",
+                                "lear_address": "",
+                                "lear_id_card": "",
+                                "lear_mobile_number": "",
+                                "lear_completed": true,
+                                "files_uploaded": false,
+                                "approved": "pending"
+                            },
+                            {
+                                "registration_id": "20260325-222222",
+                                "email": "one.buyer@gmail.com",
+                                "first_name": "Perico",
+                                "last_name": "Perez",
+                                "company_name": "My Company",
+                                "country": "ES",
+                                "vat_id": "77777T",
+                                "street_address": "Fantastic Avenue 33",
+                                "city": "Madrid",
+                                "postal_code": "33333",
+                                "role": "Buyer",
+                                "created_at": "2026-03-25T19:31:30.075472789Z",
+                                "updated_at": "2026-03-25T20:29:20.117604666Z",
+                                "notified": true,
+                                "issued": true,
+                                "tmf_registered": false,
+                                "lr_first_name": "Jesus",
+                                "lr_last_name": "Ruiz",
+                                "lr_email": "jesus@alastria.io",
+                                "lr_country": "AT",
+                                "lr_id_card": "12345678J",
+                                "lear_first_name": "Lear",
+                                "lear_last_name": "Lopez",
+                                "lear_email": "hesus.ruiz@gmail.com",
+                                "lear_country": "",
+                                "lear_address": "",
+                                "lear_id_card": "",
+                                "lear_mobile_number": "",
+                                "lear_completed": false,
+                                "files_uploaded": false,
+                                "approved": "approved"
+                            },
+                            {
+                                "registration_id": "20260325-333333",
+                                "email": "juan.lopez@gmail.com",
+                                "first_name": "Juan",
+                                "last_name": "Lopez",
+                                "company_name": "My Company",
+                                "country": "ES",
+                                "vat_id": "77777T",
+                                "street_address": "Fantastic Avenue 33",
+                                "city": "Madrid",
+                                "postal_code": "33333",
+                                "role": "Buyer",
+                                "created_at": "2026-03-25T19:31:30.075472789Z",
+                                "updated_at": "2026-03-25T20:29:20.117604666Z",
+                                "notified": true,
+                                "issued": true,
+                                "tmf_registered": false,
+                                "lr_first_name": "Jesus",
+                                "lr_last_name": "Ruiz",
+                                "lr_email": "jesus@alastria.io",
+                                "lr_country": "AT",
+                                "lr_id_card": "12345678J",
+                                "lear_first_name": "Lear",
+                                "lear_last_name": "Lopez",
+                                "lear_email": "hesus.ruiz@gmail.com",
+                                "lear_country": "",
+                                "lear_address": "",
+                                "lear_id_card": "",
+                                "lear_mobile_number": "",
+                                "lear_completed": false,
+                                "files_uploaded": false,
+                                "approved": "rejected"
+                            }
+
+                        ]
+                    }
+                    this.loading = false;
+                },
+
+                async fetchFiles() {
+                    if (Object.keys(this.filesCache).length === 0) {
+                        const data = await this.callApi('/admin/api/registration-files?limit=5000');
+                        if (data && data.data) {
+                            data.data.forEach(f => {
+                                if (!this.filesCache[f.vat_id]) {
+                                    this.filesCache[f.vat_id] = [];
+                                }
+                                this.filesCache[f.vat_id].push(f);
+                            });
+                        }
+                    }
+                },
+
+                async fetchErrors() {
+                    if (Object.keys(this.errorsCache).length === 0) {
+                        const data = await this.callApi('/admin/api/registration-logs?limit=5000');
+                        if (data && data.data) {
+                            data.data.forEach(e => {
+                                if (!this.errorsCache[e.registration_id]) {
+                                    this.errorsCache[e.registration_id] = [];
+                                }
+                                this.errorsCache[e.registration_id].push(e);
+                            });
+                        }
+                    }
+                },
+
+                async toggleExpansion(reg, type) {
+                    const key = reg.registration_id + ':' + type;
+                    if (this.expandedRow === key) {
+                        this.expandedRow = null;
+                        return;
+                    }
+
+                    this.expandedRow = key;
+
+                    if (type === 'files') {
+                        this.loadingSub = 'files';
+                        await this.fetchFiles();
+                        this.loadingSub = null;
+                    } else if (type === 'errors') {
+                        this.loadingSub = 'errors';
+                        await this.fetchErrors();
+                        this.loadingSub = null;
+                    }
+                },
+
+                isExpanded(reg, type) {
+                    return this.expandedRow === reg.registration_id + ':' + type;
+                },
+
+                isSeller(reg) {
+                    return reg.role === 'Seller';
+                },
+
+                getFiles(vatId) {
+                    return this.filesCache[vatId] || [];
+                },
+
+                getErrors(regId) {
+                    return this.errorsCache[regId] || [];
+                },
+
+                formatDate(d) {
+                    if (!d) return '';
+                    const date = new Date(d);
+                    const yyyy = date.getFullYear();
+                    const mm = String(date.getMonth() + 1).padStart(2, '0');
+                    const dd = String(date.getDate()).padStart(2, '0');
+                    const hh = String(date.getHours()).padStart(2, '0');
+                    const min = String(date.getMinutes()).padStart(2, '0');
+                    const ss = String(date.getSeconds()).padStart(2, '0');
+                    return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+                },
+
+                formatBytes(bytes, decimals = 2) {
+                    if (!+bytes) return '0 Bytes';
+                    const k = 1024;
+                    const dm = decimals < 0 ? 0 : decimals;
+                    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+                    const i = Math.floor(Math.log(bytes) / Math.log(k));
+                    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+                }
+            }
+        }
+    </script>
+
+</body>
+
+</html>

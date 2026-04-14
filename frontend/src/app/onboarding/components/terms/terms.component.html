@@ -1,0 +1,48 @@
+<div class="max-w-[846px] mx-auto px-6 pb-24 overflow-y-auto h-full">
+  <app-progress-bar
+    [currentStep]="1"
+    [totalSteps]="3"
+    stepTitle="Terms and Conditions">
+  </app-progress-bar>
+
+  <div class="mt-16">
+    <h2 class="text-xl md:text-2xl lg:text-[30px] font-bold text-gray-900 mb-3">Terms and Conditions</h2>
+    <p class="text-xl font-normal leading-8 text-[#4C5A6B] mb-8">
+      Please review and accept the following documents to continue with your registration.
+    </p>
+
+    <a [href]="termsUrl" target="_blank"
+      class="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors mb-3">
+      <span class="text-sm text-gray-700">{{ termsLabel }}</span>
+      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+      </svg>
+    </a>
+
+    <a href="https://onboard.dome.mycredential.eu/api/files/pbc_365946868/y31nr4mp2f7hr6f/20250303_dome_terms_and_conditions_0btzif2sij.pdf" target="_blank"
+      class="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors mb-8">
+      <span class="text-sm text-gray-700">DOME Marketplace Privacy Policy</span>
+      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+      </svg>
+    </a>
+
+    <label class="flex items-center gap-3 cursor-pointer">
+      <input
+        type="checkbox"
+        [formControl]="acceptTermsControl"
+        class="w-5 h-5 text-primary-100 border-gray-300 rounded focus:ring-0 focus:outline-none cursor-pointer" />
+      <span class="text-sm text-gray-700">
+        I have read and accept the DOME Terms and Conditions and the Dome Marketplace Privacy Policy
+      </span>
+    </label>
+  </div>
+</div>
+
+<app-step-footer
+  [showBack]="true"
+  nextLabel="Continue"
+  [nextDisabled]="!acceptTermsControl.valid"
+  (back)="back.emit()"
+  (next)="next.emit()">
+</app-step-footer>

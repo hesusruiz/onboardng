@@ -48,8 +48,15 @@ func generate(cfg configuration.Config) error {
 		return err
 	}
 
+	adminPages, err := filepath.Glob(filepath.Join(cfg.SrcDir, "admin/*.html"))
+	if err != nil {
+		slog.Error("❌ Admin Page Glob Error", "error", err)
+		return err
+	}
+
 	// Create the target dir if it doesn't exist
 	os.MkdirAll(cfg.DestDir, 0755)
+	os.MkdirAll(filepath.Join(cfg.DestDir, "admin"), 0755)
 	slog.Info("Generating static files...", "dest_dir", cfg.DestDir)
 
 	// If we have an assets directory in the source, copy it verbatim recursively
@@ -57,39 +64,49 @@ func generate(cfg configuration.Config) error {
 		copyDir(filepath.Join(cfg.SrcDir, "assets"), filepath.Join(cfg.DestDir, "assets"))
 	}
 
-	for _, page := range pages {
-		pageBase := filepath.Base(page)
+	groups := []struct {
+		files  []string
+		subDir string
+	}{
+		{pages, ""},
+		{adminPages, "admin"},
+	}
 
-		// Clone the layout template so we don't pollute the shared one with this page's content
-		tmpl, err := layoutTmpl.Clone()
-		if err != nil {
-			slog.Error("❌ Template Clone Error", "page", page, "error", err)
-			continue
+	for _, group := range groups {
+		for _, page := range group.files {
+			pageBase := filepath.Base(page)
+
+			// Clone the layout template so we don't pollute the shared one with this page's content
+			tmpl, err := layoutTmpl.Clone()
+			if err != nil {
+				slog.Error("❌ Template Clone Error", "page", page, "error", err)
+				continue
+			}
+
+			// Parse the specific page
+			_, err = tmpl.ParseFiles(page)
+			if err != nil {
+				slog.Error("❌ Page Template Parse Error", "page", page, "error", err)
+				continue
+			}
+
+			outputFile, _ := os.Create(filepath.Join(cfg.DestDir, group.subDir, pageBase))
+
+			templateData := map[string]any{
+				"AppName":      cfg.AppName,
+				"Environments": cfg.Environments,
+				"Countries":    common.EEACountries,
+			}
+
+			// We execute "layout.html" which should include "content" (defined in the page)
+			err = tmpl.ExecuteTemplate(outputFile, "layout.html", templateData)
+			if err != nil {
+				slog.Error("❌ Template Execution Error", "page", page, "error", err)
+				outputFile.Close() // Ensure file is closed on error
+				return err
+			}
+			outputFile.Close()
 		}
-
-		// Parse the specific page
-		_, err = tmpl.ParseFiles(page)
-		if err != nil {
-			slog.Error("❌ Page Template Parse Error", "page", page, "error", err)
-			continue
-		}
-
-		outputFile, _ := os.Create(filepath.Join(cfg.DestDir, pageBase))
-
-		templateData := map[string]any{
-			"AppName":      cfg.AppName,
-			"Environments": cfg.Environments,
-			"Countries":    common.Countries,
-		}
-
-		// We execute "layout.html" which should include "content" (defined in the page)
-		err = tmpl.ExecuteTemplate(outputFile, "layout.html", templateData)
-		if err != nil {
-			slog.Error("❌ Template Execution Error", "page", page, "error", err)
-			outputFile.Close() // Ensure file is closed on error
-			return err
-		}
-		outputFile.Close()
 	}
 	slog.Info("✅ Assets copied and HTML pages regenerated.")
 	return nil
