@@ -62,6 +62,7 @@ type Server struct {
 	Handler           http.Handler
 	AdminUser         string
 	AdminPassword     string
+	Features          configuration.Features
 }
 
 func NewServer(runtime configuration.RuntimeEnv,
@@ -70,7 +71,8 @@ func NewServer(runtime configuration.RuntimeEnv,
 	mailService MailServiceProvider,
 	staticFilesDir string,
 	adminUser string,
-	adminPassword string) *Server {
+	adminPassword string,
+	features configuration.Features) *Server {
 
 	s := &Server{
 		Runtime:           runtime,
@@ -82,6 +84,7 @@ func NewServer(runtime configuration.RuntimeEnv,
 		IPLimiters:        make(map[string]*rate.Limiter),
 		AdminUser:         adminUser,
 		AdminPassword:     adminPassword,
+		Features:          features,
 	}
 
 	mux := http.NewServeMux()
@@ -116,6 +119,7 @@ func NewServer(runtime configuration.RuntimeEnv,
 	mux.HandleFunc("/api/verify-code", s.LogRequest(s.EnableCORS(s.HandleValidateEmailCode)))
 	mux.HandleFunc("/api/register", s.LogRequest(s.EnableCORS(s.HandleRegister)))
 	mux.HandleFunc("/api/representatives", s.LogRequest(s.EnableCORS(s.HandleUpdateRepresentatives)))
+	mux.HandleFunc("/api/orgstatus", s.LogRequest(s.EnableCORS(s.HandleOrgStatus)))
 	mux.HandleFunc("/health", s.HandleHealth)
 
 	// Admin routes

@@ -195,6 +195,35 @@ func (s *Server) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	s.SendJSON(w, r, http.StatusOK, true, "OK", nil)
 }
 
+func (s *Server) HandleOrgStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	vatID := r.URL.Query().Get("vat_id")
+	if vatID == "" {
+		http.Error(w, "Missing vat_id", http.StatusBadRequest)
+		return
+	}
+
+	reg, err := s.DB.GetRegistrationByVatID(vatID)
+	if err != nil {
+		http.Error(w, "Registration not found", http.StatusNotFound)
+		return
+	}
+
+	resp := struct {
+		Role     string `json:"role"`
+		Approved int    `json:"approved"`
+	}{
+		Role:     reg.Role,
+		Approved: reg.Approved,
+	}
+
+	s.SendJSON(w, r, http.StatusOK, true, "Registration fetched successfully", resp)
+}
+
 func (s *RegistrationRequest) Validate() error {
 	if s.FirstName == "" {
 		return fmt.Errorf("first name is required")
@@ -316,29 +345,31 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	// In PRO, we use the first organization found and continue with the registration.
 	// In other environments, we continue with the registration, deleting all orgs except the first.
 	var existingOrgID string
-	existingOrgs, _ := s.Issuer.TMFGetOrganizationByELSI(r.Context(), token, requestData.VatId)
-	if len(existingOrgs) > 0 {
-		slog.Info("Organization already exists in TMF server", "vatId", requestData.VatId)
+	if s.Features.TMFServerEnabled {
+		existingOrgs, _ := s.Issuer.TMFGetOrganizationByELSI(r.Context(), token, requestData.VatId)
+		if len(existingOrgs) > 0 {
+			slog.Info("Organization already exists in TMF server", "vatId", requestData.VatId)
 
-		switch s.Runtime {
+			switch s.Runtime {
 
-		case configuration.Production:
-			slog.Info("Using the first organization found and continuing", "environment", s.Runtime)
-			existingOrgID = existingOrgs[0].ID
+			case configuration.Production:
+				slog.Info("Using the first organization found and continuing", "environment", s.Runtime)
+				existingOrgID = existingOrgs[0].ID
 
-		case configuration.Development, configuration.Preproduction:
-			slog.Info("Deleting all organizations except the first and continuing", "environment", s.Runtime)
-			existingOrgID = existingOrgs[0].ID
-			// Delete all organizations except the first one
-			for i := 1; i < len(existingOrgs); i++ {
-				org := existingOrgs[i]
-				if err := s.Issuer.TMFDeleteOrganization(r.Context(), token, org.ID); err != nil {
-					err = errl.Errorf("Failed to delete organization for registration: %v", err)
-					slog.Error("❌ Error deleting organization", "error", err)
+			case configuration.Development, configuration.Preproduction:
+				slog.Info("Deleting all organizations except the first and continuing", "environment", s.Runtime)
+				existingOrgID = existingOrgs[0].ID
+				// Delete all organizations except the first one
+				for i := 1; i < len(existingOrgs); i++ {
+					org := existingOrgs[i]
+					if err := s.Issuer.TMFDeleteOrganization(r.Context(), token, org.ID); err != nil {
+						err = errl.Errorf("Failed to delete organization for registration: %v", err)
+						slog.Error("❌ Error deleting organization", "error", err)
+					}
+					slog.Info("Existing organization deleted from TM Forum server", "orgId", org.ID)
 				}
-				slog.Info("Existing organization deleted from TM Forum server", "orgId", org.ID)
-			}
 
+			}
 		}
 	}
 
@@ -384,21 +415,23 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		slog.Error("❌ Error performing issuance", "error", err)
 	}
 
-	if existingOrgID != "" {
-		err = updateTMForumOrganization(r.Context(), token, existingOrgID, requestData, reg, s)
-	} else {
-		err = createTMForumOrganization(r.Context(), token, requestData, reg, s)
-	}
-	if err != nil {
-		slog.Error("❌ Error updating TM Forum", "error", err)
-		// Record the error in the database
-		_ = s.DB.SaveRegistrationLog(&db.RegistrationLog{
-			RegistrationID: reg.RegistrationID,
-			Email:          reg.Email,
-			VatID:          reg.VatID,
-			Type:           "error",
-			Message:        fmt.Sprintf("TM Forum update error: %v", err),
-		})
+	if s.Features.TMFServerEnabled {
+		if existingOrgID != "" {
+			err = updateTMForumOrganization(r.Context(), token, existingOrgID, requestData, reg, s)
+		} else {
+			err = createTMForumOrganization(r.Context(), token, requestData, reg, s)
+		}
+		if err != nil {
+			slog.Error("❌ Error updating TM Forum", "error", err)
+			// Record the error in the database
+			_ = s.DB.SaveRegistrationLog(&db.RegistrationLog{
+				RegistrationID: reg.RegistrationID,
+				Email:          reg.Email,
+				VatID:          reg.VatID,
+				Type:           "error",
+				Message:        fmt.Sprintf("TM Forum update error: %v", err),
+			})
+		}
 	}
 
 	s.SendJSON(w, r, http.StatusOK, true, "Registration successful", nil)

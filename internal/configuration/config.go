@@ -56,6 +56,14 @@ type EnvConfig struct {
 	TMForum TMForumConfig `yaml:"tmforum"`
 	// The mail configuration.
 	Mail MailConfig `yaml:"mail"`
+
+	// The features configuration.
+	Features Features `yaml:"features"`
+}
+
+// Features defines a set of feature flags which may depend on the environment at a given time
+type Features struct {
+	TMFServerEnabled bool `yaml:"tmfServerEnabled"`
 }
 
 func (e *EnvConfig) String() string {

@@ -101,7 +101,7 @@ func Run() error {
 
 		cfg := LoadEncryptedConfig(*serveCfgPath, secretKey)
 
-		return run(cfg, *envFlag, *port, *watchFlag, secretKey)
+		return serve(cfg, *envFlag, *port, *watchFlag, secretKey)
 
 	case "generate":
 		// Generate the frontend
@@ -158,7 +158,7 @@ func usage(runCmd, generateCmd, sealCmd *flag.FlagSet) {
 	fmt.Println()
 }
 
-func run(cfg configuration.Config, envFlag string, port string, watchFlag bool, secretKey string) error {
+func serve(cfg configuration.Config, envFlag string, port string, watchFlag bool, secretKey string) error {
 
 	runtimeEnv := configuration.RuntimeEnv(envFlag)
 
@@ -195,6 +195,7 @@ func run(cfg configuration.Config, envFlag string, port string, watchFlag bool, 
 		TMForum: configuration.TMForumConfig{
 			BaseURL: srvConfig.TMForum.BaseURL,
 		},
+		Features: srvConfig.Features,
 	}
 	issuanceService, err := credissuance.NewLEARIssuance(issuerCfg)
 	if err != nil {
@@ -243,7 +244,7 @@ func run(cfg configuration.Config, envFlag string, port string, watchFlag bool, 
 		}
 	}
 
-	srv := server.NewServer(runtimeEnv, dbService, issuanceService, mailService, cfg.DestDir, adminUser, adminPassword)
+	srv := server.NewServer(runtimeEnv, dbService, issuanceService, mailService, cfg.DestDir, adminUser, adminPassword, srvConfig.Features)
 
 	// Start Watcher if requested
 	if watchFlag {

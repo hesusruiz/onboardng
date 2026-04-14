@@ -188,7 +188,7 @@ func (s *Server) APIAdminGetRegistrationByVatID(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	vatID := r.URL.Query().Get("vat_id")
+	vatID := r.FormValue("vat_id")
 	if vatID == "" {
 		http.Error(w, "Missing vat_id", http.StatusBadRequest)
 		return
