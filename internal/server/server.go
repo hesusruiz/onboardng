@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"log/slog"
 	"net"
 	"net/http"
@@ -9,44 +8,9 @@ import (
 
 	"golang.org/x/time/rate"
 
-	"github.com/hesusruiz/onboardng/credissuance"
 	"github.com/hesusruiz/onboardng/internal/configuration"
-	"github.com/hesusruiz/onboardng/internal/db"
+	"github.com/hesusruiz/utils/errl"
 )
-
-// DBServiceProvider enables easy testing or replacing of the database implementation
-type DBServiceProvider interface {
-	SaveRegistration(reg *db.RegistrationRecord) error
-	UpdateRegistrationStatus(reg *db.RegistrationRecord) error
-	UpdateApproval(registrationID string, approved int) error
-	UpdateRepresentativesByVatID(vatID string, rep *db.RegistrationRecord) error
-	SaveRegistrationLog(logEntry *db.RegistrationLog) error
-	GetRegistrationByVatID(vatID string) (*db.RegistrationRecord, error)
-	GetRegistrationByEmail(email string) (*db.RegistrationRecord, error)
-	GetRegistrationByEmailOrVatID(email string, vatID string) (*db.RegistrationRecord, error)
-	GetRegistrations(limit, offset int) ([]db.RegistrationRecord, error)
-	GetRegistrationLogs(vatID string, limit, offset int) ([]db.RegistrationLog, error)
-	GetRegistrationFiles(vatID string, limit, offset int) ([]db.RegistrationFile, error)
-	GetRegistrationFile(fileID string) (*db.RegistrationFile, error)
-	GetRegistrationByID(registrationID string) (*db.RegistrationRecord, error)
-}
-
-// MailServiceProvider enables easy testing or replacing of the mail implementation
-type MailServiceProvider interface {
-	SendVerificationCode(email string, code string) error
-	SendWelcomeEmail(reg *db.RegistrationRecord) error
-	SendIssuerError(reg *db.RegistrationRecord, payload string, errorMsg string) error
-}
-
-// IssuanceServiceProvider enables easy testing or replacing of the issuance implementation
-type IssuanceServiceProvider interface {
-	GetAccessToken(ctx context.Context) (string, error)
-	TMFGetOrganizationByELSI(ctx context.Context, accessToken string, elsi string) ([]credissuance.Organization, error)
-	TMFDeleteOrganization(ctx context.Context, accessToken string, id string) error
-	LEARIssuanceRequest(ctx context.Context, accessToken string, learCredData *credissuance.LEARIssuanceRequestBody) ([]byte, error)
-	TMFCreateOrganization(ctx context.Context, accessToken string, org *credissuance.Organization_Create) (*credissuance.Organization, error)
-	TMFUpdateOrganization(ctx context.Context, accessToken string, id string, org *credissuance.Organization_Update) (*credissuance.Organization, error)
-}
 
 type Server struct {
 	Runtime           configuration.RuntimeEnv
@@ -72,7 +36,7 @@ func NewServer(runtime configuration.RuntimeEnv,
 	staticFilesDir string,
 	adminUser string,
 	adminPassword string,
-	features configuration.Features) *Server {
+	features configuration.Features) (*Server, error) {
 
 	s := &Server{
 		Runtime:           runtime,
@@ -110,10 +74,6 @@ func NewServer(runtime configuration.RuntimeEnv,
 		fileServer.ServeHTTP(w, r)
 	})
 
-	// // Admin dashboard static files
-	// adminFileServer := http.FileServer(http.Dir("docs/admin"))
-	// mux.Handle("/admin/", http.StripPrefix("/admin/", adminFileServer))
-
 	// Main API Routes
 	mux.HandleFunc("/api/validate-email", s.LogRequest(s.EnableCORS(s.RateLimitIP(s.HandleSendEmailValidationCode))))
 	mux.HandleFunc("/api/verify-code", s.LogRequest(s.EnableCORS(s.HandleValidateEmailCode)))
@@ -122,7 +82,7 @@ func NewServer(runtime configuration.RuntimeEnv,
 	mux.HandleFunc("/api/orgstatus", s.LogRequest(s.EnableCORS(s.HandleOrgStatus)))
 	mux.HandleFunc("/health", s.HandleHealth)
 
-	// Admin routes
+	// Middleware to wrap the Admin routes
 	adminChain := func(next http.HandlerFunc) http.HandlerFunc {
 		return s.LogRequest(s.EnableCORS(s.BasicAuth(next)))
 	}
@@ -145,7 +105,16 @@ func NewServer(runtime configuration.RuntimeEnv,
 	mux.HandleFunc("/onboard-provider", serveIndex)
 
 	s.Handler = mux
-	return s
+
+	// Perform teh run-time checks to see if everything works as expected
+	err := s.CheckAll()
+	if err != nil {
+		err = errl.Errorf("Self-Diagnostics: failed to check all: %v", err)
+		slog.Error(err.Error())
+		return nil, errl.Error(err)
+	}
+
+	return s, nil
 }
 
 func (s *Server) LogRequest(next http.HandlerFunc) http.HandlerFunc {

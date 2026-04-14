@@ -244,7 +244,10 @@ func serve(cfg configuration.Config, envFlag string, port string, watchFlag bool
 		}
 	}
 
-	srv := server.NewServer(runtimeEnv, dbService, issuanceService, mailService, cfg.DestDir, adminUser, adminPassword, srvConfig.Features)
+	srv, err := server.NewServer(runtimeEnv, dbService, issuanceService, mailService, cfg.DestDir, adminUser, adminPassword, srvConfig.Features)
+	if err != nil {
+		log.Fatalf("Error: Could not create server: %v", err)
+	}
 
 	// Start Watcher if requested
 	if watchFlag {
