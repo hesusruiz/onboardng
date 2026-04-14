@@ -13,11 +13,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
-	"fmt"
-	"log"
 	"math/big"
 	"time"
 
+	"github.com/hesusruiz/utils/errl"
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/pkg/errors"
 )
@@ -50,13 +49,12 @@ func NewCertificate(issCert PEMCert, issPrivKey jwk.Key, subAttrs ELSIName, keyp
 	// Decode the Issuer certificate and convert to an in-memory representation
 	b, _ := pem.Decode(issCert)
 	if b == nil {
-		err = fmt.Errorf("error decoding PEM bytes")
-		return nil, nil, err
+		return nil, nil, errl.Errorf("error decoding PEM bytes")
 	}
 
 	issuerCert, err := x509.ParseCertificate(b.Bytes)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errl.Errorf("error parsing certificate: %w", err)
 	}
 
 	var issuerPrivkey any
@@ -83,10 +81,10 @@ func NewCertificate(issCert PEMCert, issPrivKey jwk.Key, subAttrs ELSIName, keyp
 	case "P521":
 		rawSubPrivKey, err = ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	default:
-		log.Fatalf("Unrecognized elliptic curve: %q", keyparams.EcdsaCurve)
+		return nil, nil, errl.Errorf("Unrecognized elliptic curve: %q", keyparams.EcdsaCurve)
 	}
 	if err != nil {
-		log.Fatalf("Failed to generate private key: %v", err)
+		return nil, nil, errl.Errorf("Failed to generate private key: %v", err)
 	}
 
 	// ECDSA, ED25519 and RSA subject keys should have the DigitalSignature
@@ -105,7 +103,7 @@ func NewCertificate(issCert PEMCert, issPrivKey jwk.Key, subAttrs ELSIName, keyp
 	} else {
 		notBefore, err = time.Parse("Jan 2 15:04:05 2006", keyparams.ValidFrom)
 		if err != nil {
-			log.Fatalf("Failed to parse creation date: %v", err)
+			return nil, nil, errl.Errorf("Failed to parse creation date: %v", err)
 		}
 	}
 
@@ -114,7 +112,7 @@ func NewCertificate(issCert PEMCert, issPrivKey jwk.Key, subAttrs ELSIName, keyp
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {
-		log.Fatalf("Failed to generate serial number: %v", err)
+		return nil, nil, errl.Errorf("Failed to generate serial number: %v", err)
 	}
 
 	// Create the values for eIDAS certificates not supported directly by the Go standard library
@@ -156,20 +154,20 @@ func NewCertificate(issCert PEMCert, issPrivKey jwk.Key, subAttrs ELSIName, keyp
 	// Create the certificate, signing with the Issuer private key
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, issuerCert, publicKey(rawSubPrivKey), issuerPrivkey)
 	if err != nil {
-		log.Fatalf("Failed to create certificate: %v", err)
+		return nil, nil, errl.Errorf("Failed to create certificate: %v", err)
 	}
 
 	// PEM-encode the new certificate, ready to be saved or exported
 	var buf bytes.Buffer
 	if err := pem.Encode(&buf, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes}); err != nil {
-		log.Fatalf("Failed to encode in PEM the certificate: %v", err)
+		return nil, nil, errl.Errorf("Failed to encode in PEM the certificate: %v", err)
 	}
 	subCert = buf.Bytes()
 
 	// Create the JWK for the private and public pair
 	subPrivKey, err = jwk.FromRaw(rawSubPrivKey)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errl.Errorf("Failed to create JWK: %v", err)
 	}
 
 	return subPrivKey, subCert, nil
@@ -180,20 +178,20 @@ func NewCAELSICertificatePEM(subAttrs ELSIName, keyparams KeyParams) (subPrivKey
 
 	priv, derBytes, err := NewCAELSICertificateDER(subAttrs, keyparams)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errl.Errorf("Failed to generate DER certificate: %v", err)
 	}
 
 	// Encode the DER buffer into PEM, so it can be stored on disk or database
 	var buf bytes.Buffer
 	if err := pem.Encode(&buf, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes}); err != nil {
-		log.Fatalf("Failed to encode in PEM the certificate: %v", err)
+		return nil, nil, errl.Errorf("Failed to encode in PEM the certificate: %v", err)
 	}
 	subCert = buf.Bytes()
 
 	// Create the JWK for the private and public pair
 	subPrivKey, err = jwk.FromRaw(priv)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errl.Errorf("Failed to create JWK: %v", err)
 	}
 
 	return subPrivKey, subCert, nil
@@ -204,12 +202,12 @@ func NewCAELSICertificateRaw(subAttrs ELSIName, keyparams KeyParams) (subPrivKey
 
 	priv, derBytes, err := NewCAELSICertificateDER(subAttrs, keyparams)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errl.Errorf("Failed to generate DER certificate: %v", err)
 	}
 
 	newCert, err := x509.ParseCertificate(derBytes)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errl.Errorf("Failed to parse certificate: %v", err)
 	}
 
 	return priv, newCert, nil
@@ -234,10 +232,10 @@ func NewCAELSICertificateDER(subAttrs ELSIName, keyparams KeyParams) (subPrivKey
 	case "P521":
 		priv, err = ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	default:
-		log.Fatalf("Unrecognized elliptic curve: %q", keyparams.EcdsaCurve)
+		return nil, nil, errl.Errorf("Unrecognized elliptic curve: %q", keyparams.EcdsaCurve)
 	}
 	if err != nil {
-		log.Fatalf("Failed to generate private key: %v", err)
+		return nil, nil, errl.Errorf("Failed to generate private key: %v", err)
 	}
 
 	// ECDSA, ED25519 and RSA subject keys should have the DigitalSignature
@@ -257,7 +255,7 @@ func NewCAELSICertificateDER(subAttrs ELSIName, keyparams KeyParams) (subPrivKey
 	} else {
 		notBefore, err = time.Parse("Jan 2 15:04:05 2006", keyparams.ValidFrom)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, errl.Errorf("Failed to parse creation date: %v", err)
 		}
 	}
 
@@ -271,7 +269,7 @@ func NewCAELSICertificateDER(subAttrs ELSIName, keyparams KeyParams) (subPrivKey
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to generate serial number: %v", err)
+		return nil, nil, errl.Errorf("Failed to generate serial number: %v", err)
 	}
 
 	// Convert the subject attributes to the proper format
@@ -299,7 +297,7 @@ func NewCAELSICertificateDER(subAttrs ELSIName, keyparams KeyParams) (subPrivKey
 	// Create the certificate and receive a DER-encoded byte array.
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, publicKey(priv), priv)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errl.Errorf("Failed to create certificate: %v", err)
 	}
 
 	return priv, derBytes, nil

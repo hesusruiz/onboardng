@@ -247,7 +247,9 @@ func NewVPToken(vcStringToken string, didkey string, privateKey *ecdsa.PrivateKe
 // GenerateNonce creates a random 16-byte nonce, encoded as a Base64 RawURL string.
 func GenerateNonce() string {
 	b := make([]byte, 16)
-	io.ReadFull(rand.Reader, b)
+	if _, err := io.ReadFull(rand.Reader, b); err != nil {
+		panic("failed to generate random nonce: " + err.Error())
+	}
 	nonce := base64.RawURLEncoding.EncodeToString(b)
 	return nonce
 }
