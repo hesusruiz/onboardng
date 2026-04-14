@@ -1,6 +1,8 @@
 package server
 
 import (
+	"context"
+
 	"github.com/hesusruiz/onboardng/credissuance"
 	"github.com/hesusruiz/onboardng/internal/db"
 )
@@ -8,13 +10,14 @@ import (
 type MockDB struct {
 	SaveRegistrationFunc              func(reg *db.RegistrationRecord) error
 	UpdateRegistrationStatusFunc      func(reg *db.RegistrationRecord) error
+	UpdateApprovalFunc                func(registrationID string, approved int) error
 	SaveRegistrationLogFunc           func(logEntry *db.RegistrationLog) error
 	GetRegistrationByVatIDFunc        func(vatID string) (*db.RegistrationRecord, error)
 	GetRegistrationByEmailFunc        func(email string) (*db.RegistrationRecord, error)
 	GetRegistrationByEmailOrVatIDFunc func(email, vatID string) (*db.RegistrationRecord, error)
 	GetRegistrationsFunc              func(limit, offset int) ([]db.RegistrationRecord, error)
-	GetRegistrationLogsFunc           func(limit, offset int) ([]db.RegistrationLog, error)
-	GetRegistrationFilesFunc          func(limit, offset int) ([]db.RegistrationFile, error)
+	GetRegistrationLogsFunc           func(vatID string, limit, offset int) ([]db.RegistrationLog, error)
+	GetRegistrationFilesFunc          func(vatID string, limit, offset int) ([]db.RegistrationFile, error)
 	GetRegistrationFileFunc           func(fileID string) (*db.RegistrationFile, error)
 	GetRegistrationByIDFunc           func(registrationID string) (*db.RegistrationRecord, error)
 	UpdateRepresentativesByVatIDFunc  func(vatID string, rep *db.RegistrationRecord) error
@@ -25,6 +28,9 @@ func (m *MockDB) SaveRegistration(reg *db.RegistrationRecord) error {
 }
 func (m *MockDB) UpdateRegistrationStatus(reg *db.RegistrationRecord) error {
 	return m.UpdateRegistrationStatusFunc(reg)
+}
+func (m *MockDB) UpdateApproval(registrationID string, approved int) error {
+	return m.UpdateApprovalFunc(registrationID, approved)
 }
 func (m *MockDB) SaveRegistrationLog(logEntry *db.RegistrationLog) error {
 	return m.SaveRegistrationLogFunc(logEntry)
@@ -41,11 +47,11 @@ func (m *MockDB) GetRegistrationByEmailOrVatID(email, vatID string) (*db.Registr
 func (m *MockDB) GetRegistrations(limit, offset int) ([]db.RegistrationRecord, error) {
 	return m.GetRegistrationsFunc(limit, offset)
 }
-func (m *MockDB) GetRegistrationLogs(limit, offset int) ([]db.RegistrationLog, error) {
-	return m.GetRegistrationLogsFunc(limit, offset)
+func (m *MockDB) GetRegistrationLogs(vatID string, limit, offset int) ([]db.RegistrationLog, error) {
+	return m.GetRegistrationLogsFunc(vatID, limit, offset)
 }
-func (m *MockDB) GetRegistrationFiles(limit, offset int) ([]db.RegistrationFile, error) {
-	return m.GetRegistrationFilesFunc(limit, offset)
+func (m *MockDB) GetRegistrationFiles(vatID string, limit, offset int) ([]db.RegistrationFile, error) {
+	return m.GetRegistrationFilesFunc(vatID, limit, offset)
 }
 func (m *MockDB) GetRegistrationFile(fileID string) (*db.RegistrationFile, error) {
 	return m.GetRegistrationFileFunc(fileID)
@@ -74,29 +80,29 @@ func (m *MockMail) SendIssuerError(reg *db.RegistrationRecord, payload string, e
 }
 
 type MockIssuance struct {
-	GetAccessTokenFunc           func() (string, error)
-	TMFGetOrganizationByELSIFunc func(accessToken string, elsi string) ([]credissuance.Organization, error)
-	TMFDeleteOrganizationFunc    func(accessToken string, id string) error
-	LEARIssuanceRequestFunc      func(accessToken string, learCredData *credissuance.LEARIssuanceRequestBody) ([]byte, error)
-	TMFCreateOrganizationFunc    func(accessToken string, org *credissuance.Organization_Create) (*credissuance.Organization, error)
-	TMFUpdateOrganizationFunc    func(accessToken string, id string, org *credissuance.Organization_Update) (*credissuance.Organization, error)
+	GetAccessTokenFunc           func(context.Context) (string, error)
+	TMFGetOrganizationByELSIFunc func(context context.Context, accessToken string, elsi string) ([]credissuance.Organization, error)
+	TMFDeleteOrganizationFunc    func(context context.Context, accessToken string, id string) error
+	LEARIssuanceRequestFunc      func(context context.Context, accessToken string, learCredData *credissuance.LEARIssuanceRequestBody) ([]byte, error)
+	TMFCreateOrganizationFunc    func(context context.Context, accessToken string, org *credissuance.Organization_Create) (*credissuance.Organization, error)
+	TMFUpdateOrganizationFunc    func(context context.Context, accessToken string, id string, org *credissuance.Organization_Update) (*credissuance.Organization, error)
 }
 
-func (m *MockIssuance) GetAccessToken() (string, error) {
-	return m.GetAccessTokenFunc()
+func (m *MockIssuance) GetAccessToken(ctx context.Context) (string, error) {
+	return m.GetAccessTokenFunc(ctx)
 }
-func (m *MockIssuance) TMFGetOrganizationByELSI(accessToken string, elsi string) ([]credissuance.Organization, error) {
-	return m.TMFGetOrganizationByELSIFunc(accessToken, elsi)
+func (m *MockIssuance) TMFGetOrganizationByELSI(context context.Context, accessToken string, elsi string) ([]credissuance.Organization, error) {
+	return m.TMFGetOrganizationByELSIFunc(context, accessToken, elsi)
 }
-func (m *MockIssuance) TMFDeleteOrganization(accessToken string, id string) error {
-	return m.TMFDeleteOrganizationFunc(accessToken, id)
+func (m *MockIssuance) TMFDeleteOrganization(context context.Context, accessToken string, id string) error {
+	return m.TMFDeleteOrganizationFunc(context, accessToken, id)
 }
-func (m *MockIssuance) LEARIssuanceRequest(accessToken string, learCredData *credissuance.LEARIssuanceRequestBody) ([]byte, error) {
-	return m.LEARIssuanceRequestFunc(accessToken, learCredData)
+func (m *MockIssuance) LEARIssuanceRequest(context context.Context, accessToken string, learCredData *credissuance.LEARIssuanceRequestBody) ([]byte, error) {
+	return m.LEARIssuanceRequestFunc(context, accessToken, learCredData)
 }
-func (m *MockIssuance) TMFCreateOrganization(accessToken string, org *credissuance.Organization_Create) (*credissuance.Organization, error) {
-	return m.TMFCreateOrganizationFunc(accessToken, org)
+func (m *MockIssuance) TMFCreateOrganization(context context.Context, accessToken string, org *credissuance.Organization_Create) (*credissuance.Organization, error) {
+	return m.TMFCreateOrganizationFunc(context, accessToken, org)
 }
-func (m *MockIssuance) TMFUpdateOrganization(accessToken string, id string, org *credissuance.Organization_Update) (*credissuance.Organization, error) {
-	return m.TMFUpdateOrganizationFunc(accessToken, id, org)
+func (m *MockIssuance) TMFUpdateOrganization(context context.Context, accessToken string, id string, org *credissuance.Organization_Update) (*credissuance.Organization, error) {
+	return m.TMFUpdateOrganizationFunc(context, accessToken, id, org)
 }

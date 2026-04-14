@@ -1,7 +1,12 @@
+// Package credissuance implements the logic for requesting and issuing Verifiable Credentials.
+// It follows a two-step process:
+// 1. Authenticate with a Token Endpoint using a LEARCredentialMachine to obtain an access token.
+// 2. Use the access token to request a new Verifiable Credential from the Issuance Endpoint.
 package credissuance
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"encoding/hex"
@@ -13,10 +18,11 @@ import (
 	"time"
 
 	"github.com/hesusruiz/onboardng/internal/configuration"
+	"github.com/hesusruiz/onboardng/internal/crypto"
 	"github.com/hesusruiz/utils/errl"
-	"github.com/mr-tron/base58/base58"
 )
 
+// LEARIssuanceRequestBody represents the JSON structure for a credential issuance request to the Issuer machine.
 type LEARIssuanceRequestBody struct {
 	Schema        string  `json:"schema,omitempty"`
 	OperationMode string  `json:"operation_mode,omitempty"`
@@ -25,6 +31,7 @@ type LEARIssuanceRequestBody struct {
 	Payload       Payload `json:"payload"`
 }
 
+// ParseLEARIssuanceRequestBody unmarshals a JSON byte slice into a LEARIssuanceRequestBody.
 func ParseLEARIssuanceRequestBody(body []byte) (*LEARIssuanceRequestBody, error) {
 	var req LEARIssuanceRequestBody
 	err := json.Unmarshal(body, &req)
@@ -34,12 +41,14 @@ func ParseLEARIssuanceRequestBody(body []byte) (*LEARIssuanceRequestBody, error)
 	return &req, nil
 }
 
+// Payload contains the details of the mandator, mandatee, and the powers being delegated.
 type Payload struct {
 	Mandator Mandator `json:"mandator"`
 	Mandatee Mandatee `json:"mandatee"`
 	Power    []Power  `json:"power,omitempty"`
 }
 
+// Mandator represents the legal entity (organization) that holds the original authority.
 type Mandator struct {
 	OrganizationIdentifier string `json:"organizationIdentifier,omitempty"`
 	Organization           string `json:"organization,omitempty"`
@@ -49,6 +58,7 @@ type Mandator struct {
 	SerialNumber           string `json:"serialNumber,omitempty"`
 }
 
+// Mandatee represents the natural person or machine receiving the delegated powers.
 type Mandatee struct {
 	FirstName   string `json:"firstName,omitempty"`
 	LastName    string `json:"lastName,omitempty"`
@@ -56,6 +66,7 @@ type Mandatee struct {
 	Email       string `json:"email,omitempty"`
 }
 
+// Power specifies the delegated capability (e.g., Execute Onboarding in the DOME domain).
 type Power struct {
 	Type     string  `json:"type,omitempty"`
 	Domain   string  `json:"domain,omitempty"`
@@ -63,8 +74,7 @@ type Power struct {
 	Action   Strings `json:"action,omitempty"`
 }
 
-// The "action" claim can either be a single string or an array.
-// We need to serialize the claim as a single string if the array has only one element
+// Strings is a helper type to handle JSON marshaling of single strings vs arrays for the "action" claim.
 type Strings []string
 
 func (s Strings) MarshalJSON() (b []byte, err error) {
@@ -75,6 +85,7 @@ func (s Strings) MarshalJSON() (b []byte, err error) {
 	return json.Marshal([]string(s))
 }
 
+// LEARIssuance orchestrates the credential issuance workflow.
 type LEARIssuance struct {
 	privateKey        *ecdsa.PrivateKey
 	machineCredential string
@@ -87,16 +98,8 @@ type LEARIssuance struct {
 	httpClient             *http.Client
 }
 
-func (l *LEARIssuance) GetAccessToken() (string, error) {
-	return TokenRequest(
-		l.verifierTokenEndpoint,
-		l.machineCredential,
-		l.myDidkey,
-		l.verifierURL,
-		l.privateKey,
-	)
-}
-
+// NewLEARIssuance initializes a new LEARIssuance instance from the provided configuration.
+// It decodes the private key, derives the associated DID, and validates the setup.
 func NewLEARIssuance(config configuration.EnvConfig) (*LEARIssuance, error) {
 
 	// Read the private key
@@ -121,33 +124,11 @@ func NewLEARIssuance(config configuration.EnvConfig) (*LEARIssuance, error) {
 		return nil, errl.Errorf("error parsing private key: %w", err)
 	}
 
-	// For safety, we are going to derive the associated did:key and compare to the one in the config
-	// We have to represent the public key as a compressed array of bytes,
-	// and then apply the encoding for did:key.
-
-	// This is the uncompressed public key
-	uncompressed, err := privateKey.PublicKey.Bytes()
+	// For safety, derive the associated did:key from the private key and compare it to the configured value.
+	didKey, err := crypto.DeriveDidKeyFromPrivateKey(privateKey)
 	if err != nil {
-		return nil, errl.Errorf("error getting public key: %w", err)
+		return nil, errl.Errorf("error deriving did:key from private key: %w", err)
 	}
-
-	// Extract X and Y from the slice
-	// X is bytes [1:33], Y is bytes [33:65]
-	xBytes := uncompressed[1:33]
-	yLastByte := uncompressed[64]
-
-	// Determine the compressedPrefix (0x02 if Y is even, 0x03 if Y is odd)
-	var compressedPrefix byte = 0x02
-	if yLastByte%2 != 0 {
-		compressedPrefix = 0x03
-	}
-
-	// Construct the 33-byte compressed key
-	compressedBytes := append([]byte{compressedPrefix}, xBytes...)
-
-	// Compress the public key for the DID
-	varintPrefix := []byte{0x80, 0x24} // Varint for P-256
-	didKey := "did:key:z" + base58.Encode(append(varintPrefix, compressedBytes...))
 
 	if didKey != config.MyDidkey {
 		return nil, errl.Errorf("the private key does not correspond to the did:key in the configuration")
@@ -181,7 +162,26 @@ func NewLEARIssuance(config configuration.EnvConfig) (*LEARIssuance, error) {
 
 }
 
-func (l *LEARIssuance) LEARIssuanceRequest(accessToken string, learCredData *LEARIssuanceRequestBody) ([]byte, error) {
+// GetAccessToken initiates the first step of the process: obtaining an OAuth 2.0 access token
+// by presenting a Client Assertion (containing a LEARCredentialMachine).
+func (l *LEARIssuance) GetAccessToken(ctx context.Context) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return TokenRequest(
+		ctx,
+		l.verifierTokenEndpoint,
+		l.machineCredential,
+		l.myDidkey,
+		l.verifierURL,
+		l.privateKey,
+		l.httpClient,
+	)
+}
+
+// LEARIssuanceRequest initiates the second step of the process: requesting the issuance
+// of a new Verifiable Credential using the previously obtained access token.
+func (l *LEARIssuance) LEARIssuanceRequest(ctx context.Context, accessToken string, learCredData *LEARIssuanceRequestBody) ([]byte, error) {
 
 	if accessToken == "" {
 		return nil, errl.Errorf("access token is required for LEARIssuanceRequest")
@@ -198,13 +198,17 @@ func (l *LEARIssuance) LEARIssuanceRequest(accessToken string, learCredData *LEA
 	requestBody := bytes.NewBuffer(buf)
 
 	// The request to send
-	req, _ := http.NewRequest("POST", l.credentialIssuancePath, requestBody)
+	req, err := http.NewRequestWithContext(ctx, "POST", l.credentialIssuancePath, requestBody)
+	if err != nil {
+		return nil, errl.Errorf("error creating http request: %w", err)
+	}
+
 	req.Header.Add("Content-Type", "application/json")
 	if accessToken != "" {
 		req.Header.Add("Authorization", "Bearer "+accessToken)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := l.httpClient.Do(req)
 	if err != nil {
 		return nil, errl.Errorf("error calling LEAR Issuance Endpoint: %w", err)
 	}

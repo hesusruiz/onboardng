@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -31,11 +30,11 @@ import (
 func Run() error {
 
 	// Define the main serve command
-	runCmd := flag.NewFlagSet("serve", flag.ExitOnError)
-	runCfgPath := runCmd.String("config", "config.age", "Path to config file (.yaml or .age)")
-	watchFlag := runCmd.Bool("watch", false, "watch for changes and start server")
-	envFlag := runCmd.String("env", "dev", "environment to serve (dev, pre or pro)")
-	port := runCmd.String("port", "7777", "port for the server")
+	serveCmd := flag.NewFlagSet("serve", flag.ExitOnError)
+	serveCfgPath := serveCmd.String("config", "config.age", "Path to config file (.yaml or .age)")
+	watchFlag := serveCmd.Bool("watch", false, "watch for changes and start server")
+	envFlag := serveCmd.String("env", "dev", "environment to serve (dev, pre or pro)")
+	port := serveCmd.String("port", "7777", "port for the server")
 
 	// Define the generate command
 	generateCmd := flag.NewFlagSet("generate", flag.ExitOnError)
@@ -56,7 +55,7 @@ func Run() error {
 	} else {
 		// If no ENV command, use CLI arg as command
 		if len(os.Args) < 2 {
-			usage(runCmd, generateCmd, sealCmd)
+			usage(serveCmd, generateCmd, sealCmd)
 			return nil
 		}
 		command = os.Args[1]
@@ -69,20 +68,20 @@ func Run() error {
 	switch command {
 	case "serve":
 		// Start the server
-		runCmd.Parse(cmdArgs)
+		serveCmd.Parse(cmdArgs)
 
 		// Environment variables take precedence over command-line flags
-		if envVal := os.Getenv("ONBOARDNG_CONFIG"); envVal != "" {
-			*runCfgPath = envVal
+		if envConfig := os.Getenv("ONBOARDNG_CONFIG"); envConfig != "" {
+			*serveCfgPath = envConfig
 		}
-		if envVal := os.Getenv("ONBOARDNG_WATCH"); envVal != "" {
-			*watchFlag = (envVal == "true" || envVal == "1")
+		if envWatch := os.Getenv("ONBOARDNG_WATCH"); envWatch != "" {
+			*watchFlag = (envWatch == "true" || envWatch == "1")
 		}
-		if envVal := os.Getenv("ONBOARDNG_ENV"); envVal != "" {
-			*envFlag = envVal
+		if runtimeEnv := os.Getenv("ONBOARDNG_ENV"); runtimeEnv != "" {
+			*envFlag = runtimeEnv
 		}
-		if envVal := os.Getenv("ONBOARDNG_PORT"); envVal != "" {
-			*port = envVal
+		if envPort := os.Getenv("ONBOARDNG_PORT"); envPort != "" {
+			*port = envPort
 		}
 
 		// Read and immediately UNSET the secret key from the environment
@@ -100,8 +99,9 @@ func Run() error {
 			}
 		}
 
-		cfg := LoadEncryptedConfig(*runCfgPath, secretKey)
-		return run(cfg, *envFlag, *port, *watchFlag, secretKey)
+		cfg := LoadEncryptedConfig(*serveCfgPath, secretKey)
+
+		return serve(cfg, *envFlag, *port, *watchFlag, secretKey)
 
 	case "generate":
 		// Generate the frontend
@@ -121,7 +121,7 @@ func Run() error {
 			}
 		}
 
-		cfg := LoadEncryptedConfig(*runCfgPath, secretKey)
+		cfg := LoadEncryptedConfig(*serveCfgPath, secretKey)
 		return generate(cfg)
 
 	case "seal":
@@ -133,7 +133,7 @@ func Run() error {
 
 	default:
 		// Show usage
-		usage(runCmd, generateCmd, sealCmd)
+		usage(serveCmd, generateCmd, sealCmd)
 	}
 
 	return nil
@@ -158,20 +158,25 @@ func usage(runCmd, generateCmd, sealCmd *flag.FlagSet) {
 	fmt.Println()
 }
 
-func run(cfg configuration.Config, envFlag string, port string, watchFlag bool, secretKey string) error {
-	// Get the environment config
+func serve(cfg configuration.Config, envFlag string, port string, watchFlag bool, secretKey string) error {
+
+	runtimeEnv := configuration.RuntimeEnv(envFlag)
+
+	slog.Info("Starting server", "env", envFlag, "port", port, "watch", watchFlag)
+
+	// Get the configuration corresponding to the runtime environment
 	srvConfig, ok := cfg.Environments[envFlag]
 	if !ok {
-		slog.Error("❌ Environment not found in config", "env", envFlag)
-		return errl.Errorf("environment %s not found", envFlag)
+		return errl.Errorf("environment %s not found in config", envFlag)
 	}
+
+	srvConfig.Runtime = runtimeEnv
+	fmt.Println(srvConfig.String())
 
 	// Pass the secret key to the environment configuration
 	srvConfig.AgeSecretKey = secretKey
 	srvConfig.Mail.AgeSecretKey = secretKey
 	cfg.Environments[envFlag] = srvConfig
-
-	runtimeEnv := configuration.RuntimeEnv(envFlag)
 
 	// Setup issuer
 	issuerCfg := configuration.EnvConfig{
@@ -190,6 +195,7 @@ func run(cfg configuration.Config, envFlag string, port string, watchFlag bool, 
 		TMForum: configuration.TMForumConfig{
 			BaseURL: srvConfig.TMForum.BaseURL,
 		},
+		Features: srvConfig.Features,
 	}
 	issuanceService, err := credissuance.NewLEARIssuance(issuerCfg)
 	if err != nil {
@@ -198,7 +204,7 @@ func run(cfg configuration.Config, envFlag string, port string, watchFlag bool, 
 	}
 
 	// Initialize Database service
-	dbService, err := db.NewService(runtimeEnv, "data/onboarding.db")
+	dbService, err := db.NewDBService(runtimeEnv, "data/onboarding.db")
 	if err != nil {
 		slog.Error("❌ Error initializing database service", "error", errl.Error(err))
 		return err
@@ -221,7 +227,24 @@ func run(cfg configuration.Config, envFlag string, port string, watchFlag bool, 
 	// Run the database maintenance once at startup
 	dbService.RunMaintenance(context.Background())
 
-	srv := server.NewServer(runtimeEnv, dbService, issuanceService, mailService, cfg.DestDir)
+	adminUser := os.Getenv("ADMIN_USER")
+	if adminUser == "" {
+		if runtimeEnv != configuration.Production {
+			adminUser = "admin"
+		} else {
+			log.Fatalf("Error: ADMIN_USER environment variable is not set")
+		}
+	}
+	adminPassword := os.Getenv("ADMIN_PASSWORD")
+	if adminPassword == "" {
+		if runtimeEnv != configuration.Production {
+			adminPassword = "pepe"
+		} else {
+			log.Fatalf("Error: ADMIN_PASSWORD environment variable is not set")
+		}
+	}
+
+	srv := server.NewServer(runtimeEnv, dbService, issuanceService, mailService, cfg.DestDir, adminUser, adminPassword, srvConfig.Features)
 
 	// Start Watcher if requested
 	if watchFlag {
@@ -295,20 +318,13 @@ func LoadEncryptedConfig(path string, secretKey string) configuration.Config {
 		slog.Warn("Running in Development Mode (Unencrypted YAML)")
 	}
 
-	// 2. Parse YAML
+	// Parse YAML
 	var cfg configuration.Config
 	if err := yaml.NewDecoder(reader).Decode(&cfg); err != nil {
 		log.Fatalf("Error: Failed to parse YAML: %v", err)
 	}
 
-	// 3. Start Application - Pretty print the config in JSON format
-	jsonConfig, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		log.Fatalf("Error: Failed to marshal config: %v", err)
-	}
-	fmt.Println(string(jsonConfig))
-
-	// 4. Prepare each environment: decrypt or read internal credentials
+	// Prepare each environment: decrypt or read internal credentials
 	for name, env := range cfg.Environments {
 		env.AgeSecretKey = secretKey
 

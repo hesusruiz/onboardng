@@ -14,7 +14,7 @@ import (
 func main() {
 	// Initialize Database service
 	dbPath := "data/onboarding.db"
-	dbService, err := db.NewService(configuration.Development, dbPath)
+	dbService, err := db.NewDBService(configuration.Development, dbPath)
 	if err != nil {
 		slog.Error("❌ Error initializing database service", "error", err)
 		os.Exit(1)
@@ -27,7 +27,7 @@ func main() {
 		regID := uuid.New().String()
 		email := fmt.Sprintf("testuser%d@example.com", i)
 		vatID := fmt.Sprintf("VAT%d", 1000+i)
-		
+
 		// Simulate sequential steps with random interruptions
 		// 0: none, 1: notified, 2: issued, 3: tmf_registered
 		progress := i % 4

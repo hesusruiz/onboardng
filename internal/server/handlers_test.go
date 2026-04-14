@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 )
 
 func TestHandleValidateEmail(t *testing.T) {
+
 	mockMail := &MockMail{}
 	s := &Server{
 		Mail:              mockMail,
@@ -229,21 +231,21 @@ func TestHandleRegister(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		// Setup mocks
-		mockIssuance.GetAccessTokenFunc = func() (string, error) { return "token", nil }
-		mockIssuance.TMFGetOrganizationByELSIFunc = func(token, elsi string) ([]credissuance.Organization, error) {
+		mockIssuance.GetAccessTokenFunc = func(context.Context) (string, error) { return "token", nil }
+		mockIssuance.TMFGetOrganizationByELSIFunc = func(context context.Context, token, elsi string) ([]credissuance.Organization, error) {
 			return []credissuance.Organization{{ID: "org1"}}, nil
 		}
-		mockIssuance.TMFDeleteOrganizationFunc = func(token, id string) error { return nil }
+		mockIssuance.TMFDeleteOrganizationFunc = func(context context.Context, token, id string) error { return nil }
 		mockDB.SaveRegistrationFunc = func(reg *db.RegistrationRecord) error { return nil }
 		mockMail.SendWelcomeEmailFunc = func(reg *db.RegistrationRecord) error { return nil }
-		mockIssuance.LEARIssuanceRequestFunc = func(token string, data *credissuance.LEARIssuanceRequestBody) ([]byte, error) {
+		mockIssuance.LEARIssuanceRequestFunc = func(context context.Context, token string, data *credissuance.LEARIssuanceRequestBody) ([]byte, error) {
 			return []byte("ok"), nil
 		}
 		mockDB.UpdateRegistrationStatusFunc = func(reg *db.RegistrationRecord) error { return nil }
-		mockIssuance.TMFCreateOrganizationFunc = func(token string, org *credissuance.Organization_Create) (*credissuance.Organization, error) {
+		mockIssuance.TMFCreateOrganizationFunc = func(context context.Context, token string, org *credissuance.Organization_Create) (*credissuance.Organization, error) {
 			return &credissuance.Organization{ID: "neworg"}, nil
 		}
-		mockIssuance.TMFUpdateOrganizationFunc = func(token string, id string, org *credissuance.Organization_Update) (*credissuance.Organization, error) {
+		mockIssuance.TMFUpdateOrganizationFunc = func(context context.Context, token string, id string, org *credissuance.Organization_Update) (*credissuance.Organization, error) {
 			return &credissuance.Organization{ID: id}, nil
 		}
 
@@ -272,7 +274,7 @@ func TestHandleRegister(t *testing.T) {
 		req.Header.Set("X-Requested-With", "XMLHttpRequest")
 		w := httptest.NewRecorder()
 
-		mockIssuance.GetAccessTokenFunc = func() (string, error) { return "token", nil }
+		mockIssuance.GetAccessTokenFunc = func(context.Context) (string, error) { return "token", nil }
 		mockDB.GetRegistrationByEmailOrVatIDFunc = func(email, vatID string) (*db.RegistrationRecord, error) {
 			return &db.RegistrationRecord{
 				Email: email,
@@ -295,7 +297,7 @@ func TestHandleRegister(t *testing.T) {
 		req.Header.Set("X-Requested-With", "XMLHttpRequest")
 		w := httptest.NewRecorder()
 
-		mockIssuance.GetAccessTokenFunc = func() (string, error) { return "", fmt.Errorf("token error") }
+		mockIssuance.GetAccessTokenFunc = func(context.Context) (string, error) { return "", fmt.Errorf("token error") }
 
 		s.HandleRegister(w, req)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -308,8 +310,8 @@ func TestHandleRegister(t *testing.T) {
 		req.Header.Set("X-Requested-With", "XMLHttpRequest")
 		w := httptest.NewRecorder()
 
-		mockIssuance.GetAccessTokenFunc = func() (string, error) { return "token", nil }
-		mockIssuance.TMFGetOrganizationByELSIFunc = func(token, elsi string) ([]credissuance.Organization, error) {
+		mockIssuance.GetAccessTokenFunc = func(context.Context) (string, error) { return "token", nil }
+		mockIssuance.TMFGetOrganizationByELSIFunc = func(context context.Context, token, elsi string) ([]credissuance.Organization, error) {
 			return nil, nil
 		}
 		mockDB.SaveRegistrationFunc = func(reg *db.RegistrationRecord) error { return fmt.Errorf("db error") }
@@ -326,5 +328,3 @@ func TestHandleHealth(t *testing.T) {
 	s.HandleHealth(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 }
-
-

@@ -12,7 +12,6 @@
             "program": "${file}",
             "cwd": "/"
         },
-
         {
             "name": "Generate",
             "type": "go",
@@ -26,9 +25,8 @@
             "request": "launch",
             "mode": "auto",
             "program": ".",
-            "env": {"AGE_SECRET_KEY": "AGE-SECRET-KEY-PQ-1XERU8GE8HRC7HMVHX9SY4PL29D3NTAXQRLJSNAXT2HW98H52WYVSFC3JG4"},
             "args": [
-                "run"
+                "serve"
             ]
         },
         {

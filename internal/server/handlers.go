@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
@@ -194,6 +195,35 @@ func (s *Server) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	s.SendJSON(w, r, http.StatusOK, true, "OK", nil)
 }
 
+func (s *Server) HandleOrgStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	vatID := r.URL.Query().Get("vat_id")
+	if vatID == "" {
+		http.Error(w, "Missing vat_id", http.StatusBadRequest)
+		return
+	}
+
+	reg, err := s.DB.GetRegistrationByVatID(vatID)
+	if err != nil {
+		http.Error(w, "Registration not found", http.StatusNotFound)
+		return
+	}
+
+	resp := struct {
+		Role     string `json:"role"`
+		Approved int    `json:"approved"`
+	}{
+		Role:     reg.Role,
+		Approved: reg.Approved,
+	}
+
+	s.SendJSON(w, r, http.StatusOK, true, "Registration fetched successfully", resp)
+}
+
 func (s *RegistrationRequest) Validate() error {
 	if s.FirstName == "" {
 		return fmt.Errorf("first name is required")
@@ -260,6 +290,11 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO: this is temporal
+	if requestData.City == "" {
+		requestData.City = "Las Rozas de Madrid"
+	}
+
 	if err := requestData.Validate(); err != nil {
 		s.SendJSON(w, r, http.StatusBadRequest, false, err.Error(), nil)
 		return
@@ -298,7 +333,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get an access token to authenticate in the Issuer and TM Forum APIs
-	token, err := s.Issuer.GetAccessToken()
+	token, err := s.Issuer.GetAccessToken(r.Context())
 	if err != nil {
 		err = errl.Errorf("Failed to get access token for credential issuance: %v", err)
 		slog.Error("❌ Error getting access token", "error", err)
@@ -310,29 +345,31 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	// In PRO, we use the first organization found and continue with the registration.
 	// In other environments, we continue with the registration, deleting all orgs except the first.
 	var existingOrgID string
-	existingOrgs, _ := s.Issuer.TMFGetOrganizationByELSI(token, requestData.VatId)
-	if len(existingOrgs) > 0 {
-		slog.Info("Organization already exists in TMF server", "vatId", requestData.VatId)
+	if s.Features.TMFServerEnabled {
+		existingOrgs, _ := s.Issuer.TMFGetOrganizationByELSI(r.Context(), token, requestData.VatId)
+		if len(existingOrgs) > 0 {
+			slog.Info("Organization already exists in TMF server", "vatId", requestData.VatId)
 
-		switch s.Runtime {
+			switch s.Runtime {
 
-		case configuration.Production:
-			slog.Info("Using the first organization found and continuing", "environment", s.Runtime)
-			existingOrgID = existingOrgs[0].ID
+			case configuration.Production:
+				slog.Info("Using the first organization found and continuing", "environment", s.Runtime)
+				existingOrgID = existingOrgs[0].ID
 
-		case configuration.Development, configuration.Preproduction:
-			slog.Info("Deleting all organizations except the first and continuing", "environment", s.Runtime)
-			existingOrgID = existingOrgs[0].ID
-			// Delete all organizations except the first one
-			for i := 1; i < len(existingOrgs); i++ {
-				org := existingOrgs[i]
-				if err := s.Issuer.TMFDeleteOrganization(token, org.ID); err != nil {
-					err = errl.Errorf("Failed to delete organization for registration: %v", err)
-					slog.Error("❌ Error deleting organization", "error", err)
+			case configuration.Development, configuration.Preproduction:
+				slog.Info("Deleting all organizations except the first and continuing", "environment", s.Runtime)
+				existingOrgID = existingOrgs[0].ID
+				// Delete all organizations except the first one
+				for i := 1; i < len(existingOrgs); i++ {
+					org := existingOrgs[i]
+					if err := s.Issuer.TMFDeleteOrganization(r.Context(), token, org.ID); err != nil {
+						err = errl.Errorf("Failed to delete organization for registration: %v", err)
+						slog.Error("❌ Error deleting organization", "error", err)
+					}
+					slog.Info("Existing organization deleted from TM Forum server", "orgId", org.ID)
 				}
-				slog.Info("Existing organization deleted from TM Forum server", "orgId", org.ID)
-			}
 
+			}
 		}
 	}
 
@@ -373,26 +410,28 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Perform the verifiable credential issuance
-	err = performIssuance(token, reg, s, requestData)
+	err = performIssuance(r.Context(), token, reg, s, requestData)
 	if err != nil {
 		slog.Error("❌ Error performing issuance", "error", err)
 	}
 
-	if existingOrgID != "" {
-		err = updateTMForumOrganization(token, existingOrgID, requestData, reg, s)
-	} else {
-		err = createTMForumOrganization(token, requestData, reg, s)
-	}
-	if err != nil {
-		slog.Error("❌ Error updating TM Forum", "error", err)
-		// Record the error in the database
-		_ = s.DB.SaveRegistrationLog(&db.RegistrationLog{
-			RegistrationID: reg.RegistrationID,
-			Email:          reg.Email,
-			VatID:          reg.VatID,
-			Type:           "error",
-			Message:        fmt.Sprintf("TM Forum update error: %v", err),
-		})
+	if s.Features.TMFServerEnabled {
+		if existingOrgID != "" {
+			err = updateTMForumOrganization(r.Context(), token, existingOrgID, requestData, reg, s)
+		} else {
+			err = createTMForumOrganization(r.Context(), token, requestData, reg, s)
+		}
+		if err != nil {
+			slog.Error("❌ Error updating TM Forum", "error", err)
+			// Record the error in the database
+			_ = s.DB.SaveRegistrationLog(&db.RegistrationLog{
+				RegistrationID: reg.RegistrationID,
+				Email:          reg.Email,
+				VatID:          reg.VatID,
+				Type:           "error",
+				Message:        fmt.Sprintf("TM Forum update error: %v", err),
+			})
+		}
 	}
 
 	s.SendJSON(w, r, http.StatusOK, true, "Registration successful", nil)
@@ -428,7 +467,13 @@ func saveToDB(requestData RegistrationRequest, s *Server) (*db.RegistrationRecor
 	return reg, nil
 }
 
-func performIssuance(token string, reg *db.RegistrationRecord, s *Server, requestData RegistrationRequest) error {
+func performIssuance(ctx context.Context, token string, reg *db.RegistrationRecord, s *Server, requestData RegistrationRequest) error {
+
+	organizationIdentifierPrefix := "VAT" + requestData.Country
+	organizationIdentifier := requestData.VatId
+	if !strings.HasPrefix(requestData.VatId, organizationIdentifierPrefix) {
+		organizationIdentifier = organizationIdentifierPrefix + "-" + requestData.VatId
+	}
 
 	// Create the struct needed by the Issuer API for a credential for the self-registration
 	soloCredential := &credissuance.LEARIssuanceRequestBody{
@@ -437,7 +482,7 @@ func performIssuance(token string, reg *db.RegistrationRecord, s *Server, reques
 		Format:        "jwt_vc_json",
 		Payload: credissuance.Payload{
 			Mandator: credissuance.Mandator{
-				OrganizationIdentifier: requestData.Country + "-" + requestData.VatId,
+				OrganizationIdentifier: organizationIdentifier,
 				Organization:           requestData.CompanyName,
 				Country:                requestData.Country,
 				CommonName:             requestData.FirstName + " " + requestData.LastName,
@@ -466,7 +511,7 @@ func performIssuance(token string, reg *db.RegistrationRecord, s *Server, reques
 		},
 	}
 
-	if _, err := s.Issuer.LEARIssuanceRequest(token, soloCredential); err != nil {
+	if _, err := s.Issuer.LEARIssuanceRequest(ctx, token, soloCredential); err != nil {
 		slog.Error("❌ Error calling issuance service", "error", err)
 
 		// Record the error in the database
@@ -503,7 +548,7 @@ func performIssuance(token string, reg *db.RegistrationRecord, s *Server, reques
 	return nil
 }
 
-func createTMForumOrganization(token string, requestData RegistrationRequest, reg *db.RegistrationRecord, s *Server) error {
+func createTMForumOrganization(ctx context.Context, token string, requestData RegistrationRequest, reg *db.RegistrationRecord, s *Server) error {
 
 	orgForm := credissuance.RegistrationRequest{
 		CompanyName:   requestData.CompanyName,
@@ -517,7 +562,7 @@ func createTMForumOrganization(token string, requestData RegistrationRequest, re
 	}
 	newOrg := credissuance.TMFOrganizationFromRequest(orgForm)
 
-	_, err := s.Issuer.TMFCreateOrganization(token, newOrg)
+	_, err := s.Issuer.TMFCreateOrganization(ctx, token, newOrg)
 	if err != nil {
 		err = errl.Errorf("Failed to create organization for registration: %v", err)
 		slog.Error("❌ Error creating organization", "error", err)
@@ -536,7 +581,7 @@ func createTMForumOrganization(token string, requestData RegistrationRequest, re
 	return nil
 }
 
-func updateTMForumOrganization(token string, id string, requestData RegistrationRequest, reg *db.RegistrationRecord, s *Server) error {
+func updateTMForumOrganization(ctx context.Context, token string, id string, requestData RegistrationRequest, reg *db.RegistrationRecord, s *Server) error {
 
 	orgForm := credissuance.RegistrationRequest{
 		CompanyName:   requestData.CompanyName,
@@ -550,7 +595,7 @@ func updateTMForumOrganization(token string, id string, requestData Registration
 	}
 	updatedOrg := credissuance.TMFOrganizationUpdateFromRequest(orgForm)
 
-	_, err := s.Issuer.TMFUpdateOrganization(token, id, updatedOrg)
+	_, err := s.Issuer.TMFUpdateOrganization(ctx, token, id, updatedOrg)
 	if err != nil {
 		err = errl.Errorf("Failed to update organization for registration: %v", err)
 		slog.Error("❌ Error updating organization", "error", err)
@@ -644,8 +689,8 @@ func (s *Server) HandleUpdateRepresentatives(w http.ResponseWriter, r *http.Requ
 		s.SendJSON(w, r, http.StatusForbidden, false, "Email does not match the registration", nil)
 		return
 	}
-	if current.Approved {
-		s.SendJSON(w, r, http.StatusForbidden, false, "Registration is already approved and immutable", nil)
+	if current.Approved > 0 {
+		s.SendJSON(w, r, http.StatusForbidden, false, "Registration is already approved or denied and immutable", nil)
 		return
 	}
 

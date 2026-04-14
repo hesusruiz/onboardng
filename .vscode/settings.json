@@ -3,5 +3,5 @@
         "**/src/layouts/*.html": "handlebars",
         "**/src/pages/*.html": "handlebars"
     },
-    "editor.fontSize": 15
+    "editor.fontSize": 14
 }

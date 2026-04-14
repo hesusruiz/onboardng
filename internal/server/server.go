@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"log/slog"
 	"net"
 	"net/http"
@@ -17,16 +18,17 @@ import (
 type DBServiceProvider interface {
 	SaveRegistration(reg *db.RegistrationRecord) error
 	UpdateRegistrationStatus(reg *db.RegistrationRecord) error
+	UpdateApproval(registrationID string, approved int) error
+	UpdateRepresentativesByVatID(vatID string, rep *db.RegistrationRecord) error
 	SaveRegistrationLog(logEntry *db.RegistrationLog) error
 	GetRegistrationByVatID(vatID string) (*db.RegistrationRecord, error)
 	GetRegistrationByEmail(email string) (*db.RegistrationRecord, error)
 	GetRegistrationByEmailOrVatID(email string, vatID string) (*db.RegistrationRecord, error)
 	GetRegistrations(limit, offset int) ([]db.RegistrationRecord, error)
-	GetRegistrationLogs(limit, offset int) ([]db.RegistrationLog, error)
-	GetRegistrationFiles(limit, offset int) ([]db.RegistrationFile, error)
+	GetRegistrationLogs(vatID string, limit, offset int) ([]db.RegistrationLog, error)
+	GetRegistrationFiles(vatID string, limit, offset int) ([]db.RegistrationFile, error)
 	GetRegistrationFile(fileID string) (*db.RegistrationFile, error)
 	GetRegistrationByID(registrationID string) (*db.RegistrationRecord, error)
-	UpdateRepresentativesByVatID(vatID string, rep *db.RegistrationRecord) error
 }
 
 // MailServiceProvider enables easy testing or replacing of the mail implementation
@@ -38,12 +40,12 @@ type MailServiceProvider interface {
 
 // IssuanceServiceProvider enables easy testing or replacing of the issuance implementation
 type IssuanceServiceProvider interface {
-	GetAccessToken() (string, error)
-	TMFGetOrganizationByELSI(accessToken string, elsi string) ([]credissuance.Organization, error)
-	TMFDeleteOrganization(accessToken string, id string) error
-	LEARIssuanceRequest(accessToken string, learCredData *credissuance.LEARIssuanceRequestBody) ([]byte, error)
-	TMFCreateOrganization(accessToken string, org *credissuance.Organization_Create) (*credissuance.Organization, error)
-	TMFUpdateOrganization(accessToken string, id string, org *credissuance.Organization_Update) (*credissuance.Organization, error)
+	GetAccessToken(ctx context.Context) (string, error)
+	TMFGetOrganizationByELSI(ctx context.Context, accessToken string, elsi string) ([]credissuance.Organization, error)
+	TMFDeleteOrganization(ctx context.Context, accessToken string, id string) error
+	LEARIssuanceRequest(ctx context.Context, accessToken string, learCredData *credissuance.LEARIssuanceRequestBody) ([]byte, error)
+	TMFCreateOrganization(ctx context.Context, accessToken string, org *credissuance.Organization_Create) (*credissuance.Organization, error)
+	TMFUpdateOrganization(ctx context.Context, accessToken string, id string, org *credissuance.Organization_Update) (*credissuance.Organization, error)
 }
 
 type Server struct {
@@ -58,9 +60,20 @@ type Server struct {
 	IPLimiters        map[string]*rate.Limiter
 	IPLimitersMu      sync.Mutex
 	Handler           http.Handler
+	AdminUser         string
+	AdminPassword     string
+	Features          configuration.Features
 }
 
-func NewServer(runtime configuration.RuntimeEnv, dbService DBServiceProvider, issuer IssuanceServiceProvider, mailService MailServiceProvider, staticFilesDir string) *Server {
+func NewServer(runtime configuration.RuntimeEnv,
+	dbService DBServiceProvider,
+	issuer IssuanceServiceProvider,
+	mailService MailServiceProvider,
+	staticFilesDir string,
+	adminUser string,
+	adminPassword string,
+	features configuration.Features) *Server {
+
 	s := &Server{
 		Runtime:           runtime,
 		DB:                dbService,
@@ -69,6 +82,9 @@ func NewServer(runtime configuration.RuntimeEnv, dbService DBServiceProvider, is
 		EmailRateLimiter:  make(map[string]*RateLimitEntry),
 		VerificationCodes: make(map[string]*VerificationCodeEntry),
 		IPLimiters:        make(map[string]*rate.Limiter),
+		AdminUser:         adminUser,
+		AdminPassword:     adminPassword,
+		Features:          features,
 	}
 
 	mux := http.NewServeMux()
@@ -94,21 +110,31 @@ func NewServer(runtime configuration.RuntimeEnv, dbService DBServiceProvider, is
 		fileServer.ServeHTTP(w, r)
 	})
 
-	// Admin dashboard static files
-	adminFileServer := http.FileServer(http.Dir("docs/admin"))
-	mux.Handle("/admin/", http.StripPrefix("/admin/", adminFileServer))
+	// // Admin dashboard static files
+	// adminFileServer := http.FileServer(http.Dir("docs/admin"))
+	// mux.Handle("/admin/", http.StripPrefix("/admin/", adminFileServer))
 
-	// API Routes
+	// Main API Routes
 	mux.HandleFunc("/api/validate-email", s.LogRequest(s.EnableCORS(s.RateLimitIP(s.HandleSendEmailValidationCode))))
 	mux.HandleFunc("/api/verify-code", s.LogRequest(s.EnableCORS(s.HandleValidateEmailCode)))
 	mux.HandleFunc("/api/register", s.LogRequest(s.EnableCORS(s.HandleRegister)))
 	mux.HandleFunc("/api/representatives", s.LogRequest(s.EnableCORS(s.HandleUpdateRepresentatives)))
+	mux.HandleFunc("/api/orgstatus", s.LogRequest(s.EnableCORS(s.HandleOrgStatus)))
 	mux.HandleFunc("/health", s.HandleHealth)
 
-	mux.HandleFunc("/api/admin/registrations", s.LogRequest(s.EnableCORS(s.HandleAdminGetRegistrations)))
-	mux.HandleFunc("/api/admin/registration-logs", s.LogRequest(s.EnableCORS(s.HandleAdminGetRegistrationLogs)))
-	mux.HandleFunc("/api/admin/registration-files", s.LogRequest(s.EnableCORS(s.HandleAdminGetRegistrationFiles)))
-	mux.HandleFunc("/api/admin/file/", s.LogRequest(s.EnableCORS(s.HandleAdminGetFile)))
+	// Admin routes
+	adminChain := func(next http.HandlerFunc) http.HandlerFunc {
+		return s.LogRequest(s.EnableCORS(s.BasicAuth(next)))
+	}
+
+	// Admin routes for pages and APIs
+	mux.HandleFunc("/admin/index", adminChain(s.PageAdminIndex))
+	mux.HandleFunc("/admin/registration", adminChain(s.PageAdminDetailsByVatID))
+	mux.HandleFunc("/admin/api/registrations", adminChain(s.APIAdminGetRegistrations))
+	mux.HandleFunc("/admin/api/registration", adminChain(s.APIAdminGetRegistrationByVatID))
+	mux.HandleFunc("/admin/api/registration-logs", adminChain(s.APIAdminGetRegistrationLogs))
+	mux.HandleFunc("/admin/api/registration-files", adminChain(s.APIAdminGetRegistrationFiles))
+	mux.HandleFunc("/admin/api/file/{file_id}", adminChain(s.APIAdminGetFile))
 
 	// Serve Angular SPA routes
 	serveIndex := func(w http.ResponseWriter, r *http.Request) {
@@ -125,6 +151,18 @@ func NewServer(runtime configuration.RuntimeEnv, dbService DBServiceProvider, is
 func (s *Server) LogRequest(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		slog.Info("Entry", "method", r.Method, "url", r.URL.Path)
+		next(w, r)
+	}
+}
+
+func (s *Server) BasicAuth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, pass, ok := r.BasicAuth()
+		if !ok || user != s.AdminUser || pass != s.AdminPassword {
+			w.Header().Set("WWW-Authenticate", `Basic realm="Admin"`)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
 		next(w, r)
 	}
 }

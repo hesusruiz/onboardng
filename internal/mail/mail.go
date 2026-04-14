@@ -109,21 +109,32 @@ func (s *Service) SendWelcomeEmail(reg *db.RegistrationRecord) error {
 		return fmt.Errorf("failed to parse email template: %w", err)
 	}
 
-	var body bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&body, "content", data); err != nil {
+	var emailBody bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&emailBody, "content", data); err != nil {
 		return fmt.Errorf("failed to execute email template: %w", err)
 	}
 
+	// The email is sent from the same email as used to authenticate to the email server
 	from := s.smtpConfig.Username
-	to := append([]string{reg.Email}, s.ccTeamEmail...)
+
+	// The email is sent to the customer and the list of corresponding internal emails
+	messageVisibleTo := []string{reg.Email}
+	messageVisibleCC := s.onboardTeamEmail
+	messageInvisibleBCC := s.ccTeamEmail
+	allRecipients := append(messageVisibleTo, messageVisibleCC...)
+	allRecipients = append(allRecipients, messageInvisibleBCC...)
+
 	subject := "Welcome to DOME Marketplace!"
 	mime := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
-	msg := []byte("From: " + from + "\n" +
-		"To: " + strings.Join(to, ", ") + "\n" +
-		"Subject: " + subject + "\n" +
-		mime + body.String())
 
-	return s.send(from, to, msg)
+	// Build the email message
+	msg := []byte("From: " + from + "\n" +
+		"To: " + strings.Join(messageVisibleTo, ", ") + "\n" +
+		"Cc: " + strings.Join(messageVisibleCC, ", ") + "\n" +
+		"Subject: " + subject + "\n" +
+		mime + emailBody.String())
+
+	return s.send(from, allRecipients, msg)
 }
 
 func (s *Service) SendVerificationCode(email string, code string) error {

@@ -1,4 +1,3 @@
-{{define "content"}}
 <!DOCTYPE html>
 
 <html class="light" lang="en">
@@ -82,10 +81,6 @@
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
             vertical-align: middle;
         }
-
-        body {
-            font-family: 'Inter', sans-serif;
-        }
     </style>
 </head>
 
@@ -96,31 +91,6 @@
         <div class="flex items-center gap-8">
             <div class="text-xl font-black text-indigo-600 dark:text-indigo-400 tracking-tighter uppercase" style="">
                 Onboarding Admin</div>
-            <nav class="hidden md:flex gap-6">
-                <a class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-semibold text-xs tracking-wider uppercase transition-colors duration-150"
-                    href="#" style="">Dashboard</a>
-                <a class="text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 pb-1 font-bold text-xs tracking-wider uppercase"
-                    href="#" style="">Registrations</a>
-                <a class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-semibold text-xs tracking-wider uppercase transition-colors duration-150"
-                    href="#" style="">Users</a>
-                <a class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-semibold text-xs tracking-wider uppercase transition-colors duration-150"
-                    href="#" style="">Reports</a>
-            </nav>
-        </div>
-        <div class="flex items-center gap-4">
-            <button class="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors" style="">
-                <span class="material-symbols-outlined" data-icon="notifications" style="">notifications</span>
-            </button>
-            <div class="flex items-center gap-3 pl-4 border-l border-slate-200">
-                <div class="text-right">
-                    <p class="text-sm font-bold text-slate-900" style="">Alex Rivera</p>
-                    <p class="text-[10px] font-semibold text-indigo-600 uppercase tracking-widest" style="">
-                        Administrator</p>
-                </div>
-                <img alt="Alex Rivera" class="w-10 h-10 rounded-full border-2 border-indigo-100"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuAzrN_L5KTjbVasT0erw2bho4ootdD7xMSgld2E68vjT6A3Yem5wg8qSR6FfU3LOiV-KiZAJ_bqmXH56gsXJVdBtaUtzoqfQURylkYMdxNUQoJA7V7dML0CU5d_9y1_HL6st3vqtOjMHeFu0mrf5A7KwRxk3zzpkBQUjd0h7LX-m56rWghSd0usX6NM2GWo1hDWj4SJicxZ6KQVUHRM8lT2DzcQyXsfbE4Ky0Zwk1NfjEdIsI2ug5kFN3T3rRhW34y5BzDBC_aBbA1W"
-                    style="" />
-            </div>
         </div>
     </header>
     <main class="max-w-[1400px] mx-auto px-6 py-8">
@@ -128,26 +98,60 @@
         <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
             <div>
                 <a class="inline-flex items-center text-indigo-600 hover:text-indigo-800 font-bold text-sm mb-2 group transition-all"
-                    href="#" style="">
+                    href="/admin/index" style="">
                     <span class="material-symbols-outlined mr-1 text-lg group-hover:-translate-x-1 transition-transform"
                         data-icon="arrow_back" style="">arrow_back</span>
                     Back to Registrations
                 </a>
+
                 <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight" style="">Registration Detail</h1>
-                <p class="text-on-surface-variant font-medium mt-1" style="">ID: REG-2024-8842 • Submitted on Oct 24,
-                    2023</p>
+                <p class="text-on-surface-variant font-medium mt-1" style="">ID: {{ .Reg.RegistrationID }} • Submitted
+                    on
+                    {{ .Reg.CreatedAt.Format "Jan 2, 2006" }}
+                </p>
             </div>
             <div class="flex gap-3">
-                <button
-                    class="px-6 py-2.5 bg-white border border-outline-variant text-on-surface font-bold rounded hover:bg-surface-container-low transition-all shadow-sm active:scale-[0.98]"
-                    style="">
-                    Download Dossier
-                </button>
-                <button
-                    class="px-6 py-2.5 bg-primary text-on-primary font-bold rounded hover:bg-primary-container transition-all shadow-md active:scale-[0.98]"
-                    style="">
-                    Approve Registration
-                </button>
+                {{ if eq .Reg.Approved 0 }}
+                <span class="px-6 py-2.5 bg-blue-100 text-blue-700 border-2 border-blue-300 rounded-lg text-sm font-extrabold
+                uppercase tracking-widest" style="">Full Onboard: PENDING</span>
+                {{end}}
+                {{ if eq .Reg.Approved 1 }}
+                <span
+                    class="px-6 py-2.5 bg-green-100 text-green-700 border-2 border-green-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
+                    style="">Full Onboard: APPROVED</span>
+                {{end}}
+                {{ if eq .Reg.Approved 2 }}
+                <span
+                    class="px-6 py-2.5 bg-red-100 text-red-700 border-2 border-red-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
+                    style="">Full Onboard: REJECTED</span>
+                {{end}}
+            </div>
+            <div class="flex gap-3">
+                <form action="/admin/registration?vat_id={{ .Reg.VatID }}" method="post">
+                    <input type="hidden" name="status" value="approved">
+                    <button
+                        class="px-6 py-2.5 bg-primary text-on-primary font-bold rounded hover:bg-primary-container transition-all shadow-md active:scale-[0.98]"
+                        style="">
+                        Approve
+                    </button>
+                </form>
+                <form action="/admin/registration?vat_id={{ .Reg.VatID }}" method="post">
+                    <input type="hidden" name="status" value="rejected">
+                    <button
+                        class="px-6 py-2.5 bg-error text-on-error font-bold rounded hover:bg-error-container transition-all shadow-md active:scale-[0.98]"
+                        style="">
+                        Reject
+                    </button>
+                </form>
+                <form action="/admin/registration?vat_id={{ .Reg.VatID }}" method="post">
+                    <input type="hidden" name="status" value="pending">
+                    <button
+                        class="px-6 py-2.5 bg-white border border-outline-variant text-on-surface font-bold rounded hover:bg-surface-container-low transition-all shadow-sm active:scale-[0.98]"
+                        style="">
+                        Set Pending
+                    </button>
+                </form>
+
             </div>
         </div>
         <!-- Top Content Area with Sidebar -->
@@ -159,6 +163,7 @@
                     <div class="flex items-center gap-2 mb-6 border-b border-outline-variant pb-4">
                         <span class="material-symbols-outlined text-indigo-600" data-icon="person"
                             style="">person</span>
+
                         <h2 class="text-xl font-extrabold text-slate-900 uppercase tracking-tight" style="">Basic
                             Information</h2>
                     </div>
@@ -166,12 +171,14 @@
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1"
                                 style="">Full Name</label>
-                            <p class="text-lg font-bold text-slate-900" style="">first_name last_name</p>
+                            <p class="text-lg font-bold text-slate-900" style="">{{ .Reg.FirstName }}
+                                {{ .Reg.LastName }}
+                            </p>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1"
                                 style="">Email Address</label>
-                            <p class="text-lg font-bold text-slate-900" style="">email@domain.com</p>
+                            <p class="text-lg font-bold text-slate-900" style="">{{ .Reg.Email }}</p>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1"
@@ -179,12 +186,14 @@
                             <span
                                 class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200"
                                 style="">
-                                SELLER</span>
+                                {{ .Reg.Role }}</span>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1"
                                 style="">Submission Date</label>
-                            <p class="text-lg font-bold text-slate-900" style="">2023-10-24 14:32:11</p>
+                            <p class="text-lg font-bold text-slate-900" style="">
+                                {{ .Reg.CreatedAt.Format "2006-01-02 15:04:05" }}
+                            </p>
                         </div>
                     </div>
                 </section>
@@ -193,6 +202,7 @@
                     <div class="flex items-center gap-2 mb-6 border-b border-outline-variant pb-4">
                         <span class="material-symbols-outlined text-indigo-600" data-icon="domain"
                             style="">domain</span>
+
                         <h2 class="text-xl font-extrabold text-slate-900 uppercase tracking-tight" style="">Company
                             Profile</h2>
                     </div>
@@ -200,26 +210,26 @@
                         <div class="md:col-span-2">
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1"
                                 style="">Legal Company Name</label>
-                            <p class="text-xl font-extrabold text-slate-900" style="">company_name</p>
+                            <p class="text-xl font-extrabold text-slate-900" style="">{{ .Reg.CompanyName }}</p>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1"
                                 style="">VAT ID</label>
-                            <p class="text-lg font-bold text-slate-900" style="">vat_id</p>
+                            <p class="text-lg font-bold text-slate-900" style="">{{ .Reg.VatID }}</p>
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1"
                                 style="">Registration Number</label>
-                            <p class="text-lg font-bold text-slate-900" style="">HRB 105942-B</p>
+                            <p class="text-lg font-bold text-slate-900" style="">{{ .Reg.RegistrationID }}</p>
                         </div>
                     </div>
                     <div class="bg-surface-container-low p-4 rounded border border-outline-variant">
                         <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2"
                             style="">Registered Address</label>
                         <p class="text-slate-800 font-medium leading-relaxed" style="">
-                            Friedrichstraße 120, 4th Floor<br />
-                            10117 Berlin<br />
-                            Germany
+                            {{ .Reg.StreetAddress }}<br />
+                            {{ .Reg.PostalCode }} {{ .Reg.City }}<br />
+                            {{ .Reg.Country }}
                         </p>
                     </div>
                 </section>
@@ -229,32 +239,35 @@
                         <div class="flex items-center gap-2 mb-4 border-b border-outline-variant pb-3">
                             <span class="material-symbols-outlined text-indigo-600 text-xl" data-icon="gavel"
                                 style="">gavel</span>
+
                             <h2 class="text-md font-extrabold text-slate-900 uppercase tracking-tight" style="">Legal
                                 Representative</h2>
                         </div>
                         <div class="space-y-4">
                             <div>
-                                <p class="font-bold text-slate-900 text-lg" style="">Dr. Elena Schneider</p>
+                                <p class="font-bold text-slate-900 text-lg" style="">{{ .Reg.LRFirstName }}
+                                    {{ .Reg.LRLastName }}
+                                </p>
                             </div>
                             <div class="grid grid-cols-1 gap-3">
                                 <div>
                                     <label
                                         class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5"
                                         style="">Email</label>
-                                    <p class="text-sm font-bold text-slate-900" style="">e.schneider@example.com</p>
+                                    <p class="text-sm font-bold text-slate-900" style="">{{ .Reg.LREmail }}</p>
                                 </div>
                                 <div class="flex justify-between">
                                     <div>
                                         <label
                                             class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5"
                                             style="">Country</label>
-                                        <p class="text-sm font-bold text-slate-900" style="">Germany</p>
+                                        <p class="text-sm font-bold text-slate-900" style="">{{ .Reg.LRCountry }}</p>
                                     </div>
                                     <div class="text-right">
                                         <label
                                             class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5"
                                             style="">ID Card</label>
-                                        <p class="text-sm font-bold text-slate-900" style="">ID-99238-A</p>
+                                        <p class="text-sm font-bold text-slate-900" style="">{{ .Reg.LRIdCard }}</p>
                                     </div>
                                 </div>
                             </div>
@@ -264,33 +277,36 @@
                         <div class="flex items-center gap-2 mb-4 border-b border-outline-variant pb-3">
                             <span class="material-symbols-outlined text-indigo-600 text-xl" data-icon="badge"
                                 style="">badge</span>
+
                             <h2 class="text-md font-extrabold text-slate-900 uppercase tracking-tight" style="">LEAR
                                 Official</h2>
                         </div>
                         <div class="space-y-4">
                             <div>
-                                <p class="font-bold text-slate-900 text-lg" style="">Julian Vance-Mendoza</p>
+                                <p class="font-bold text-slate-900 text-lg" style="">{{ .Reg.LEARFirstName }}
+                                    {{ .Reg.LEARLastName }}
+                                </p>
                             </div>
                             <div class="grid grid-cols-1 gap-3">
                                 <div>
                                     <label
                                         class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5"
                                         style="">Email</label>
-                                    <p class="text-sm font-bold text-slate-900" style="">j.vance@vanguard-logistics.eu
-                                    </p>
+                                    <p class="text-sm font-bold text-slate-900" style="">{{ .Reg.LEAREmail }}</p>
                                 </div>
                                 <div class="flex justify-between">
                                     <div>
                                         <label
                                             class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5"
                                             style="">ID Card</label>
-                                        <p class="text-sm font-bold text-slate-900" style="">ID-11223-B</p>
+                                        <p class="text-sm font-bold text-slate-900" style="">{{ .Reg.LEARIdCard }}</p>
                                     </div>
                                     <div class="text-right">
                                         <label
                                             class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5"
                                             style="">Mobile Number</label>
-                                        <p class="text-sm font-bold text-slate-900" style="">+49 170 1234567</p>
+                                        <p class="text-sm font-bold text-slate-900" style="">{{ .Reg.LEARMobileNumber }}
+                                        </p>
                                     </div>
                                 </div>
                                 <div class="pt-2 border-t border-outline-variant">
@@ -298,7 +314,7 @@
                                         class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1"
                                         style="">Postal Address</label>
                                     <p class="text-xs font-bold text-slate-900 leading-tight" style="">
-                                        Friedrichstraße 120, 10117 Berlin
+                                        {{ .Reg.LEARAddress }} - {{ .Reg.LEARCountry }}
                                     </p>
                                 </div>
                             </div>
@@ -311,6 +327,7 @@
                         <div class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-indigo-600" data-icon="sticky_note_2"
                                 style="">sticky_note_2</span>
+
                             <h2 class="text-xl font-extrabold text-slate-900 uppercase tracking-tight" style="">Internal
                                 Admin Notes</h2>
                         </div>
@@ -318,7 +335,7 @@
                     </div>
                     <textarea
                         class="w-full h-32 p-4 bg-surface-container-low border border-outline-variant rounded text-slate-800 focus:ring-2 focus:ring-primary focus:border-primary transition-all resize-none font-body placeholder:text-slate-400"
-                        placeholder="Enter confidential notes regarding this registration..."></textarea>
+                        placeholder="This is not yet implemented. Admin will be able to enter confidential notes here..."></textarea>
                     <div class="mt-3 flex justify-end">
                         <button
                             class="px-4 py-1.5 bg-slate-900 text-white text-xs font-bold rounded uppercase tracking-widest hover:bg-slate-800 transition-colors"
@@ -333,6 +350,7 @@
                     <div class="flex items-center gap-2 mb-6 border-b border-outline-variant pb-4">
                         <span class="material-symbols-outlined text-indigo-600" data-icon="schema"
                             style="">schema</span>
+
                         <h2 class="text-xl font-extrabold text-slate-900 uppercase tracking-tight" style="">Process
                             Status</h2>
                     </div>
@@ -341,9 +359,15 @@
                         <div
                             class="flex items-center justify-between p-3 bg-surface-container-low border border-outline-variant rounded">
                             <div class="flex items-center gap-3">
+                                {{ if .Reg.Notified }}
                                 <span class="material-symbols-outlined text-green-600" data-icon="check_circle"
                                     style='font-variation-settings: "FILL" 1;'>check_circle</span>
+                                {{ else }}
+                                <span class="material-symbols-outlined text-slate-400" data-icon="pending"
+                                    style="">pending</span>
+                                {{ end }}
                                 <span class="font-bold text-slate-900 text-sm" style="">Registration Notified</span>
+
                             </div>
                             <button
                                 class="px-3 py-1 bg-white border border-green-200 text-green-700 text-[10px] font-bold uppercase tracking-widest rounded hover:bg-green-50 transition-colors"
@@ -352,8 +376,13 @@
                         <div
                             class="flex items-center justify-between p-3 bg-surface-container-low border border-outline-variant rounded">
                             <div class="flex items-center gap-3">
+                                {{ if .Reg.Issued }}
                                 <span class="material-symbols-outlined text-green-600" data-icon="check_circle"
                                     style='font-variation-settings: "FILL" 1;'>check_circle</span>
+                                {{ else }}
+                                <span class="material-symbols-outlined text-slate-400" data-icon="pending"
+                                    style="">pending</span>
+                                {{ end }}
                                 <span class="font-bold text-slate-900 text-sm" style="">Credential Issued</span>
                             </div>
                             <button
@@ -363,34 +392,47 @@
                         <div
                             class="flex items-center justify-between p-3 bg-surface-container-low border border-outline-variant rounded">
                             <div class="flex items-center gap-3">
+                                {{ if .Reg.TMFRegistered }}
                                 <span class="material-symbols-outlined text-green-600" data-icon="check_circle"
                                     style='font-variation-settings: "FILL" 1;'>check_circle</span>
+                                {{ else }}
+                                <span class="material-symbols-outlined text-slate-400" data-icon="pending"
+                                    style="">pending</span>
+                                {{ end }}
                                 <span class="font-bold text-slate-900 text-sm" style="">TMF Registered</span>
                             </div>
                             <button
                                 class="px-3 py-1 bg-white border border-green-200 text-green-700 text-[10px] font-bold uppercase tracking-widest rounded hover:bg-green-50 transition-colors"
                                 style="">Try again</button>
                         </div>
-                        <div
-                            class="flex items-center justify-between p-3 bg-surface-container-low border border-outline-variant rounded">
-                            <div class="flex items-center gap-3">
-                                <span class="material-symbols-outlined text-slate-400" data-icon="pending"
-                                    style="">pending</span>
-                                <span class="font-bold text-slate-900 text-sm" style="">LEAR Completed</span>
-                            </div>
-                            <div class="w-8 h-4 bg-slate-300 rounded-full relative cursor-pointer">
-                                <div class="w-3 h-3 bg-white rounded-full absolute top-0.5 left-0.5 shadow-sm"></div>
+                        <div class="pt-6 border-t border-dashed border-outline-variant">
+
+                            <div
+                                class="flex items-center justify-between p-3 bg-surface-container-low border border-outline-variant rounded">
+                                <div class="flex items-center gap-3">
+                                    {{ if .Reg.LEARCompleted }}
+                                    <span class="material-symbols-outlined text-green-600" data-icon="check_circle"
+                                        style='font-variation-settings: "FILL" 1;'>check_circle</span>
+                                    {{ else }}
+                                    <span class="material-symbols-outlined text-slate-400" data-icon="pending"
+                                        style="">pending</span>
+                                    {{ end }}
+                                    <span class="font-bold text-slate-900 text-sm" style="">LEAR Completed</span>
+                                </div>
                             </div>
                         </div>
+
                         <div
                             class="flex items-center justify-between p-3 bg-surface-container-low border border-outline-variant rounded">
                             <div class="flex items-center gap-3">
+                                {{ if .Reg.FilesUploaded }}
                                 <span class="material-symbols-outlined text-indigo-600" data-icon="cloud_done"
                                     style='font-variation-settings: "FILL" 1;'>cloud_done</span>
+                                {{ else }}
+                                <span class="material-symbols-outlined text-slate-400" data-icon="pending"
+                                    style="">pending</span>
+                                {{ end }}
                                 <span class="font-bold text-slate-900 text-sm" style="">Files Uploaded</span>
-                            </div>
-                            <div class="w-8 h-4 bg-indigo-600 rounded-full relative cursor-pointer">
-                                <div class="w-3 h-3 bg-white rounded-full absolute top-0.5 right-0.5 shadow-sm"></div>
                             </div>
                         </div>
                     </div>
@@ -398,19 +440,20 @@
                     <div class="pt-6 border-t border-dashed border-outline-variant">
                         <div
                             class="flex items-center justify-between bg-indigo-50 border border-indigo-200 p-4 rounded-lg">
+                            {{ if eq .Reg.Approved 1 }}
+                            <span class="material-symbols-outlined text-green-600" data-icon="check_circle"
+                                style='font-variation-settings: "FILL" 1;'>check_circle</span>
+                            {{ else }}
+                            <span class="material-symbols-outlined text-slate-400" data-icon="pending"
+                                style="">pending</span>
+                            {{ end }}
+
                             <div>
                                 <p class="text-indigo-900 font-extrabold text-sm uppercase tracking-tight" style="">
                                     Final Verification</p>
                                 <p class="text-[10px] font-bold text-indigo-600 uppercase" style="">Confirm all checks
                                     passed</p>
                             </div>
-                            <button
-                                class="flex items-center justify-center w-12 h-6 bg-slate-200 rounded-full relative group"
-                                style="">
-                                <div
-                                    class="w-5 h-5 bg-white rounded-full absolute left-0.5 shadow transition-all group-hover:bg-slate-50">
-                                </div>
-                            </button>
                         </div>
                     </div>
                 </section>
@@ -429,6 +472,7 @@
                 </div>
             </div>
         </div>
+
         <!-- Full Width Sections -->
         <div class="space-y-6">
             <!-- Uploaded Documents -->
@@ -438,6 +482,7 @@
                     <div class="flex items-center gap-2">
                         <span class="material-symbols-outlined text-indigo-600" data-icon="folder_open"
                             style="">folder_open</span>
+
                         <h2 class="text-xl font-extrabold text-slate-900 uppercase tracking-tight" style="">Uploaded
                             Documents</h2>
                     </div>
@@ -461,18 +506,19 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-outline-variant">
+                            {{ range .Files }}
+
                             <tr class="hover:bg-slate-50 transition-colors">
-                                <td class="px-6 py-4" style="">
-                                    <div class="flex items-center gap-3">
-                                        <span class="material-symbols-outlined text-red-600" data-icon="picture_as_pdf"
-                                            style="">picture_as_pdf</span>
-                                        <a class="font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
-                                            href="#" style="">Certificate_of_Incumbency.pdf</a>
-                                    </div>
+                                <td class="px-6 py-4">
+                                    <a download="{{ .Name }}"
+                                        class="font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
+                                        href="/admin/api/file/{{ .FileID }}" style="">{{ .Name }}</a>
                                 </td>
-                                <td class="px-6 py-4 text-sm font-medium text-slate-500" style="">2.4 MB</td>
-                                <td class="px-6 py-4 text-sm font-medium text-slate-500" style="">2023-10-24</td>
-                                <td class="px-6 py-4 text-sm font-medium text-slate-500" style="">2023-10-24</td>
+                                <td class="px-6 py-4 text-sm font-medium text-slate-500" style="">{{ .Size }}</td>
+                                <td class="px-6 py-4 text-sm font-medium text-slate-500" style="">{{ .CreatedAt | date
+                                    "2006-01-02 15:04:05" }}</td>
+                                <td class="px-6 py-4 text-sm font-medium text-slate-500" style="">{{ .UpdatedAt | date
+                                    "2006-01-02 15:04:05" }}</td>
                                 <td class="px-6 py-4" style=""><select
                                         class="appearance-none px-3 py-1 rounded-full text-[10px] font-bold bg-green-100 text-green-700 border border-green-200 uppercase tracking-wider focus:ring-2 focus:ring-green-500 focus:outline-none cursor-pointer">
                                         <option selected="" value="approved">Approved</option>
@@ -480,63 +526,9 @@
                                         <option value="rejected">Rejected</option>
                                     </select></td>
                             </tr>
-                            <tr class="hover:bg-slate-50 transition-colors">
-                                <td class="px-6 py-4" style="">
-                                    <div class="flex items-center gap-3">
-                                        <span class="material-symbols-outlined text-blue-600" data-icon="image"
-                                            style="">image</span>
-                                        <a class="font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
-                                            href="#" style="">Passport_Elena_Schneider.jpg</a>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 text-sm font-medium text-slate-500" style="">1.8 MB</td>
-                                <td class="px-6 py-4 text-sm font-medium text-slate-500" style="">2023-10-24</td>
-                                <td class="px-6 py-4 text-sm font-medium text-slate-500" style="">2023-10-24</td>
-                                <td class="px-6 py-4" style=""><select
-                                        class="appearance-none px-3 py-1 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200 uppercase tracking-wider focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer">
-                                        <option value="approved">Approved</option>
-                                        <option selected="" value="in_review">In Review</option>
-                                        <option value="rejected">Rejected</option>
-                                    </select></td>
-                            </tr>
-                            <tr class="hover:bg-slate-50 transition-colors">
-                                <td class="px-6 py-4" style="">
-                                    <div class="flex items-center gap-3">
-                                        <span class="material-symbols-outlined text-red-600" data-icon="picture_as_pdf"
-                                            style="">picture_as_pdf</span>
-                                        <a class="font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
-                                            href="#" style="">VAT_Registration_Proof.pdf</a>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 text-sm font-medium text-slate-500" style="">4.1 MB</td>
-                                <td class="px-6 py-4 text-sm font-medium text-slate-500" style="">2023-10-24</td>
-                                <td class="px-6 py-4 text-sm font-medium text-slate-500" style="">2023-10-25</td>
-                                <td class="px-6 py-4" style=""><select
-                                        class="appearance-none px-3 py-1 rounded-full text-[10px] font-bold bg-green-100 text-green-700 border border-green-200 uppercase tracking-wider focus:ring-2 focus:ring-green-500 focus:outline-none cursor-pointer">
-                                        <option selected="" value="approved">Approved</option>
-                                        <option value="in_review">In Review</option>
-                                        <option value="rejected">Rejected</option>
-                                    </select></td>
-                            </tr>
-                            <tr class="hover:bg-slate-50 transition-colors">
-                                <td class="px-6 py-4" style="">
-                                    <div class="flex items-center gap-3">
-                                        <span class="material-symbols-outlined text-red-600" data-icon="picture_as_pdf"
-                                            style="">picture_as_pdf</span>
-                                        <a class="font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
-                                            href="#" style="">Letter_of_Appointment_LEAR.pdf</a>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 text-sm font-medium text-slate-500" style="">1.2 MB</td>
-                                <td class="px-6 py-4 text-sm font-medium text-slate-500" style="">2023-10-25</td>
-                                <td class="px-6 py-4 text-sm font-medium text-slate-500" style="">2023-10-25</td>
-                                <td class="px-6 py-4" style=""><select
-                                        class="appearance-none px-3 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-200 uppercase tracking-wider focus:ring-2 focus:ring-red-500 focus:outline-none cursor-pointer">
-                                        <option value="approved">Approved</option>
-                                        <option value="in_review">In Review</option>
-                                        <option selected="" value="rejected">Rejected</option>
-                                    </select></td>
-                            </tr>
+
+                            {{ end }}
+
                         </tbody>
                     </table>
                 </div>
@@ -548,6 +540,7 @@
                     <div class="flex items-center gap-2">
                         <span class="material-symbols-outlined text-indigo-600" data-icon="history"
                             style="">history</span>
+
                         <h2 class="text-xl font-extrabold text-slate-900 uppercase tracking-tight" style="">Registration
                             Activity Log</h2>
                     </div>
@@ -567,66 +560,40 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-outline-variant">
+
+                            {{ range .Logs }}
                             <tr class="hover:bg-slate-50 transition-colors">
                                 <td class="px-6 py-4" style="">
+                                    {{ if eq .Type "info" }}
                                     <span
                                         class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-600 text-white uppercase tracking-wider"
                                         style="">Info</span>
-                                </td>
-                                <td class="px-6 py-4 text-sm text-slate-600 w-full whitespace-normal" style="">System
-                                    initialized the registration process for new entity application.</td>
-                                <td class="px-6 py-4 text-right" style="">
-                                    <p class="text-xs font-black text-slate-400 uppercase tracking-tighter" style="">Oct
-                                        24, 2023</p>
-                                    <p class="text-[10px] font-bold text-slate-500" style="">14:32</p>
-                                </td>
-                            </tr>
-                            <tr class="hover:bg-slate-50 transition-colors">
-                                <td class="px-6 py-4" style="">
-                                    <span
-                                        class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-600 text-white uppercase tracking-wider"
-                                        style="">Info</span>
-                                </td>
-                                <td class="px-6 py-4 text-sm text-slate-600 w-full whitespace-normal" style="">System
-                                    successfully sent and confirmed delivery of verification link.</td>
-                                <td class="px-6 py-4 text-right" style="">
-                                    <p class="text-xs font-black text-slate-400 uppercase tracking-tighter" style="">Oct
-                                        24, 2023</p>
-                                    <p class="text-[10px] font-bold text-slate-500" style="">14:35</p>
-                                </td>
-                            </tr>
-                            <tr class="hover:bg-slate-50 transition-colors">
-                                <td class="px-6 py-4" style="">
+                                    {{ end }}
+                                    {{ if eq .Type "warning" }}
                                     <span
                                         class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-white uppercase tracking-wider"
                                         style="">Warning</span>
-                                </td>
-                                <td class="px-6 py-4 w-full whitespace-normal" style="">
-                                    <div class="bg-amber-50 border-l-2 border-amber-400 p-2 rounded">
-                                        <p class="text-[11px] text-amber-900 font-medium" style="">System detected
-                                            discrepancy between VAT records and address.</p>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 text-right" style="">
-                                    <p class="text-xs font-black text-slate-400 uppercase tracking-tighter" style="">Oct
-                                        25, 2023</p>
-                                    <p class="text-[10px] font-bold text-slate-500" style="">09:12</p>
-                                </td>
-                            </tr>
-                            <tr class="hover:bg-slate-50 transition-colors">
-                                <td class="px-6 py-4" style="">
+                                    {{ end }}
+                                    {{ if eq .Type "error" }}
                                     <span
                                         class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white uppercase tracking-wider"
                                         style="">Error</span>
+                                    {{ end }}
                                 </td>
                                 <td class="px-6 py-4 text-sm text-slate-600 w-full whitespace-normal" style="">
-                                    Appointment Letter rejected: no digital signature detected in PDF.</td>
+                                    {{ .Message }}
+                                </td>
                                 <td class="px-6 py-4 text-right" style="">
-                                    <p class="text-xs font-black text-slate-400 uppercase tracking-tighter" style="">Oct
-                                        25, 2023</p>
-                                    <p class="text-[10px] font-bold text-slate-500" style="">10:45</p>
+                                    <p class="text-xs font-black text-slate-400 uppercase tracking-tighter" style="">
+                                        {{ .CreatedAt | date "2006-01-02" }}
+                                    </p>
+                                    <p class="text-[10px] font-bold text-slate-500" style="">
+                                        {{ .CreatedAt | date "15:04" }}
+                                    </p>
                                 </td>
                             </tr>
+                            {{ end }}
+
                         </tbody>
                     </table>
                 </div>
@@ -657,4 +624,3 @@
 </body>
 
 </html>
-{{end}}
