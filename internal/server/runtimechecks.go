@@ -73,7 +73,7 @@ func (s *Server) CheckIssuer(ctx context.Context, token string, vatID string) er
 		ctx = context.Background()
 	}
 
-	// Get an access token to authenticate in the Issuer and TM Forum APIs¡
+	// Get an access token to authenticate in the Issuer and TM Forum APIs
 	if token == "" {
 		var err error
 		token, err = s.Issuer.GetAccessToken(ctx)
@@ -200,6 +200,18 @@ func (s *Server) CheckTMForum(ctx context.Context, token string, vatID string) e
 }
 
 func (s *Server) CheckMail() error {
+
+	slog.Info("Self-Diagnostics Mail: checking the Mail service")
+
+	// Send a test email
+	if err := s.Mail.SendTestEmail(); err != nil {
+		err = errl.Errorf("Self-Diagnostics Mail: failed to send test email: %v", err)
+		slog.Error(err.Error())
+		return err
+	} else {
+		slog.Info("Self-Diagnostics Mail: successfully sent test email")
+	}
+
 	return nil
 }
 

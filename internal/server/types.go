@@ -27,6 +27,7 @@ type DBServiceProvider interface {
 // MailServiceProvider enables easy testing or replacing of the mail implementation
 type MailServiceProvider interface {
 	SendVerificationCode(email string, code string) error
+	SendTestEmail() error
 	SendWelcomeEmail(reg *db.RegistrationRecord) error
 	SendIssuerError(reg *db.RegistrationRecord, payload string, errorMsg string) error
 }

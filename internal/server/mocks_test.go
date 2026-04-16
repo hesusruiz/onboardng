@@ -65,12 +65,16 @@ func (m *MockDB) UpdateRepresentativesByVatID(vatID string, rep *db.Registration
 
 type MockMail struct {
 	SendVerificationCodeFunc func(email string, code string) error
+	SendTestEmailFunc        func() error
 	SendWelcomeEmailFunc     func(reg *db.RegistrationRecord) error
 	SendIssuerErrorFunc      func(reg *db.RegistrationRecord, payload string, errorMsg string) error
 }
 
 func (m *MockMail) SendVerificationCode(email string, code string) error {
 	return m.SendVerificationCodeFunc(email, code)
+}
+func (m *MockMail) SendTestEmail() error {
+	return m.SendTestEmailFunc()
 }
 func (m *MockMail) SendWelcomeEmail(reg *db.RegistrationRecord) error {
 	return m.SendWelcomeEmailFunc(reg)
