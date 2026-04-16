@@ -47,8 +47,12 @@
             "request": "launch",
             "mode": "auto",
             "program": ".",
+            "env": {
+                "ADMIN_USER": "admin",
+                "ADMIN_PASSWORD": "perico",
+            },
             "args": [
-                "-watch",
+                "serve",
                 "-env",
                 "pro"
             ]

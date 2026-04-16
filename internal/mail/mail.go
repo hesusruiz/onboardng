@@ -27,17 +27,21 @@ var issuerErrorTemplate string
 //go:embed templates/email_verification.html
 var emailVerificationTemplate string
 
+//go:embed templates/email_test.html
+var emailTestTemplate string
+
 type MailSender interface {
 	SendWelcomeEmail(reg *db.RegistrationRecord) error
 }
 
 type Service struct {
-	runtime          configuration.RuntimeEnv
-	onboardTeamEmail []string
-	issuerTeamEmail  []string
-	ccTeamEmail      []string
-	smtpConfig       configuration.SMTPConfig
-	password         string
+	runtime            configuration.RuntimeEnv
+	onboardTeamEmail   []string
+	issuerTeamEmail    []string
+	ccTeamEmail        []string
+	testRecipientEmail string
+	smtpConfig         configuration.SMTPConfig
+	password           string
 }
 
 func NewMailService(runtime configuration.RuntimeEnv, cfg configuration.MailConfig) (*Service, error) {
@@ -78,12 +82,13 @@ func NewMailService(runtime configuration.RuntimeEnv, cfg configuration.MailConf
 	}
 
 	return &Service{
-		runtime:          runtime,
-		onboardTeamEmail: cfg.OnboardTeamEmail,
-		issuerTeamEmail:  cfg.IssuerTeamEmail,
-		ccTeamEmail:      cfg.CCTeamEmail,
-		smtpConfig:       cfg.SMTP,
-		password:         password,
+		runtime:            runtime,
+		onboardTeamEmail:   cfg.OnboardTeamEmail,
+		issuerTeamEmail:    cfg.IssuerTeamEmail,
+		ccTeamEmail:        cfg.CCTeamEmail,
+		testRecipientEmail: cfg.TestRecipientEmail,
+		smtpConfig:         cfg.SMTP,
+		password:           password,
 	}, nil
 }
 
@@ -197,6 +202,45 @@ func (s *Service) SendIssuerError(reg *db.RegistrationRecord, payload string, er
 	from := s.smtpConfig.Username
 	to := s.issuerTeamEmail
 	subject := "DOME: Error in Credential Issuer during customer registration"
+	mime := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
+	msg := []byte("From: " + from + "\n" +
+		"To: " + strings.Join(to, ", ") + "\n" +
+		"Subject: " + subject + "\n" +
+		mime + body.String())
+
+	return s.send(from, to, msg)
+}
+
+func (s *Service) SendTestEmail() error {
+	if !s.smtpConfig.Enabled {
+		return nil
+	}
+
+	data := struct {
+		Email            string
+		Code             string
+		Runtime          configuration.RuntimeEnv
+		OnboardTeamEmail string
+	}{
+		Email:            s.testRecipientEmail,
+		Code:             "123456",
+		Runtime:          s.runtime,
+		OnboardTeamEmail: s.onboardTeamEmail[0],
+	}
+
+	tmpl, err := template.New("email_test.html").Parse(emailTestTemplate)
+	if err != nil {
+		return fmt.Errorf("failed to parse email template: %w", err)
+	}
+
+	var body bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&body, "content", data); err != nil {
+		return fmt.Errorf("failed to execute email template: %w", err)
+	}
+
+	from := s.smtpConfig.Username
+	to := []string{s.testRecipientEmail}
+	subject := "DOME Marketplace Test Email"
 	mime := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
 	msg := []byte("From: " + from + "\n" +
 		"To: " + strings.Join(to, ", ") + "\n" +

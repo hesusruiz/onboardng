@@ -86,6 +86,7 @@ func (e *EnvConfig) String() string {
 	fmt.Fprintf(&b, "  OnboardTeamEmail: %v\n", e.Mail.OnboardTeamEmail)
 	fmt.Fprintf(&b, "  IssuerTeamEmail: %v\n", e.Mail.IssuerTeamEmail)
 	fmt.Fprintf(&b, "  CCTeamEmail: %v\n", e.Mail.CCTeamEmail)
+	fmt.Fprintf(&b, "  TestRecipientEmail: %s\n", e.Mail.TestRecipientEmail)
 	fmt.Fprintf(&b, "  SMTP:\n")
 	fmt.Fprintf(&b, "    Enabled: %t\n", e.Mail.SMTP.Enabled)
 	fmt.Fprintf(&b, "    Host: %s\n", e.Mail.SMTP.Host)
@@ -111,11 +112,12 @@ type TMForumConfig struct {
 }
 
 type MailConfig struct {
-	AgeSecretKey     string   `yaml:"-"`
-	OnboardTeamEmail []string `yaml:"onboard_team_email"`
-	IssuerTeamEmail  []string `yaml:"issuer_team_email"`
-	CCTeamEmail      []string `yaml:"cc_list_email"`
-	SMTP             SMTPConfig
+	AgeSecretKey       string   `yaml:"-"`
+	OnboardTeamEmail   []string `yaml:"onboard_team_email"`
+	IssuerTeamEmail    []string `yaml:"issuer_team_email"`
+	CCTeamEmail        []string `yaml:"cc_list_email"`
+	TestRecipientEmail string   `yaml:"test_recipient_email"`
+	SMTP               SMTPConfig
 }
 
 type SMTPConfig struct {

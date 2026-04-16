@@ -43,6 +43,7 @@ func Run() error {
 	sealCmd := flag.NewFlagSet("seal", flag.ExitOnError)
 	sealIn := sealCmd.String("in", "config/config.yaml", "Plaintext YAML file to encrypt")
 	sealOut := sealCmd.String("out", "config.age", "Target encrypted file path")
+	newKey := sealCmd.Bool("newkey", false, "Generate a new key to use for encryption")
 
 	command := os.Getenv("ONBOARDNG_COMMAND")
 	var cmdArgs []string
@@ -127,7 +128,7 @@ func Run() error {
 	case "seal":
 		// Seal the config file
 		sealCmd.Parse(cmdArgs)
-		if err := sealConfig(*sealIn, *sealOut); err != nil {
+		if err := sealConfig(*sealIn, *sealOut, *newKey); err != nil {
 			log.Fatalf("Error sealing config: %v", err)
 		}
 
@@ -386,7 +387,7 @@ func decryptInternalCredential(encryptedData, filePath, secretKey string) (strin
 // sealConfig encrypts a plain config file using age encryption
 // It also encrypts the private key and machine credential, reading from the file paths specified in the config.
 // The encrypted private key and machine credential are stored in the corresponding fields in the config.
-func sealConfig(inputPath, outputPath string) error {
+func sealConfig(inputPath, outputPath string, newKey bool) error {
 	// Load plain unencrypted config file
 	plainBytes, err := os.ReadFile(inputPath)
 	if err != nil {
@@ -399,19 +400,39 @@ func sealConfig(inputPath, outputPath string) error {
 		return err
 	}
 
-	// Generate new identity (Private + Public)
-	identity, err := age.GenerateHybridIdentity()
-	if err != nil {
-		log.Fatalf("Error: Key generation failed: %v", err)
-	}
-	publicKey := identity.Recipient()
+	// If newKey is true, generate a new key
+	// Otherwise, use the one in the config/age_secret_key.txt file
+	var identity *age.HybridIdentity
+	var publicKey age.Recipient
+	var secretKeyPath string
+	if newKey {
 
-	// Save the private key to a file in the config/ directory
-	// This directory is ignored by git
-	secretKeyPath := filepath.Join("config", "age_secret_key.txt")
-	if err := os.WriteFile(secretKeyPath, []byte(identity.String()), 0600); err != nil {
-		return errl.Errorf("failed to save private key to %s: %w", secretKeyPath, err)
-	}
+		// Generate new identity (Private + Public)
+		identity, err = age.GenerateHybridIdentity()
+		if err != nil {
+			log.Fatalf("Error: Key generation failed: %v", err)
+		}
+		publicKey = identity.Recipient()
+
+		// Save the private key to a file in the config/ directory
+		// This directory is ignored by git
+		secretKeyPath = filepath.Join("config", "age_secret_key.txt")
+		if err := os.WriteFile(secretKeyPath, []byte(identity.String()), 0600); err != nil {
+			return errl.Errorf("failed to save private key to %s: %w", secretKeyPath, err)
+		}
+	} else {
+		// Read the public key from the existing secret key file
+		secretKeyPath = filepath.Join("config", "age_secret_key.txt")
+		secretKeyBytes, err := os.ReadFile(secretKeyPath)
+		if err != nil {
+			return errl.Errorf("failed to read private key from %s: %w", secretKeyPath, err)
+		}
+		identity, err = age.ParseHybridIdentity(string(secretKeyBytes))
+		if err != nil {
+			return errl.Errorf("failed to parse private key from %s: %w", secretKeyPath, err)
+		}
+		publicKey = identity.Recipient()
+	} // End of if newKey
 
 	// Encrypt private key and machine credential for each environment
 	// Encrypt also the SMTP password
@@ -455,20 +476,38 @@ func sealConfig(inputPath, outputPath string) error {
 		return err
 	}
 
-	// Present the credentials to the user
-	fmt.Println("=======================================================================")
-	fmt.Println("✅ CONFIGURATION SEALED WITH POST-QUANTUM ENCRYPTION (MLKEM768-X25519)")
-	fmt.Println("=======================================================================")
-	fmt.Printf("Encrypted File: %s\n", outputPath)
-	fmt.Printf("Private Key:    %s\n", identity.String())
-	fmt.Printf("Key saved in:   %s (GIT-IGNORED)\n", secretKeyPath)
-	fmt.Println("=======================================================================")
-	fmt.Println("ACTION REQUIRED:")
-	fmt.Println("1. Commit the .age file to your repository.")
-	fmt.Println("2. Set the Private Key as AGE_SECRET_KEY in your environment.")
-	fmt.Printf("   (Or use the saved key in %s)\n", secretKeyPath)
-	fmt.Println("3. DO NOT LOSE THIS KEY. It cannot be recovered.")
-	fmt.Println("=======================================================================")
+	// Print a different message depending on whether the key was generated or read
+	if newKey {
+
+		// Present the credentials to the user
+		fmt.Println("=======================================================================")
+		fmt.Println("✅ CONFIGURATION SEALED WITH POST-QUANTUM ENCRYPTION (MLKEM768-X25519)")
+		fmt.Println("=======================================================================")
+		fmt.Printf("Encrypted File: %s\n", outputPath)
+		fmt.Printf("Private Key:    %s\n", identity.String())
+		fmt.Printf("Key saved in:   %s (GIT-IGNORED)\n", secretKeyPath)
+		fmt.Println("=======================================================================")
+		fmt.Println("ACTION REQUIRED:")
+		fmt.Println("1. Commit the .age file to your repository.")
+		fmt.Println("2. Set the Private Key as AGE_SECRET_KEY in your environment.")
+		fmt.Printf("   (Or use the saved key in %s)\n", secretKeyPath)
+		fmt.Println("3. DO NOT LOSE THIS KEY. It cannot be recovered.")
+		fmt.Println("=======================================================================")
+	} else {
+		// Present the credentials to the user
+		fmt.Println("=======================================================================")
+		fmt.Println("✅ CONFIGURATION SEALED WITH POST-QUANTUM ENCRYPTION (MLKEM768-X25519)")
+		fmt.Println("=======================================================================")
+		fmt.Printf("Encrypted File: %s\n", outputPath)
+		fmt.Printf("Private Key:    %s\n", identity.String())
+		fmt.Printf("Key read from:  %s\n", secretKeyPath)
+		fmt.Println("=======================================================================")
+		fmt.Println("ACTION REQUIRED:")
+		fmt.Println("1. Commit the .age file to your repository.")
+		fmt.Println("2. Set the Private Key as AGE_SECRET_KEY in your environment.")
+		fmt.Println("3. DO NOT LOSE THIS KEY. It cannot be recovered.")
+		fmt.Println("=======================================================================")
+	}
 
 	return nil
 }
