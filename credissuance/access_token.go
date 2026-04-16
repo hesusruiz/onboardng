@@ -68,6 +68,9 @@ func TokenRequest(
 	b.WriteString("client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer&")
 	b.WriteString("client_assertion=" + cliAssertion)
 
+	theBody := b.String()
+	fmt.Println("Token Request Body: ", theBody)
+
 	// 3. Initialize the POST request to the token endpoint
 	req, err := http.NewRequestWithContext(ctx, "POST", tokenEndpoint, &b)
 	if err != nil {
