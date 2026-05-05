@@ -4,14 +4,16 @@
 
     <!-- Hero Status Header -->
     <div style="background-color: #dc2626; padding: 24px; text-align: center; color: #ffffff;">
+
         <h2 style="margin: 0; font-size: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
             Credential Issuance Failure</h2>
+
         <h2 style="margin: 0; font-size: 20px; font-weight: 700;">
             Manual Action Required - Altia Team</h2>
     </div>
 
     <!-- Test Environment Warning -->
-    {{if ne .Runtime "pro"}}
+    {{if ne .Runtime "PRO"}}
     <div
         style="background-color: #fff7ed; border-bottom: 1px solid #ffedd5; padding: 16px 24px; color: #9a3412; font-size: 14px;">
         <p style="margin: 0; font-weight: 700;">⚠️ DEVELOPMENT/TEST NOTICE ({{.Runtime}})</p>

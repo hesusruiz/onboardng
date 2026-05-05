@@ -105,7 +105,7 @@ func (s *Service) SendWelcomeEmail(reg *db.RegistrationRecord) error {
 		"CompanyName":      reg.CompanyName,
 		"Country":          reg.Country,
 		"VatID":            reg.VatID,
-		"Runtime":          s.runtime,
+		"Runtime":          s.runtime.String(),
 		"OnboardTeamEmail": s.onboardTeamEmail[0],
 	}
 
@@ -149,7 +149,7 @@ func (s *Service) SendVerificationCode(email string, code string) error {
 
 	data := map[string]any{
 		"Code":             code,
-		"Runtime":          s.runtime,
+		"Runtime":          s.runtime.String(),
 		"OnboardTeamEmail": s.onboardTeamEmail[0],
 	}
 
@@ -186,7 +186,7 @@ func (s *Service) SendIssuerError(reg *db.RegistrationRecord, payload string, er
 		"RegistrationID": reg.RegistrationID,
 		"Payload":        payload,
 		"ErrorMsg":       errorMsg,
-		"Runtime":        s.runtime,
+		"Runtime":        s.runtime.String(),
 	}
 
 	tmpl, err := template.New("issuer_error.html").Parse(issuerErrorTemplate)
