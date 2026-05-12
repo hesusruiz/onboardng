@@ -32,13 +32,9 @@ var tplIndex, tplDetail *template.Template
 
 func init() {
 
-	// 1. Initialize Sprout handler
+	// Register all functions from Sprout to the template handler
 	sproutHandler := sprout.New()
-
-	// Add all built-in registries to the handler
 	sproutHandler.AddGroups(all.RegistryGroup())
-
-	// 2. Build the Sprout function map
 	funcs := sproutHandler.Build()
 
 	var err error
@@ -51,6 +47,23 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+
+}
+
+func (s *Server) registerAdminRoutes(mux *http.ServeMux) {
+	// Middleware to wrap the Admin routes
+	adminChain := func(next http.HandlerFunc) http.HandlerFunc {
+		return s.LogRequest(s.EnableCORS(s.BasicAuth(next)))
+	}
+
+	// Admin routes for pages and APIs
+	mux.HandleFunc("/admin/index", adminChain(s.PageAdminIndex))
+	mux.HandleFunc("/admin/registration", adminChain(s.PageAdminDetailsByVatID))
+	mux.HandleFunc("/admin/api/registrations", adminChain(s.APIAdminGetRegistrations))
+	mux.HandleFunc("/admin/api/registration", adminChain(s.APIAdminGetRegistrationByVatID))
+	mux.HandleFunc("/admin/api/registration-logs", adminChain(s.APIAdminGetRegistrationLogs))
+	mux.HandleFunc("/admin/api/registration-files", adminChain(s.APIAdminGetRegistrationFiles))
+	mux.HandleFunc("/admin/api/file/{file_id}", adminChain(s.APIAdminGetFile))
 
 }
 
