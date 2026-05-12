@@ -60,10 +60,11 @@ type Mandator struct {
 
 // Mandatee represents the natural person or machine receiving the delegated powers.
 type Mandatee struct {
-	FirstName   string `json:"firstName,omitempty"`
-	LastName    string `json:"lastName,omitempty"`
-	Nationality string `json:"nationality,omitempty"`
-	Email       string `json:"email,omitempty"`
+	FirstName    string `json:"firstName,omitempty"`
+	LastName     string `json:"lastName,omitempty"`
+	Nationality  string `json:"nationality,omitempty"`
+	Email        string `json:"email,omitempty"`
+	SerialNumber string `json:"serialNumber,omitempty"`
 }
 
 // Power specifies the delegated capability (e.g., Execute Onboarding in the DOME domain).
