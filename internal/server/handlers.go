@@ -489,10 +489,11 @@ func performIssuance(ctx context.Context, token string, reg *db.RegistrationReco
 				EmailAddress:           requestData.Email,
 			},
 			Mandatee: credissuance.Mandatee{
-				FirstName:   requestData.FirstName,
-				LastName:    requestData.LastName,
-				Nationality: requestData.Country,
-				Email:       requestData.Email,
+				FirstName:    requestData.FirstName,
+				LastName:     requestData.LastName,
+				Nationality:  requestData.Country,
+				Email:        requestData.Email,
+				SerialNumber: "1234567890",
 			},
 			Power: []credissuance.Power{
 				{
