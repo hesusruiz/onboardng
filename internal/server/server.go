@@ -13,20 +13,35 @@ import (
 )
 
 type Server struct {
-	Runtime           configuration.RuntimeEnv
-	DB                DBServiceProvider
-	Issuer            IssuanceServiceProvider
-	Mail              MailServiceProvider
+	// The runtime environment where the server runs (dev, pre, pre2, pro)
+	Runtime configuration.RuntimeEnv
+
+	// The database service provider
+	DB DBServiceProvider
+
+	// The Issuer service provider
+	Issuer IssuanceServiceProvider
+
+	// The mail service provider
+	Mail MailServiceProvider
+
+	// We implement a rate limit on the emails and verification codes sent, using the source IPs
 	EmailRateLimiter  map[string]*RateLimitEntry
 	VerificationCodes map[string]*VerificationCodeEntry
+	IPLimiters        map[string]*rate.Limiter
 	RateLimiterMu     sync.RWMutex
 	CodesMu           sync.RWMutex
-	IPLimiters        map[string]*rate.Limiter
 	IPLimitersMu      sync.Mutex
-	Handler           http.Handler
-	AdminUser         string
-	AdminPassword     string
-	Features          configuration.Features
+
+	// The HTTP web server handler
+	Handler http.Handler
+
+	// Admin credentials
+	AdminUser     string
+	AdminPassword string
+
+	// Optional feature flags implemented
+	Features configuration.Features
 }
 
 func NewServer(runtime configuration.RuntimeEnv,
@@ -82,19 +97,8 @@ func NewServer(runtime configuration.RuntimeEnv,
 	mux.HandleFunc("/api/orgstatus", s.LogRequest(s.EnableCORS(s.HandleOrgStatus)))
 	mux.HandleFunc("/health", s.HandleHealth)
 
-	// Middleware to wrap the Admin routes
-	adminChain := func(next http.HandlerFunc) http.HandlerFunc {
-		return s.LogRequest(s.EnableCORS(s.BasicAuth(next)))
-	}
-
-	// Admin routes for pages and APIs
-	mux.HandleFunc("/admin/index", adminChain(s.PageAdminIndex))
-	mux.HandleFunc("/admin/registration", adminChain(s.PageAdminDetailsByVatID))
-	mux.HandleFunc("/admin/api/registrations", adminChain(s.APIAdminGetRegistrations))
-	mux.HandleFunc("/admin/api/registration", adminChain(s.APIAdminGetRegistrationByVatID))
-	mux.HandleFunc("/admin/api/registration-logs", adminChain(s.APIAdminGetRegistrationLogs))
-	mux.HandleFunc("/admin/api/registration-files", adminChain(s.APIAdminGetRegistrationFiles))
-	mux.HandleFunc("/admin/api/file/{file_id}", adminChain(s.APIAdminGetFile))
+	// Admin routes
+	s.registerAdminRoutes(mux)
 
 	// Serve Angular SPA routes
 	serveIndex := func(w http.ResponseWriter, r *http.Request) {
@@ -106,7 +110,7 @@ func NewServer(runtime configuration.RuntimeEnv,
 
 	s.Handler = mux
 
-	// Perform teh run-time checks to see if everything works as expected
+	// Perform the run-time checks to see if everything works as expected
 	err := s.CheckAll()
 	if err != nil {
 		err = errl.Errorf("Self-Diagnostics: failed to check all: %v", err)

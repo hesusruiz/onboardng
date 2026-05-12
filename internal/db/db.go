@@ -3,7 +3,6 @@ package db
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -250,117 +249,60 @@ func (s *Service) SaveRegistration(reg *RegistrationRecord) error {
 		return errl.Errorf("failed to search for email: %w", err)
 	}
 
-	switch s.runtime {
-
-	case configuration.Production:
-
-		// In production, we reject if either the company (vat_id) or the individual (email) already exists.
-		if oldRegVat != nil {
-			return errl.Errorf("%w: company with VAT ID %s already registered", ErrorAlreadyExists, reg.VatID)
-		}
-		if oldRegEmail != nil {
-			return errl.Errorf("%w: email %s already registered", ErrorAlreadyExists, reg.Email)
-		}
-
-		// No conflicts, insert as new
-		_, err = s.conn.Exec(insertQuery,
-			sql.Named("registration_id", reg.RegistrationID),
-			sql.Named("email", reg.Email),
-			sql.Named("first_name", reg.FirstName),
-			sql.Named("last_name", reg.LastName),
-			sql.Named("company_name", reg.CompanyName),
-			sql.Named("country", reg.Country),
-			sql.Named("vat_id", reg.VatID),
-			sql.Named("street_address", reg.StreetAddress),
-			sql.Named("city", reg.City),
-			sql.Named("postal_code", reg.PostalCode),
-			sql.Named("role", reg.Role),
-			sql.Named("created_at", reg.CreatedAt),
-			sql.Named("updated_at", reg.UpdatedAt),
-			sql.Named("notified", reg.Notified),
-			sql.Named("issued", reg.Issued),
-			sql.Named("tmf_registered", reg.TMFRegistered),
-			sql.Named("lr_first_name", reg.LRFirstName),
-			sql.Named("lr_last_name", reg.LRLastName),
-			sql.Named("lr_email", reg.LREmail),
-			sql.Named("lr_country", reg.LRCountry),
-			sql.Named("lr_id_card", reg.LRIdCard),
-			sql.Named("lear_first_name", reg.LEARFirstName),
-			sql.Named("lear_last_name", reg.LEARLastName),
-			sql.Named("lear_email", reg.LEAREmail),
-			sql.Named("lear_country", reg.LEARCountry),
-			sql.Named("lear_address", reg.LEARAddress),
-			sql.Named("lear_id_card", reg.LEARIdCard),
-			sql.Named("lear_mobile_number", reg.LEARMobileNumber),
-			sql.Named("lear_completed", reg.LEARCompleted),
-			sql.Named("files_uploaded", reg.FilesUploaded),
-			sql.Named("approved", reg.Approved),
-		)
-		if err != nil {
-			return errl.Errorf("failed to insert registration: %w", err)
-		}
-		return nil
-
-	case configuration.Development, configuration.Preproduction:
-		// In Dev/Pre, if BOTH email and VAT ID match an existing record, we overwrite it (amend)
-		if oldRegVat != nil && oldRegEmail != nil && oldRegVat.RegistrationID == oldRegEmail.RegistrationID {
-			slog.Info("Registration exists with same email and VAT ID, amending", "environment", s.runtime, "vat_id", reg.VatID, "email", reg.Email)
-			// Reuse the existing registration ID
-			reg.RegistrationID = oldRegVat.RegistrationID
-			return s.AmendRegistration(reg)
-		}
-
-		// Otherwise, if either exists, it's a conflict since they don't belong to the same record
-		if oldRegVat != nil {
-			return errl.Errorf("%w: company with VAT ID %s already registered with a different email", ErrorAlreadyExists, reg.VatID)
-		}
-		if oldRegEmail != nil {
-			return errl.Errorf("%w: user with email %s already registered with a different VAT ID", ErrorAlreadyExists, reg.Email)
-		}
-
-		// No conflicts, insert as new
-		_, err := s.conn.Exec(insertQuery,
-			sql.Named("registration_id", reg.RegistrationID),
-			sql.Named("email", reg.Email),
-			sql.Named("first_name", reg.FirstName),
-			sql.Named("last_name", reg.LastName),
-			sql.Named("company_name", reg.CompanyName),
-			sql.Named("country", reg.Country),
-			sql.Named("vat_id", reg.VatID),
-			sql.Named("street_address", reg.StreetAddress),
-			sql.Named("city", reg.City),
-			sql.Named("postal_code", reg.PostalCode),
-			sql.Named("role", reg.Role),
-			sql.Named("created_at", reg.CreatedAt),
-			sql.Named("updated_at", reg.UpdatedAt),
-			sql.Named("notified", reg.Notified),
-			sql.Named("issued", reg.Issued),
-			sql.Named("tmf_registered", reg.TMFRegistered),
-			sql.Named("lr_first_name", reg.LRFirstName),
-			sql.Named("lr_last_name", reg.LRLastName),
-			sql.Named("lr_email", reg.LREmail),
-			sql.Named("lr_country", reg.LRCountry),
-			sql.Named("lr_id_card", reg.LRIdCard),
-			sql.Named("lear_first_name", reg.LEARFirstName),
-			sql.Named("lear_last_name", reg.LEARLastName),
-			sql.Named("lear_email", reg.LEAREmail),
-			sql.Named("lear_country", reg.LEARCountry),
-			sql.Named("lear_address", reg.LEARAddress),
-			sql.Named("lear_id_card", reg.LEARIdCard),
-			sql.Named("lear_mobile_number", reg.LEARMobileNumber),
-			sql.Named("lear_completed", reg.LEARCompleted),
-			sql.Named("files_uploaded", reg.FilesUploaded),
-			sql.Named("approved", reg.Approved),
-		)
-		if err != nil {
-			return errl.Errorf("failed to insert registration: %w", err)
-		}
-		return nil
-
+	if oldRegVat != nil && oldRegEmail != nil && oldRegVat.RegistrationID == oldRegEmail.RegistrationID {
+		slog.Info("Registration exists with same email and VAT ID, amending", "environment", s.runtime, "vat_id", reg.VatID, "email", reg.Email)
+		// Reuse the existing registration ID
+		reg.RegistrationID = oldRegVat.RegistrationID
+		return s.AmendRegistration(reg)
 	}
 
-	// Should never happen, return an error
-	return fmt.Errorf("unknown runtime environment: %s", s.runtime)
+	// Otherwise, if either exists, it's a conflict since they don't belong to the same record
+	if oldRegVat != nil {
+		return errl.Errorf("%w: company with VAT ID %s already registered with a different email", ErrorAlreadyExists, reg.VatID)
+	}
+	if oldRegEmail != nil {
+		return errl.Errorf("%w: user with email %s already registered with a different VAT ID", ErrorAlreadyExists, reg.Email)
+	}
+
+	// No conflicts, insert as new
+	_, err = s.conn.Exec(insertQuery,
+		sql.Named("registration_id", reg.RegistrationID),
+		sql.Named("email", reg.Email),
+		sql.Named("first_name", reg.FirstName),
+		sql.Named("last_name", reg.LastName),
+		sql.Named("company_name", reg.CompanyName),
+		sql.Named("country", reg.Country),
+		sql.Named("vat_id", reg.VatID),
+		sql.Named("street_address", reg.StreetAddress),
+		sql.Named("city", reg.City),
+		sql.Named("postal_code", reg.PostalCode),
+		sql.Named("role", reg.Role),
+		sql.Named("created_at", reg.CreatedAt),
+		sql.Named("updated_at", reg.UpdatedAt),
+		sql.Named("notified", reg.Notified),
+		sql.Named("issued", reg.Issued),
+		sql.Named("tmf_registered", reg.TMFRegistered),
+		sql.Named("lr_first_name", reg.LRFirstName),
+		sql.Named("lr_last_name", reg.LRLastName),
+		sql.Named("lr_email", reg.LREmail),
+		sql.Named("lr_country", reg.LRCountry),
+		sql.Named("lr_id_card", reg.LRIdCard),
+		sql.Named("lear_first_name", reg.LEARFirstName),
+		sql.Named("lear_last_name", reg.LEARLastName),
+		sql.Named("lear_email", reg.LEAREmail),
+		sql.Named("lear_country", reg.LEARCountry),
+		sql.Named("lear_address", reg.LEARAddress),
+		sql.Named("lear_id_card", reg.LEARIdCard),
+		sql.Named("lear_mobile_number", reg.LEARMobileNumber),
+		sql.Named("lear_completed", reg.LEARCompleted),
+		sql.Named("files_uploaded", reg.FilesUploaded),
+		sql.Named("approved", reg.Approved),
+	)
+	if err != nil {
+		return errl.Errorf("failed to insert registration: %w", err)
+	}
+	return nil
+
 }
 
 // UpdateRegistrationStatus updates the status flags of a registration.

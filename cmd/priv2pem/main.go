@@ -10,44 +10,39 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mr-tron/base58/base58"
+	"github.com/hesusruiz/onboardng/internal/crypto"
 )
 
 func main() {
-	hexKey := "0x0826f120c769d4de55ad686b31c60242d87615a2bb25f53c07b580d9e7a074af"
+	// hexKey := "0x0826f120c769d4de55ad686b31c60242d87615a2bb25f53c07b580d9e7a074af"
+	hexKey := "0xda688a0f68d777cc0a65b86f468fd7f2ddb4f995d4a5e3bc66610bb6a128c090"
+
 	// Strip any '0x' or '0X' prefix from the key and decode it
+	hexKey = strings.TrimSpace(hexKey)
 	hexKey = strings.TrimPrefix(hexKey, "0x")
 	hexKey = strings.TrimPrefix(hexKey, "0X")
 
 	// Get the private key raw key bytes
 	dBytes, _ := hex.DecodeString(hexKey)
 
-	curve := elliptic.P256()
-
-	// Import the key with the new mechanism
-	privECDSA, err := ecdsa.ParseRawPrivateKey(curve, dBytes)
+	// Import the key
+	privECDSA, err := ecdsa.ParseRawPrivateKey(elliptic.P256(), dBytes)
 	if err != nil {
 		panic(err)
 	}
 
+	// Get the did:key from the private key
+	didKeyDerived, err := crypto.DeriveDidKeyFromPrivateKey(privECDSA)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("DERIVED DID:KEY:")
+	fmt.Println(didKeyDerived)
+	fmt.Println()
+
 	// PEM (PKCS#8)
 	derBytes, _ := x509.MarshalPKCS8PrivateKey(privECDSA)
-	fmt.Println("--- PEM PRIVATE KEY ---")
+	fmt.Println("PRIVATE KEY IN PEM FORMAT:")
 	pem.Encode(os.Stdout, &pem.Block{Type: "PRIVATE KEY", Bytes: derBytes})
 
-	// did:key derivation
-
-	// Derive public coordinates
-	privECDSA.PublicKey.X, privECDSA.PublicKey.Y = curve.ScalarBaseMult(dBytes)
-
-	// Compress the public key for the DID
-	pubBytes := elliptic.MarshalCompressed(curve, privECDSA.PublicKey.X, privECDSA.PublicKey.Y)
-	prefix := []byte{0x80, 0x24} // Varint for P-256
-	didKey := "did:key:z" + base58.Encode(append(prefix, pubBytes...))
-
-	fmt.Println("\n--- DERIVED DID:KEY ---")
-	fmt.Println(didKey)
-
-	// Use privECDSA here to sign your JWT with a library like golang-jwt/jwt
-	fmt.Println("\nSuccess: Use 'privECDSA' variable for JWT signing.")
 }
