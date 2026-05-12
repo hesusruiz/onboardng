@@ -8,10 +8,26 @@ import (
 type RuntimeEnv string
 
 const (
-	Development   RuntimeEnv = "dev"
-	Preproduction RuntimeEnv = "pre"
-	Production    RuntimeEnv = "pro"
+	Development    RuntimeEnv = "dev"
+	Preproduction  RuntimeEnv = "pre"
+	Preproduction2 RuntimeEnv = "pre2"
+	Production     RuntimeEnv = "pro"
 )
+
+func (r RuntimeEnv) String() string {
+	switch r {
+	case Development:
+		return "SBX"
+	case Preproduction:
+		return "DEV"
+	case Preproduction2:
+		return "DEV2"
+	case Production:
+		return "PRO"
+	}
+
+	return ""
+}
 
 // Config holds the configuration for the application.
 type Config struct {
