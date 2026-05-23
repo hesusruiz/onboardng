@@ -89,13 +89,18 @@ func NewServer(runtime configuration.RuntimeEnv,
 		fileServer.ServeHTTP(w, r)
 	})
 
+	// Middleware to wrap the Admin routes
+	nonAdminChain := func(next http.HandlerFunc) http.Handler {
+		return s.LogRequest(s.EnableCORS(s.RateLimitIP(next)))
+	}
+
 	// Main API Routes
-	mux.HandleFunc("/api/validate-email", s.LogRequest(s.EnableCORS(s.RateLimitIP(s.HandleSendEmailValidationCode))))
-	mux.HandleFunc("/api/verify-code", s.LogRequest(s.EnableCORS(s.HandleValidateEmailCode)))
-	mux.HandleFunc("/api/register", s.LogRequest(s.EnableCORS(s.HandleRegister)))
-	mux.HandleFunc("/api/representatives", s.LogRequest(s.EnableCORS(s.HandleUpdateRepresentatives)))
-	mux.HandleFunc("/api/orgstatus", s.LogRequest(s.EnableCORS(s.HandleOrgStatus)))
-	mux.HandleFunc("/health", s.HandleHealth)
+	mux.Handle("/api/validate-email", nonAdminChain(s.HandleSendEmailValidationCode))
+	mux.Handle("/api/verify-code", nonAdminChain(s.HandleValidateEmailCode))
+	mux.Handle("/api/register", nonAdminChain(s.HandleRegister))
+	mux.Handle("/api/representatives", nonAdminChain(s.HandleUpdateRepresentatives))
+	mux.Handle("/api/orgstatus", nonAdminChain(s.HandleOrgStatus))
+	mux.Handle("/health", s.EnableCORS(s.RateLimitIP(http.HandlerFunc(s.HandleHealth))))
 
 	// Admin routes
 	s.registerAdminRoutes(mux)
@@ -121,11 +126,11 @@ func NewServer(runtime configuration.RuntimeEnv,
 	return s, nil
 }
 
-func (s *Server) LogRequest(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func (s *Server) LogRequest(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		slog.Info("Entry", "method", r.Method, "url", r.URL.Path)
-		next(w, r)
-	}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) BasicAuth(next http.HandlerFunc) http.HandlerFunc {
@@ -154,8 +159,8 @@ func (s *Server) getIPLimiter(ip string) *rate.Limiter {
 	return limiter
 }
 
-func (s *Server) RateLimitIP(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func (s *Server) RateLimitIP(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip, _, err := net.SplitHostPort(r.RemoteAddr)
 		if err != nil {
 			ip = r.RemoteAddr
@@ -167,6 +172,6 @@ func (s *Server) RateLimitIP(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		next(w, r)
-	}
+		next.ServeHTTP(w, r)
+	})
 }

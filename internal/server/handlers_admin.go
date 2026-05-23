@@ -5,6 +5,7 @@ import (
 	"embed"
 	"fmt"
 	"log/slog"
+	"os"
 	"slices"
 	"strings"
 	"text/template"
@@ -20,6 +21,8 @@ import (
 
 	"github.com/go-sprout/sprout"
 	"github.com/go-sprout/sprout/group/all"
+
+	passkeys "github.com/hesusruiz/authgo"
 )
 
 const stdCertHeader = "tls-client-certificate"
@@ -51,19 +54,48 @@ func init() {
 }
 
 func (s *Server) registerAdminRoutes(mux *http.ServeMux) {
+
+	originsEnv := os.Getenv("AUTH_ORIGINS")
+	if originsEnv == "" {
+		originsEnv = "http://localhost:8080"
+	}
+	allowedOrigins := strings.Split(originsEnv, ",")
+
+	urlOrigin, err := url.Parse(allowedOrigins[0])
+	if err != nil {
+		panic(err)
+	}
+
+	pk, err := passkeys.NewPasskeys(passkeys.Config{
+		RPDisplayName: "Admin Panel",
+		RPID:          urlOrigin.Hostname(),
+		RPOrigins:     allowedOrigins,
+		PathPrefix:    "/passkeys",
+		HomePage:      "/admin/index",
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("allowedOrigins, ", allowedOrigins)
+	fmt.Println("RPID, ", urlOrigin.Hostname())
+	slog.Info("RPID", "rpid", urlOrigin.Hostname())
+
+	pk.RegisterHandlers(mux)
+
 	// Middleware to wrap the Admin routes
-	adminChain := func(next http.HandlerFunc) http.HandlerFunc {
-		return s.LogRequest(s.EnableCORS(s.BasicAuth(next)))
+	adminChain := func(next http.HandlerFunc) http.Handler {
+		return s.LogRequest(s.EnableCORS(pk.RequirePasskey(next)))
 	}
 
 	// Admin routes for pages and APIs
-	mux.HandleFunc("/admin/index", adminChain(s.PageAdminIndex))
-	mux.HandleFunc("/admin/registration", adminChain(s.PageAdminDetailsByVatID))
-	mux.HandleFunc("/admin/api/registrations", adminChain(s.APIAdminGetRegistrations))
-	mux.HandleFunc("/admin/api/registration", adminChain(s.APIAdminGetRegistrationByVatID))
-	mux.HandleFunc("/admin/api/registration-logs", adminChain(s.APIAdminGetRegistrationLogs))
-	mux.HandleFunc("/admin/api/registration-files", adminChain(s.APIAdminGetRegistrationFiles))
-	mux.HandleFunc("/admin/api/file/{file_id}", adminChain(s.APIAdminGetFile))
+	mux.Handle("/admin/index", adminChain(s.PageAdminIndex))
+	mux.Handle("/admin/registration", adminChain(s.PageAdminDetailsByVatID))
+	mux.Handle("/admin/api/registrations", adminChain(s.APIAdminGetRegistrations))
+	mux.Handle("/admin/api/registration", adminChain(s.APIAdminGetRegistrationByVatID))
+	mux.Handle("/admin/api/registration-logs", adminChain(s.APIAdminGetRegistrationLogs))
+	mux.Handle("/admin/api/registration-files", adminChain(s.APIAdminGetRegistrationFiles))
+	mux.Handle("/admin/api/file/{file_id}", adminChain(s.APIAdminGetFile))
 
 }
 
