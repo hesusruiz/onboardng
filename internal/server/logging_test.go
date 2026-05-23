@@ -25,9 +25,9 @@ func TestLogging(t *testing.T) {
 		req := httptest.NewRequest("POST", "/api/test", nil)
 		w := httptest.NewRecorder()
 
-		handlerFunc := s.LogRequest(func(w http.ResponseWriter, r *http.Request) {
+		handlerFunc := s.LogRequest(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			s.SendJSON(w, r, http.StatusOK, true, "test", nil)
-		})
+		}))
 
 		handlerFunc.ServeHTTP(w, req)
 

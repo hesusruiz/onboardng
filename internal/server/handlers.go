@@ -54,8 +54,8 @@ func (s *Server) SendJSON(w http.ResponseWriter, r *http.Request, status int, su
 }
 
 // EnableCORS middleware to allow all origins
-func (s *Server) EnableCORS(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func (s *Server) EnableCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Requested-With, Authorization")
@@ -65,8 +65,8 @@ func (s *Server) EnableCORS(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		next(w, r)
-	}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // validateCSRF checks the X-Requested-With header
@@ -487,7 +487,7 @@ func performIssuance(ctx context.Context, token string, reg *db.RegistrationReco
 				Country:                requestData.Country,
 				CommonName:             requestData.FirstName + " " + requestData.LastName,
 				EmailAddress:           requestData.Email,
-				SerialNumber:           "1234567890",
+				SerialNumber:           "1234567890", // TODO: this is temporary because the Issuer requires a serialNumber
 			},
 			Mandatee: credissuance.Mandatee{
 				FirstName:   requestData.FirstName,

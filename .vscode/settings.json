@@ -3,5 +3,6 @@
         "**/src/layouts/*.html": "handlebars",
         "**/src/pages/*.html": "handlebars"
     },
-    "editor.fontSize": 14
+    "editor.fontSize": 14,
+    "geminicodeassist.inlineSuggestions.enableAuto": false
 }
