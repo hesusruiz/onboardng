@@ -83,6 +83,11 @@
             gap: 4px;
         }
 
+        .header-user {
+            color: white;
+            font-size: 1rem;
+        }
+
         .dashboard-title {
             font-size: 20px;
             font-weight: 800;
@@ -192,6 +197,7 @@
 
         .list-table tr:hover td {
             background-color: #F8F9FA;
+            cursor: pointer;
         }
 
         /* Type Column Styling */
@@ -478,6 +484,7 @@
             <span class="portal-title">Onboard Admin</span>
         </div>
         <div class="portal-header-right">
+            <span class="header-user">{{ .Email }}</span>
             <a href="/passkeys/api/logout" class="portal-btn portal-btn-solid">Logout</a>
         </div>
     </header>
@@ -486,7 +493,7 @@
         <!-- Top Header Navigation -->
         <header class="dashboard-header">
             <div class="header-title-wrapper">
-                <h1 class="dashboard-title">Registration Overview</h1>
+                <h1 class="dashboard-title">Registration List</h1>
             </div>
             <div class="stats-strip">
                 <div class="stat-badge">
@@ -620,7 +627,7 @@ type RegistrationRecord struct {
                         <tbody>
                             {{ range .Regs }}
                             <!-- Entry 1: Pending Final Review -->
-                            <tr>
+                            <tr onclick="window.location='/admin/registration?vat_id={{ .VatID }}';">
                                 <td>
                                     <div class="type-cell">
                                         {{ if eq .Role "Seller" }}
@@ -656,18 +663,21 @@ type RegistrationRecord struct {
                                 <td>
                                     <div class="meta-stack">
                                         <span class="meta-title">{{ .FirstName }} {{ .LastName }}</span>
-                                        <span class="meta-subtitle meta-email"><a href="mailto:{{ .Email }}">{{ .Email
+                                        <span class="meta-subtitle meta-email"><a href="mailto:{{ .Email }}"
+                                                onclick="event.stopPropagation();">{{ .Email
                                                 }}</a></span>
                                     </div>
                                 </td>
                                 <td>
                                     <div class="badge-list">
                                         <span
-                                            class="badge {{ if .Notified }}badge-success{{ else }}badge-danger{{ end }}">Notified</span>
+                                            class="badge {{ if .Notified }}badge-success{{ else }}badge-danger{{ end }}"
+                                            title="{{ if .Notified }}Welcome email sent successfully to customer{{ else }}Welcome email to customer pending or failed{{ end }}">Notified</span>
+                                        <span class="badge {{ if .Issued }}badge-success{{ else }}badge-danger{{ end }}"
+                                            title="{{ if .Issued }}Verifiable Credential issued successfully{{ else }}Verifiable Credential pending or failed{{ end }}">Issued</span>
                                         <span
-                                            class="badge {{ if .Issued }}badge-success{{ else }}badge-danger{{ end }}">Issued</span>
-                                        <span
-                                            class="badge {{ if .TMFRegistered }}badge-success{{ else }}badge-danger{{ end }}">In
+                                            class="badge {{ if .TMFRegistered }}badge-success{{ else }}badge-danger{{ end }}"
+                                            title="{{ if .TMFRegistered }}Registered in TMF successfully{{ else }}Registration in TMF pending or failed{{ end }}">In
                                             TMF</span>
                                     </div>
                                 </td>
@@ -677,7 +687,8 @@ type RegistrationRecord struct {
                                 <td>
                                     <div class="meta-stack">
                                         <span class="meta-title">{{ .LRFirstName }} {{ .LRLastName }}</span>
-                                        <span class="meta-subtitle meta-email"><a href="mailto:{{ .LREmail }}">{{
+                                        <span class="meta-subtitle meta-email"><a href="mailto:{{ .LREmail }}"
+                                                onclick="event.stopPropagation();">{{
                                                 .LREmail }}</a></span>
                                         {{ if .LRCountry}}
                                         <span class="meta-subtitle">Nationality: <span>{{ .LRCountry }}</span></span>
@@ -690,7 +701,8 @@ type RegistrationRecord struct {
                                 <td>
                                     <div class="meta-stack">
                                         <span class="meta-title">{{ .LEARFirstName }} {{ .LEARLastName }}</span>
-                                        <span class="meta-subtitle meta-email"><a href="mailto:{{ .LEAREmail }}">{{
+                                        <span class="meta-subtitle meta-email"><a href="mailto:{{ .LEAREmail }}"
+                                                onclick="event.stopPropagation();">{{
                                                 .LEAREmail }}</a></span>
                                         {{ if .LEARCountry}}
                                         <span class="meta-subtitle">Nationality: <span>{{ .LEARCountry }}</span></span>
@@ -737,7 +749,7 @@ type RegistrationRecord struct {
                                         {{ end }}
 
                                         <a href="/admin/registration?vat_id={{ .VatID }}" class="action-btn"
-                                            title="Open Registration Details">
+                                            title="Open Registration Details" onclick="event.stopPropagation();">
                                             <i class="fa fa-folder-open-o"></i> Open
                                         </a>
                                     </div>
