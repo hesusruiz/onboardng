@@ -1,560 +1,756 @@
 <!DOCTYPE html>
-
-<html class="light" lang="en">
+<html lang="en">
 
 <head>
-    <meta charset="utf-8" />
-    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>AdminRegistry - Registration Dashboard</title>
-    <!-- Google Fonts: Inter for High-Definition Editorial feel -->
-    <link href="https://fonts.googleapis.com" rel="preconnect" />
-    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap"
-        rel="stylesheet" />
-    <!-- Material Symbols for Literal Transcription -->
-    <link
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
-        rel="stylesheet" />
-    <link
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
-        rel="stylesheet" />
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrations Overview - Operational Dashboard</title>
 
-    <script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "outline-variant": "#c7c4d8",
-                        "secondary-fixed-dim": "#b9c7df",
-                        "surface-bright": "#f6fafe",
-                        "tertiary-container": "#a44100",
-                        "secondary-container": "#d5e3fc",
-                        "on-tertiary-fixed-variant": "#7b2f00",
-                        "error": "#ba1a1a",
-                        "primary-fixed-dim": "#c3c0ff",
-                        "surface-container": "#eaeef2",
-                        "secondary": "#515f74",
-                        "on-tertiary-container": "#ffd2be",
-                        "surface-variant": "#dfe3e7",
-                        "surface": "#f6fafe",
-                        "primary": "#3525cd",
-                        "inverse-surface": "#2c3134",
-                        "on-secondary-fixed": "#0d1c2e",
-                        "on-primary-container": "#dad7ff",
-                        "primary-fixed": "#e2dfff",
-                        "tertiary": "#7e3000",
-                        "secondary-fixed": "#d5e3fc",
-                        "surface-container-highest": "#dfe3e7",
-                        "outline": "#777587",
-                        "on-primary-fixed-variant": "#3323cc",
-                        "primary-container": "#4f46e5",
-                        "on-primary": "#ffffff",
-                        "surface-tint": "#4d44e3",
-                        "on-secondary-fixed-variant": "#3a485b",
-                        "surface-container-high": "#e4e9ed",
-                        "inverse-on-surface": "#edf1f5",
-                        "on-surface-variant": "#464555",
-                        "on-error": "#ffffff",
-                        "on-secondary-container": "#57657a",
-                        "surface-dim": "#d6dade",
-                        "on-secondary": "#ffffff",
-                        "on-surface": "#171c1f",
-                        "background": "#f6fafe",
-                        "inverse-primary": "#c3c0ff",
-                        "on-primary-fixed": "#0f0069",
-                        "tertiary-fixed": "#ffdbcc",
-                        "on-tertiary-fixed": "#351000",
-                        "on-error-container": "#93000a",
-                        "surface-container-lowest": "#ffffff",
-                        "tertiary-fixed-dim": "#ffb695",
-                        "on-background": "#171c1f",
-                        "on-tertiary": "#ffffff",
-                        "surface-container-low": "#f0f4f8",
-                        "error-container": "#ffdad6"
-                    },
-                    fontFamily: {
-                        "headline": ["Inter"],
-                        "body": ["Inter"],
-                        "label": ["Inter"]
-                    },
-                    borderRadius: { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" },
-                },
-            },
-        }
-    </script>
+    <!-- External stylesheet dependencies -->
+    <link rel="stylesheet" href="assets/w3.css" />
+    <link rel="stylesheet" href="assets/dome.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+
     <style>
-        .material-symbols-outlined {
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        /* Core Design Tokens - Strict Compliance with DESIGN.md and registration_detail.html */
+        :root {
+            --bg-canvas: #F4F5F7;
+            /* Light slate gray for backdrop */
+            --bg-card: #FFFFFF;
+            /* Pure crisp white container fill */
+            --border-primary: #1A1A1A;
+            /* Sharp, explicit outline for section definition */
+            --border-secondary: #E2E8F0;
+            /* Subtle separator lines */
+            --text-main: #000000;
+            /* Maximum contrast for operational readings */
+            --text-muted: #5A6A85;
+            /* Prevent visual noise over structural labels */
+
+            /* High-Contrast Strict-Utility Status Colors */
+            --success-text: #137333;
+            --success-bg: #E6F4EA;
+            --success-border: #137333;
+
+            --warning-text: #B06000;
+            --warning-bg: #FEF7E0;
+            --warning-border: #B06000;
+
+            --danger-text: #C5221F;
+            --danger-bg: #FCE8E6;
+            --danger-border: #C5221F;
+
+            --info-text: #1A73E8;
+            --info-bg: #E8F0FE;
+            --info-border: #1A73E8;
         }
 
-        .hd-shadow {
-            box-shadow: 0 2px 2px rgba(23, 28, 31, 0.1), 0 12px 24px -8px rgba(23, 28, 31, 0.05);
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-canvas);
+            color: var(--text-main);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.4;
+            padding: 0;
+        }
+
+        /* Top Navigation Header */
+        .dashboard-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            /* Spacing & Layout: Gap is 16px */
+            background: var(--bg-card);
+            padding: 16px;
+            /* Spacing & Layout: Inner padding is 16px */
+            border-radius: 4px;
+            /* Small rounded shapes */
+            border: 1px solid var(--border-primary);
+            /* Sharp high-contrast border */
+        }
+
+        .header-title-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .dashboard-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--text-main);
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Operational Stats Strip */
+        .stats-strip {
+            display: flex;
+            gap: 8px;
+        }
+
+        .stat-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            border-radius: 2px;
+            font-size: 11px;
+            font-weight: 700;
+            border: 1px solid var(--border-primary);
+            background: var(--bg-card);
+        }
+
+        .stat-badge .count {
+            background: var(--border-primary);
+            color: var(--bg-card);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 10px;
+        }
+
+        /* Main Dashboard Content Card */
+        .dashboard-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            padding: 16px;
+            /* Spacing & Layout: Inner Card Padding: 16px */
+            border-radius: 4px;
+            /* Small rounded shapes */
+            box-shadow: none;
+            /* Zero decorative elements */
+            margin-bottom: 16px;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .card-header h3 {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text-main);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-header h3 i {
+            color: var(--text-muted);
+        }
+
+        /* High-Density Operational Table styling */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .list-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 12px;
+        }
+
+        .list-table th {
+            padding: 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            border-bottom: 2px solid var(--border-primary);
+            background-color: var(--bg-canvas);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+        }
+
+        .list-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--border-secondary);
+            color: var(--text-main);
+            vertical-align: top;
+        }
+
+        .list-table tr:hover td {
+            background-color: #F8F9FA;
+        }
+
+        /* Type Column Styling */
+        .type-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 4px;
+            font-weight: 800;
+            font-size: 10px;
+            text-transform: uppercase;
+            padding-top: 4px;
+        }
+
+        .type-icon {
+            font-size: 18px;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border: 1px solid var(--border-primary);
+            border-radius: 4px;
+            background-color: var(--bg-canvas);
+        }
+
+        .type-icon.seller {
+            color: var(--info-text);
+            border-color: var(--info-border);
+            background-color: var(--info-bg);
+        }
+
+        .type-icon.buyer {
+            color: var(--success-text);
+            border-color: var(--success-border);
+            background-color: var(--success-bg);
+        }
+
+        /* Profile & People column text stacks */
+        .meta-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .meta-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .meta-subtitle {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .meta-value {
+            font-family: monospace;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .meta-email a {
+            color: var(--text-main);
+            text-decoration: underline;
+            font-weight: 600;
+        }
+
+        .meta-email a:hover {
+            color: var(--text-muted);
+        }
+
+        .date-text {
+            font-family: monospace;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        /* Visual Tags Column / Badge Layout */
+        .badge-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            width: 100%;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 4px 6px;
+            border-radius: 2px;
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            width: 100%;
+            white-space: nowrap;
+            box-sizing: border-box;
+        }
+
+        .badge-success {
+            background-color: var(--success-bg);
+            color: var(--success-text);
+            border: 1px solid var(--success-border);
+        }
+
+        .badge-warning {
+            background-color: var(--warning-bg);
+            color: var(--warning-text);
+            border: 1px solid var(--warning-border);
+        }
+
+        .badge-danger {
+            background-color: var(--danger-bg);
+            color: var(--danger-text);
+            border: 1px solid var(--danger-border);
+        }
+
+        .badge-info {
+            background-color: var(--info-bg);
+            color: var(--info-text);
+            border: 1px solid var(--info-border);
+        }
+
+        .badge i {
+            font-size: 10px;
+        }
+
+        /* Action Status Stack */
+        .status-action-container {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+            width: 100%;
+            min-width: 120px;
+        }
+
+        /* Action Buttons */
+        .action-btn {
+            padding: 6px 12px;
+            border-radius: 2px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid var(--border-primary);
+            background-color: var(--bg-card);
+            color: var(--text-main);
+            transition: background-color 0.1s ease, color 0.1s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            text-transform: uppercase;
+            white-space: nowrap;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .action-btn:hover {
+            background-color: var(--border-primary);
+            color: var(--bg-card);
+        }
+
+        /* Responsive Overrides */
+        @media (max-width: 1200px) {
+
+            .list-table th,
+            .list-table td {
+                padding: 8px 6px;
+            }
+        }
+
+        /* Portal Header Styling matching header.jpg and dome-marketplace.eu */
+        .portal-header {
+            background-color: #0A122C;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            box-sizing: border-box;
+            border-bottom: 1px solid #1E293B;
+            width: 100%;
+        }
+
+        .portal-header-left {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+
+        .portal-logo {
+            height: 38px;
+            display: block;
+        }
+
+        .portal-header-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            text-align: center;
+        }
+
+        .portal-title {
+            color: #FFFFFF;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            text-transform: uppercase;
+        }
+
+        .portal-header-right {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .portal-btn {
+            font-size: 13px;
+            font-weight: 700;
+            text-decoration: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-transform: none;
+            box-sizing: border-box;
+        }
+
+        .portal-btn-outline {
+            color: #FFFFFF;
+            background-color: transparent;
+            border: 2px solid #2A5C91;
+        }
+
+        .portal-btn-outline:hover {
+            border-color: #357ABD;
+            background-color: rgba(42, 92, 145, 0.15);
+        }
+
+        .portal-btn-solid {
+            color: #FFFFFF;
+            background-color: #2A5C91;
+            border: 2px solid transparent;
+        }
+
+        .portal-btn-solid:hover {
+            background-color: #357ABD;
+        }
+
+        /* Container for main content since padding is removed from body */
+        .main-content {
+            padding: 16px;
+            box-sizing: border-box;
+            width: 100%;
         }
     </style>
 </head>
 
-<body class="bg-surface font-body text-on-surface min-h-screen">
-    <div class="admin-dashboard" x-data="adminDashboard()" x-init="initData()" x-cloak>
+<body>
+    <!-- Portal Top Header -->
+    <header class="portal-header">
+        <div class="portal-header-left">
+            <img src="https://dome-marketplace.eu/assets/logos/DOME_Logo_White_Name.svg" alt="DOME Logo"
+                class="portal-logo">
+        </div>
+        <div class="portal-header-center">
+            <span class="portal-title">Onboard Admin</span>
+        </div>
+        <div class="portal-header-right">
+            <a href="/passkeys/api/logout" class="portal-btn portal-btn-solid">Logout</a>
+        </div>
+    </header>
 
-        <!-- TopNavBar (Shared Component) -->
-        <header
-            class="bg-white dark:bg-slate-950 flex justify-between items-center w-full px-6 py-3 max-w-full mx-auto border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50">
-            <div class="flex items-center gap-8">
-                <div class="text-xl font-black text-indigo-600 dark:text-indigo-400 tracking-tighter uppercase"
-                    style="">
-                    Onboarding Admin</div>
+    <div class="main-content">
+        <!-- Top Header Navigation -->
+        <header class="dashboard-header">
+            <div class="header-title-wrapper">
+                <h1 class="dashboard-title">Registration Overview</h1>
+            </div>
+            <div class="stats-strip">
+                <div class="stat-badge">
+                    <span>Total</span>
+                    <span class="count">{{ .Total }}</span>
+                </div>
+
+                <!-- <div class="stat-badge" style="border-color: var(--warning-border);">
+                    <span style="color: var(--warning-text);">Review</span>
+                    <span class="count" style="background: var(--warning-border);">x</span>
+                </div>
+                <div class="stat-badge" style="border-color: var(--success-border);">
+                    <span style="color: var(--success-text);">Approved</span>
+                    <span class="count" style="background: var(--success-border);">y</span>
+                </div>
+                <div class="stat-badge" style="border-color: var(--danger-border);">
+                    <span style="color: var(--danger-text);">Rejected</span>
+                    <span class="count" style="background: var(--danger-border);">z</span>
+                </div> -->
+
             </div>
         </header>
 
-        <main class="max-w-7xl mx-auto px-6 py-8">
-            <!-- Editorial Header -->
-            <div class="mb-10">
+        <!-- // RegistrationRecord represents a user registration record in the database
+type RegistrationRecord struct {
 
-                <h1 class="text-3xl font-extrabold text-on-surface tracking-tight leading-none mb-2" style="">
-                    Registration
-                    Pipeline</h1>
-            </div>
-            <!-- Filter Section: The "Command Center" -->
-            <div
-                class="bg-surface-container-high p-4 rounded-xl border border-outline-variant mb-8 flex flex-col md:flex-row gap-6 items-start md:items-center">
-                <div class="flex flex-col gap-2">
-                    <span class="text-xs font-bold uppercase tracking-widest text-on-surface-variant px-1"
-                        style="">Filter
-                        by Role</span>
-                    <div
-                        class="inline-flex rounded-lg border border-outline bg-surface-container-lowest overflow-hidden">
-                        <button class="px-6 py-2 text-sm font-bold bg-primary text-on-primary transition-all"
-                            style="">All</button>
-                        <button
-                            class="px-6 py-2 text-sm font-bold text-on-surface hover:bg-surface-variant border-l border-outline transition-all"
-                            style="">Sellers</button>
-                        <button
-                            class="px-6 py-2 text-sm font-bold text-on-surface hover:bg-surface-variant border-l border-outline transition-all"
-                            style="">Buyers</button>
-                    </div>
+	// The first step of registration, called a "solo" registration, without real verification
+	//
+
+	// Unique identifier of the registration
+	RegistrationID string `json:"registration_id"`
+
+	// Email of the person/user performing the registration. The email will be verified by sending a verification code
+	// to the email supplied.
+	Email string `json:"email"`
+
+	// Name and surname of the user
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+
+	// Identification of the company that the user is registering
+	// Official name of the company as it appears in the registry of incorporation
+	CompanyName string `json:"company_name"`
+
+	// Country code (two-letter code) of incorporation of the company
+	Country string `json:"country"`
+
+	// VAT ID of the company. Together with the country code, it is the unique identifier of the company
+	VatID string `json:"vat_id"`
+
+	// Street address of the company
+	StreetAddress string `json:"street_address"`
+
+	// City of the company
+	City string `json:"city"`
+
+	// Postal code of the company
+	PostalCode string `json:"postal_code"`
+
+	// Role of the company in DOME (Seller or Buyer)
+	Role string `json:"role"`
+
+	// Timestamps of the registration record
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+
+	// Flags for the sub-steps of the first step of registration
+	// true if an email has been sent to the user to notify him about the registration
+	Notified bool `json:"notified"`
+	// true if the Verifiable credential has been issued to the user
+	Issued bool `json:"issued"`
+	// true if the user has been registered in the TMF
+	TMFRegistered bool `json:"tmf_registered"`
+
+	//
+	// The second step of the registration, when the company formalizes the registration
+	//
+
+	// Identification data about the Legal Representative of the company
+	LRFirstName string `json:"lr_first_name"`
+	LRLastName  string `json:"lr_last_name"`
+	LREmail     string `json:"lr_email"`
+	LRCountry   string `json:"lr_country"`
+	LRIdCard    string `json:"lr_id_card"`
+
+	// Identification data about the Legal Entity Authorized Representative (LEAR) of the company
+	// This is the person who will represent the company in DOME and act as the main contact for the company
+	LEARFirstName    string `json:"lear_first_name"`
+	LEARLastName     string `json:"lear_last_name"`
+	LEAREmail        string `json:"lear_email"`
+	LEARCountry      string `json:"lear_country"`
+	LEARAddress      string `json:"lear_address"`
+	LEARIdCard       string `json:"lear_id_card"`
+	LEARMobileNumber string `json:"lear_mobile_number"`
+
+	// State of the second step of registration
+	// Data about the LR has been successfully registered
+	// TODO: this field is not being used now (and is not useful), perform a migration to detele it
+	LRCompleted bool `json:"lr_completed"`
+	// Data about the LEAR has been successfully registered
+	LEARCompleted bool `json:"lear_completed"`
+	// Files about the company's official registration and the LEAR have been provided, but may be pending its verification
+	FilesUploaded bool `json:"files_uploaded"`
+	// Status of the second step: 0 = pending, 1 = approved, 2 = rejected
+	Approved int `json:"approved"`
+} -->
+
+
+        <div class="w3-container" style="padding: 0;">
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h3><i class="fa fa-list"></i> Active Partner Registrations</h3>
+                    <span class="subtitle">Showing {{ .Total }} of {{ .NumEntries }} entries</span>
                 </div>
-                <div class="flex flex-col gap-2">
-                    <span class="text-xs font-bold uppercase tracking-widest text-on-surface-variant px-1"
-                        style="">Approval
-                        Status</span>
-                    <div
-                        class="inline-flex rounded-lg border border-outline bg-surface-container-lowest overflow-hidden">
-                        <button class="px-6 py-2 text-sm font-bold bg-primary text-on-primary transition-all"
-                            style="">All</button>
-                        <button
-                            class="px-6 py-2 text-sm font-bold text-on-surface hover:bg-surface-variant border-l border-outline transition-all"
-                            style="">Approved</button>
-                        <button
-                            class="px-6 py-2 text-sm font-bold text-on-surface hover:bg-surface-variant border-l border-outline transition-all"
-                            style="">Pending</button>
-                        <button
-                            class="px-6 py-2 text-sm font-bold text-on-surface hover:bg-surface-variant border-l border-outline transition-all"
-                            style="">Rejected</button>
-                    </div>
-                </div>
-                <div class="md:ml-auto self-end md:self-center">
-                    <button
-                        class="bg-surface-container-lowest text-on-surface border border-outline px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-white active:scale-95 transition-all"
-                        style="">
-                        <span class="material-symbols-outlined text-lg" data-icon="filter_list"
-                            style="">filter_list</span>
-                        Advanced Filters
-                    </button>
+
+                <div class="table-responsive">
+                    <table class="list-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 60px; text-align: center;">Type</th>
+                                <th>Company Profile</th>
+                                <th>Dates</th>
+                                <th>Person Registering</th>
+                                <th>Stage 1 Status</th>
+                                <th>Legal Representative</th>
+                                <th>Account Admin (LEAR)</th>
+                                <th>Stage 2 Status</th>
+                                <th style="text-align: center; width: 120px;">Global Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{ range .Regs }}
+                            <!-- Entry 1: Pending Final Review -->
+                            <tr>
+                                <td>
+                                    <div class="type-cell">
+                                        {{ if eq .Role "Seller" }}
+                                        <span class="type-icon seller" title="Seller"><i
+                                                class="fa fa-handshake-o"></i></span>
+                                        <span>Seller</span>
+                                        {{ else }}
+                                        <span class="type-icon buyer" title="Buyer"><i
+                                                class="fa fa-shopping-cart"></i></span>
+                                        <span>Buyer</span>
+                                        {{ end }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="meta-stack">
+                                        <span class="meta-title">{{ .CompanyName }}</span>
+                                        <span class="meta-subtitle">VAT ID: <span class="meta-value">{{ .VatID
+                                                }}</span></span>
+                                        <span class="meta-subtitle">Country: <span class="meta-title"
+                                                style="font-size: 11px;">{{ .Country }}</span></span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="meta-stack">
+                                        <span class="meta-subtitle">Created</span>
+                                        <span class="date-text">{{ .CreatedAt.Format "2006-01-02 15:04:05"
+                                            }}</span>
+                                        <span class="meta-subtitle" style="margin-top: 4px;">Updated</span>
+                                        <span class="date-text">{{ .UpdatedAt.Format "2006-01-02 15:04:05"
+                                            }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="meta-stack">
+                                        <span class="meta-title">{{ .FirstName }} {{ .LastName }}</span>
+                                        <span class="meta-subtitle meta-email"><a href="mailto:{{ .Email }}">{{ .Email
+                                                }}</a></span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="badge-list">
+                                        <span
+                                            class="badge {{ if .Notified }}badge-success{{ else }}badge-danger{{ end }}">Notified</span>
+                                        <span
+                                            class="badge {{ if .Issued }}badge-success{{ else }}badge-danger{{ end }}">Issued</span>
+                                        <span
+                                            class="badge {{ if .TMFRegistered }}badge-success{{ else }}badge-danger{{ end }}">In
+                                            TMF</span>
+                                    </div>
+                                </td>
+
+                                {{ if .LEARCompleted }}
+                                <!-- Legal Representative -->
+                                <td>
+                                    <div class="meta-stack">
+                                        <span class="meta-title">{{ .LRFirstName }} {{ .LRLastName }}</span>
+                                        <span class="meta-subtitle meta-email"><a href="mailto:{{ .LREmail }}">{{
+                                                .LREmail }}</a></span>
+                                        {{ if .LRCountry}}
+                                        <span class="meta-subtitle">Nationality: <span>{{ .LRCountry }}</span></span>
+                                        {{ end }}
+                                    </div>
+                                </td>
+
+
+                                <!-- Lear -->
+                                <td>
+                                    <div class="meta-stack">
+                                        <span class="meta-title">{{ .LEARFirstName }} {{ .LEARLastName }}</span>
+                                        <span class="meta-subtitle meta-email"><a href="mailto:{{ .LEAREmail }}">{{
+                                                .LEAREmail }}</a></span>
+                                        {{ if .LEARCountry}}
+                                        <span class="meta-subtitle">Nationality: <span>{{ .LEARCountry }}</span></span>
+                                        {{ end }}
+                                    </div>
+                                </td>
+
+
+                                <!-- Status of second stage -->
+                                <td>
+                                    <div class="badge-list">
+                                        <span class="badge badge-success"><i class="fa fa-check-circle"></i> LEAR:
+                                            Done</span>
+                                        <span class="badge badge-success"><i class="fa fa-check-circle"></i> Uploads:
+                                            Yes</span>
+                                    </div>
+                                </td>
+
+                                {{ else }}
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                {{ end }}
+
+                                <!-- Global Status -->
+                                <td style="text-align: center; vertical-align: middle;">
+                                    <div class="status-action-container">
+
+                                        {{ if .LEARCompleted}}
+
+                                        {{ if eq .Approved 0 }}
+                                        <span class="badge badge-warning">
+                                            Pending Review
+                                        </span>
+                                        {{ else if eq .Approved 1 }}
+                                        <span class="badge badge-success">
+                                            Approved
+                                        </span>
+                                        {{ else if eq .Approved 2 }}
+                                        <span class="badge badge-danger">
+                                            Rejected
+                                        </span>
+                                        {{ end }}
+                                        {{ end }}
+
+                                        <a href="/admin/registration?vat_id={{ .VatID }}" class="action-btn"
+                                            title="Open Registration Details">
+                                            <i class="fa fa-folder-open-o"></i> Open
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {{ end }}
+
+                        </tbody>
+                    </table>
                 </div>
             </div>
-            <!-- Registration Table (As Cards) -->
-            <div class="space-y-4 mb-8">
-                <template x-for="reg in registrations" :key="reg.registration_id">
-
-                    <!-- Rows -->
-                    <div
-                        class="grid grid-cols-12 gap-0 bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden hd-shadow group hover:border-primary transition-all">
-                        <div
-                            class="col-span-1 flex items-center justify-center bg-indigo-50 border-r border-outline-variant py-8">
-                            <template x-if="isSeller(reg) == true">
-                                <div
-                                    class="h-12 w-12 rounded-lg bg-primary-container flex items-center justify-center text-on-primary">
-                                    <span class="material-symbols-outlined text-2xl" data-icon="store"
-                                        style="">store</span>
-                                </div>
-                            </template>
-                            <template x-if="isSeller(reg) == false">
-                                <div
-                                    class="h-12 w-12 rounded-lg bg-secondary-container flex items-center justify-center text-on-secondary-container">
-                                    <span class="material-symbols-outlined text-2xl" data-icon="shopping_cart"
-                                        style="">shopping_cart</span>
-                                </div>
-                            </template>
-
-                        </div>
-                        <div class="col-span-4 p-6 flex flex-col justify-center border-r border-outline-variant">
-                            <h3 x-text="reg.first_name + ' ' + reg.last_name"
-                                class="text-xl font-extrabold text-on-surface mb-1" style=""></h3>
-                            <p x-text="reg.email" class="text-sm font-medium text-on-surface-variant mb-3" style=""></p>
-                            <div class="flex items-center gap-4">
-                                <div class="flex flex-col">
-                                    <span class="text-[10px] uppercase font-bold text-outline" style="">Company</span>
-                                    <span x-text="reg.company_name" class="text-xs font-semibold" style=" "></span>
-                                </div>
-                                <div class="flex flex-col border-l border-outline-variant pl-4">
-                                    <span class="text-[10px] uppercase font-bold text-outline" style="">VAT ID</span>
-                                    <span x-text="reg.vat_id" class="text-xs font-semibold" style=""></span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-span-4 p-6 border-r border-outline-variant flex gap-4">
-                            <div class="flex-1 space-y-2">
-                                <div class="w-full py-1.5 px-3 rounded border text-[10px] font-bold text-center uppercase"
-                                    :class="{'bg-green-100 text-green-800 border-green-200': reg.notified, 'bg-slate-100 text-slate-400 border-slate-200': !reg.notified}"
-                                    style="">Notified</div>
-                                <div class="w-full py-1.5 px-3 rounded border text-[10px] font-bold text-center uppercase"
-                                    :class="{'bg-green-100 text-green-800 border-green-200': reg.issued, 'bg-slate-100 text-slate-400 border-slate-200': !reg.issued}"
-                                    style="">Issued</div>
-                                <div class="w-full py-1.5 px-3 rounded border text-[10px] font-bold text-center uppercase"
-                                    :class="{'bg-green-100 text-green-800 border-green-200': reg.tmf_registered, 'bg-slate-100 text-slate-400 border-slate-200': !reg.tmf_registered}"
-                                    style="">TMF Registered</div>
-                            </div>
-                            <div class="w-px bg-outline-variant h-full"></div>
-                            <div class="flex-1 space-y-2">
-                                <div class="w-full py-1.5 px-3 rounded border text-[10px] font-bold text-center uppercase"
-                                    :class="{'bg-green-100 text-green-800 border-green-200': reg.lear_completed, 'bg-slate-100 text-slate-400 border-slate-200': !reg.lear_completed}"
-                                    style="">LEAR Completed</div>
-                                <div class="w-full py-1.5 px-3 rounded border text-[10px] font-bold text-center uppercase"
-                                    :class="{'bg-green-100 text-green-800 border-green-200': reg.files_uploaded, 'bg-slate-100 text-slate-400 border-slate-200': !reg.files_uploaded}"
-                                    style="">Files Uploaded</div>
-                            </div>
-                        </div>
-                        <div class="col-span-3 p-6 flex flex-col items-center justify-center gap-3">
-                            <template x-if="reg.approved == 0">
-                                <span
-                                    class="px-8 py-2 bg-blue-100 text-blue-700 border-2 border-blue-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
-                                    style="">PENDING</span>
-                            </template>
-                            <template x-if="reg.approved == 1">
-                                <span
-                                    class="px-8 py-2 bg-green-100 text-green-700 border-2 border-green-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
-                                    style="">APPROVED</span>
-                            </template>
-                            <template x-if="reg.approved == 2">
-                                <span
-                                    class="px-8 py-2 bg-red-100 text-red-700 border-2 border-red-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
-                                    style="">REJECTED</span>
-                            </template>
-                            <a :href="'/admin/registration?vat_id=' + reg.vat_id"
-                                class="text-xs font-bold text-primary underline underline-offset-4 hover:text-on-primary-fixed-variant"
-                                style="">View Details</a>
-                        </div>
-                    </div>
-
-                </template>
-
-            </div>
-
-            <!-- Pagination Section -->
-            <div
-                class="flex flex-col md:flex-row items-center justify-between gap-4 pt-6 border-t border-outline-variant">
-                <div class="text-sm font-medium text-on-surface-variant">
-                    Showing <span class="font-bold text-on-surface">1</span> to <span x-text="registrations.length"
-                        class="font-bold text-on-surface"></span> of <span x-text="registrations.length"
-                        class="font-bold text-on-surface"></span>
-                    records
-                </div>
-                <nav class="inline-flex items-center -space-x-px gap-2">
-                    <button
-                        class="px-4 py-2 text-sm font-bold text-on-surface bg-surface-container-lowest border border-outline-variant rounded-lg hover:bg-surface-variant transition-all disabled:opacity-50 flex items-center gap-1">
-                        <span class="material-symbols-outlined text-lg">chevron_left</span>
-                        Previous
-                    </button>
-                    <div class="flex items-center gap-1">
-                        <button
-                            class="w-10 h-10 flex items-center justify-center text-sm font-bold bg-primary text-on-primary rounded-lg shadow-sm transition-all shadow-indigo-200">1</button>
-                        <button
-                            class="w-10 h-10 flex items-center justify-center text-sm font-bold text-on-surface hover:bg-surface-variant rounded-lg transition-all">2</button>
-                        <button
-                            class="w-10 h-10 flex items-center justify-center text-sm font-bold text-on-surface hover:bg-surface-variant rounded-lg transition-all">3</button>
-                        <span class="px-2 text-outline">...</span>
-                        <button
-                            class="w-10 h-10 flex items-center justify-center text-sm font-bold text-on-surface hover:bg-surface-variant rounded-lg transition-all">12</button>
-                    </div>
-                    <button
-                        class="px-4 py-2 text-sm font-bold text-on-surface bg-surface-container-lowest border border-outline-variant rounded-lg hover:bg-surface-variant transition-all flex items-center gap-1">
-                        Next
-                        <span class="material-symbols-outlined text-lg">chevron_right</span>
-                    </button>
-                </nav>
-            </div>
-        </main>
-        <!-- BottomNavBar (Shared Component - Mobile Only) -->
-        <footer
-            class="md:hidden fixed bottom-0 left-0 w-full flex justify-around items-center px-4 py-3 pb-safe bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-50">
-            <a class="flex flex-col items-center justify-center text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg py-1 px-3 active:translate-y-0.5 transition-all"
-                href="#" style="">
-                <span class="material-symbols-outlined" data-icon="assignment" style="">assignment</span>
-                <span class="font-['Inter'] text-xs font-semibold uppercase tracking-wider mt-1" style="">Records</span>
-            </a>
-            <a class="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 hover:text-indigo-500 active:translate-y-0.5 transition-all"
-                href="#" style="">
-                <span class="material-symbols-outlined" data-icon="monitoring" style="">monitoring</span>
-                <span class="font-['Inter'] text-xs font-semibold uppercase tracking-wider mt-1"
-                    style="">Analytics</span>
-            </a>
-            <a class="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 hover:text-indigo-500 active:translate-y-0.5 transition-all"
-                href="#" style="">
-                <span class="material-symbols-outlined" data-icon="group" style="">group</span>
-                <span class="font-['Inter'] text-xs font-semibold uppercase tracking-wider mt-1" style="">Users</span>
-            </a>
-            <a class="flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 hover:text-indigo-500 active:translate-y-0.5 transition-all"
-                href="#" style="">
-                <span class="material-symbols-outlined" data-icon="settings" style="">settings</span>
-                <span class="font-['Inter'] text-xs font-semibold uppercase tracking-wider mt-1"
-                    style="">Settings</span>
-            </a>
-        </footer>
-        <!-- FAB Suppression: Not rendered on dashboard -->
+        </div>
     </div>
-    <script>
-        function adminDashboard() {
-            return {
-                registrations: [],
-                filesCache: {}, // mapped by vat_id
-                errorsCache: {}, // mapped by registration_id
-                expandedRow: null, // "id:type", e.g. "REG-123:files"
-                loading: false,
-                loadingSub: null,
-                message: '',
-                messageType: '',
-
-                async initData() {
-                    // Fetch registrations first
-                    await this.fetchRegistrations();
-                    // Eagerly fetch errors so we can highlight rows immediately
-                    await this.fetchErrors();
-                },
-
-                async callApi(endpoint) {
-                    try {
-                        const res = await fetch(endpoint, {
-                            method: 'GET',
-                            headers: {
-                                'Accept': 'application/json'
-                            }
-                        });
-                        const data = await res.json();
-                        if (!data.success) {
-                            throw new Error(data.message || 'API error');
-                        }
-                        return data;
-                    } catch (err) {
-                        this.messageType = 'error';
-                        this.message = 'Error communicating with server: ' + err.message;
-                        return null;
-                    }
-                },
-
-                async fetchRegistrations() {
-                    this.loading = true;
-                    const data = await this.callApi('/admin/api/registrations?limit=1000');
-                    if (data && data.data) {
-                        this.registrations = data.data;
-                    } else {
-                        // Mock data for testing
-                        this.registrations = [
-                            {
-                                "registration_id": "20260325-34789221",
-                                "email": "hesus.ruiz@gmail.com",
-                                "first_name": "Jesus",
-                                "last_name": "Ruiz",
-                                "company_name": "My Company",
-                                "country": "ES",
-                                "vat_id": "77777T",
-                                "street_address": "Fantastic Avenue 33",
-                                "city": "Madrid",
-                                "postal_code": "33333",
-                                "role": "Seller",
-                                "created_at": "2026-03-25T19:31:30.075472789Z",
-                                "updated_at": "2026-03-25T20:29:20.117604666Z",
-                                "notified": true,
-                                "issued": true,
-                                "tmf_registered": false,
-                                "lr_first_name": "Jesus",
-                                "lr_last_name": "Ruiz",
-                                "lr_email": "jesus@alastria.io",
-                                "lr_country": "AT",
-                                "lr_id_card": "12345678J",
-                                "lear_first_name": "Lear",
-                                "lear_last_name": "Lopez",
-                                "lear_email": "hesus.ruiz@gmail.com",
-                                "lear_country": "",
-                                "lear_address": "",
-                                "lear_id_card": "",
-                                "lear_mobile_number": "",
-                                "lear_completed": true,
-                                "files_uploaded": false,
-                                "approved": "pending"
-                            },
-                            {
-                                "registration_id": "20260325-222222",
-                                "email": "one.buyer@gmail.com",
-                                "first_name": "Perico",
-                                "last_name": "Perez",
-                                "company_name": "My Company",
-                                "country": "ES",
-                                "vat_id": "77777T",
-                                "street_address": "Fantastic Avenue 33",
-                                "city": "Madrid",
-                                "postal_code": "33333",
-                                "role": "Buyer",
-                                "created_at": "2026-03-25T19:31:30.075472789Z",
-                                "updated_at": "2026-03-25T20:29:20.117604666Z",
-                                "notified": true,
-                                "issued": true,
-                                "tmf_registered": false,
-                                "lr_first_name": "Jesus",
-                                "lr_last_name": "Ruiz",
-                                "lr_email": "jesus@alastria.io",
-                                "lr_country": "AT",
-                                "lr_id_card": "12345678J",
-                                "lear_first_name": "Lear",
-                                "lear_last_name": "Lopez",
-                                "lear_email": "hesus.ruiz@gmail.com",
-                                "lear_country": "",
-                                "lear_address": "",
-                                "lear_id_card": "",
-                                "lear_mobile_number": "",
-                                "lear_completed": false,
-                                "files_uploaded": false,
-                                "approved": "approved"
-                            },
-                            {
-                                "registration_id": "20260325-333333",
-                                "email": "juan.lopez@gmail.com",
-                                "first_name": "Juan",
-                                "last_name": "Lopez",
-                                "company_name": "My Company",
-                                "country": "ES",
-                                "vat_id": "77777T",
-                                "street_address": "Fantastic Avenue 33",
-                                "city": "Madrid",
-                                "postal_code": "33333",
-                                "role": "Buyer",
-                                "created_at": "2026-03-25T19:31:30.075472789Z",
-                                "updated_at": "2026-03-25T20:29:20.117604666Z",
-                                "notified": true,
-                                "issued": true,
-                                "tmf_registered": false,
-                                "lr_first_name": "Jesus",
-                                "lr_last_name": "Ruiz",
-                                "lr_email": "jesus@alastria.io",
-                                "lr_country": "AT",
-                                "lr_id_card": "12345678J",
-                                "lear_first_name": "Lear",
-                                "lear_last_name": "Lopez",
-                                "lear_email": "hesus.ruiz@gmail.com",
-                                "lear_country": "",
-                                "lear_address": "",
-                                "lear_id_card": "",
-                                "lear_mobile_number": "",
-                                "lear_completed": false,
-                                "files_uploaded": false,
-                                "approved": "rejected"
-                            }
-
-                        ]
-                    }
-                    this.loading = false;
-                },
-
-                async fetchFiles() {
-                    if (Object.keys(this.filesCache).length === 0) {
-                        const data = await this.callApi('/admin/api/registration-files?limit=5000');
-                        if (data && data.data) {
-                            data.data.forEach(f => {
-                                if (!this.filesCache[f.vat_id]) {
-                                    this.filesCache[f.vat_id] = [];
-                                }
-                                this.filesCache[f.vat_id].push(f);
-                            });
-                        }
-                    }
-                },
-
-                async fetchErrors() {
-                    if (Object.keys(this.errorsCache).length === 0) {
-                        const data = await this.callApi('/admin/api/registration-logs?limit=5000');
-                        if (data && data.data) {
-                            data.data.forEach(e => {
-                                if (!this.errorsCache[e.registration_id]) {
-                                    this.errorsCache[e.registration_id] = [];
-                                }
-                                this.errorsCache[e.registration_id].push(e);
-                            });
-                        }
-                    }
-                },
-
-                async toggleExpansion(reg, type) {
-                    const key = reg.registration_id + ':' + type;
-                    if (this.expandedRow === key) {
-                        this.expandedRow = null;
-                        return;
-                    }
-
-                    this.expandedRow = key;
-
-                    if (type === 'files') {
-                        this.loadingSub = 'files';
-                        await this.fetchFiles();
-                        this.loadingSub = null;
-                    } else if (type === 'errors') {
-                        this.loadingSub = 'errors';
-                        await this.fetchErrors();
-                        this.loadingSub = null;
-                    }
-                },
-
-                isExpanded(reg, type) {
-                    return this.expandedRow === reg.registration_id + ':' + type;
-                },
-
-                isSeller(reg) {
-                    return reg.role === 'Seller';
-                },
-
-                getFiles(vatId) {
-                    return this.filesCache[vatId] || [];
-                },
-
-                getErrors(regId) {
-                    return this.errorsCache[regId] || [];
-                },
-
-                formatDate(d) {
-                    if (!d) return '';
-                    const date = new Date(d);
-                    const yyyy = date.getFullYear();
-                    const mm = String(date.getMonth() + 1).padStart(2, '0');
-                    const dd = String(date.getDate()).padStart(2, '0');
-                    const hh = String(date.getHours()).padStart(2, '0');
-                    const min = String(date.getMinutes()).padStart(2, '0');
-                    const ss = String(date.getSeconds()).padStart(2, '0');
-                    return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
-                },
-
-                formatBytes(bytes, decimals = 2) {
-                    if (!+bytes) return '0 Bytes';
-                    const k = 1024;
-                    const dm = decimals < 0 ? 0 : decimals;
-                    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-                    const i = Math.floor(Math.log(bytes) / Math.log(k));
-                    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
-                }
-            }
-        }
-    </script>
-
 </body>
 
 </html>

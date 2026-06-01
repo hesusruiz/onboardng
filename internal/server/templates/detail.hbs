@@ -1,626 +1,1190 @@
 <!DOCTYPE html>
-
-<html class="light" lang="en">
+<html lang="en">
 
 <head>
-    <meta charset="utf-8" />
-    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>Registration Detail - Onboarding Admin</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap"
-        rel="stylesheet" />
-    <link
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
-        rel="stylesheet" />
-    <script id="tailwind-config">
-        tailwind.config = {
-            darkMode: "class",
-            theme: {
-                extend: {
-                    colors: {
-                        "on-tertiary": "#ffffff",
-                        "surface-container-low": "#f0f4f8",
-                        "error-container": "#ffdad6",
-                        "on-background": "#171c1f",
-                        "tertiary-fixed-dim": "#ffb695",
-                        "surface-container-lowest": "#ffffff",
-                        "tertiary-fixed": "#ffdbcc",
-                        "on-tertiary-fixed": "#351000",
-                        "on-primary-fixed": "#0f0069",
-                        "inverse-primary": "#c3c0ff",
-                        "on-error-container": "#93000a",
-                        "background": "#f6fafe",
-                        "on-surface": "#171c1f",
-                        "on-secondary": "#ffffff",
-                        "surface-dim": "#d6dade",
-                        "on-error": "#ffffff",
-                        "on-secondary-container": "#57657a",
-                        "on-surface-variant": "#464555",
-                        "surface-container-high": "#e4e9ed",
-                        "inverse-on-surface": "#edf1f5",
-                        "on-primary-fixed-variant": "#3323cc",
-                        "surface-tint": "#4d44e3",
-                        "primary-container": "#4f46e5",
-                        "on-secondary-fixed-variant": "#3a485b",
-                        "on-primary": "#ffffff",
-                        "surface-container-highest": "#dfe3e7",
-                        "secondary-fixed": "#d5e3fc",
-                        "outline": "#777587",
-                        "tertiary": "#7e3000",
-                        "primary-fixed": "#e2dfff",
-                        "on-secondary-fixed": "#0d1c2e",
-                        "on-primary-container": "#dad7ff",
-                        "inverse-surface": "#2c3134",
-                        "surface-variant": "#dfe3e7",
-                        "surface": "#f6fafe",
-                        "primary": "#3525cd",
-                        "on-tertiary-container": "#ffd2be",
-                        "secondary": "#515f74",
-                        "surface-container": "#eaeef2",
-                        "primary-fixed-dim": "#c3c0ff",
-                        "on-tertiary-fixed-variant": "#7b2f00",
-                        "error": "#ba1a1a",
-                        "secondary-container": "#d5e3fc",
-                        "tertiary-container": "#a44100",
-                        "surface-bright": "#f6fafe",
-                        "secondary-fixed-dim": "#b9c7df",
-                        "outline-variant": "#c7c4d8"
-                    },
-                    fontFamily: {
-                        "headline": ["Inter"],
-                        "body": ["Inter"],
-                        "label": ["Inter"]
-                    },
-                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.375rem", "xl": "0.5rem", "full": "9999px" },
-                },
-            },
-        }
-    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registration Detail - Operational Dashboard</title>
+
+    <!-- External stylesheet dependencies -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+
     <style>
-        .material-symbols-outlined {
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        /* Core Design Tokens - Strict Compliance with DESIGN.md */
+        :root {
+            --bg-canvas: #F4F5F7;
+            /* Light slate gray for backdrop */
+            --bg-card: #FFFFFF;
+            /* Pure crisp white container fill */
+            --border-primary: #1A1A1A;
+            /* Sharp, explicit outline for section definition */
+            --border-secondary: #E2E8F0;
+            /* Subtle separator lines */
+            --text-main: #000000;
+            /* Maximum contrast for operational readings */
+            --text-muted: #5A6A85;
+            /* Prevent visual noise over structural labels */
+
+            /* High-Contrast Strict-Utility Status Colors */
+            --success-text: #137333;
+            --success-bg: #E6F4EA;
+            --success-border: #137333;
+
+            --warning-text: #B06000;
+            --warning-bg: #FEF7E0;
+            --warning-border: #B06000;
+
+            --danger-text: #C5221F;
+            --danger-bg: #FCE8E6;
+            --danger-border: #C5221F;
+
+            --info-text: #1A73E8;
+            --info-bg: #E8F0FE;
+            --info-border: #1A73E8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-canvas);
+            color: var(--text-main);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.4;
+
+        }
+
+        main {
+            padding: 16px;
+            /* Spacing & Layout: Margin is 16px */
+        }
+
+        /* Top Navigation Header */
+        .dashboard-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            /* Spacing & Layout: Gap is 16px */
+            background: var(--bg-card);
+            padding: 16px;
+            /* Spacing & Layout: Inner padding is 16px */
+            border-radius: 4px;
+            /* Small rounded shapes */
+            border: 1px solid var(--border-primary);
+            /* Sharp high-contrast border */
+        }
+
+        .header-title-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-main);
+            text-decoration: underline;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .back-link:hover {
+            color: var(--text-muted);
+        }
+
+        .dashboard-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--text-main);
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Main CSS Grid Layout - Spacing & Layout: Gap 16px */
+        .gridwrapper {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: auto;
+            gap: 16px;
+            grid-template-areas:
+                "company-profile company-profile process-status"
+                "person-registering person-registering process-status"
+                "legal-representative legal-representative process-status"
+                "account-admin account-admin process-status"
+                "uploaded-documents uploaded-documents process-status"
+                "log log log";
+        }
+
+        /* Grid Areas Mapping */
+        .company-profile {
+            grid-area: company-profile;
+        }
+
+        .person-registering {
+            grid-area: person-registering;
+        }
+
+        .legal-representative {
+            grid-area: legal-representative;
+        }
+
+        .account-admin {
+            grid-area: account-admin;
+        }
+
+        .uploaded-documents {
+            grid-area: uploaded-documents;
+        }
+
+        .process-status {
+            grid-area: process-status;
+        }
+
+        .log {
+            grid-area: log;
+        }
+
+        /* Strict Utility Card Styling */
+        .gridwrapper>div {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            padding: 16px;
+            /* Spacing & Layout: Inner Card Padding: 16px */
+            border-radius: 4px;
+            /* Small rounded shapes */
+            box-shadow: none;
+            /* Zero decorative elements, zero shadows */
+            transition: none;
+            /* Zero dynamic transition effects */
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Card Hover Effects: Disabled completely to ensure zero marketing and distraction-free utility */
+        .gridwrapper>div:hover {
+            transform: none;
+            box-shadow: none;
+            border-color: var(--border-primary);
+        }
+
+        /* Section Headings - Visible but clean and non-distracting */
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-secondary);
+        }
+
+        .section-header h3 {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--text-main);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .section-icon {
+            font-size: 14px;
+            color: var(--text-muted);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Information Value Fields */
+        .fields-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px 16px;
+        }
+
+        .field-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .field-group.full-width {
+            grid-column: span 2;
+        }
+
+        .field-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+        }
+
+        /* Values must always be bold and prominent */
+        .field-value {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-main);
+            word-break: break-word;
+        }
+
+        .field-value.highlight {
+            text-decoration: underline;
+        }
+
+        .field-value a {
+            color: inherit;
+            text-decoration: underline;
+        }
+
+        .field-value a:hover {
+            color: var(--text-muted);
+        }
+
+        /* Strict-Utility Status Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 6px;
+            border-radius: 2px;
+            /* Small rounded shapes */
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            width: fit-content;
+        }
+
+        .badge-success {
+            background-color: var(--success-bg);
+            color: var(--success-text);
+            border: 1px solid var(--success-border);
+        }
+
+        .badge-warning {
+            background-color: var(--warning-bg);
+            color: var(--warning-text);
+            border: 1px solid var(--warning-border);
+        }
+
+        .badge-danger {
+            background-color: var(--danger-bg);
+            color: var(--danger-text);
+            border: 1px solid var(--danger-border);
+        }
+
+        .badge-info {
+            background-color: var(--info-bg);
+            color: var(--info-text);
+            border: 1px solid var(--info-border);
+        }
+
+        /* Uploaded Documents Table */
+        .docs-table-wrapper {
+            overflow-x: auto;
+            margin-top: 4px;
+        }
+
+        .docs-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 12px;
+        }
+
+        .docs-table th {
+            padding: 8px 10px;
+            font-weight: 700;
+            color: var(--text-muted);
+            border-bottom: 2px solid var(--border-primary);
+            background-color: var(--bg-canvas);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .docs-table td {
+            padding: 10px;
+            border-bottom: 1px solid var(--border-secondary);
+            color: var(--text-main);
             vertical-align: middle;
+        }
+
+        .docs-table tr:hover td {
+            background-color: var(--bg-canvas);
+        }
+
+        .doc-name-cell {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .doc-icon {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        /* View Button - Strict Hover Effect only on interactive components */
+        .action-btn-sm {
+            padding: 4px 8px;
+            border-radius: 2px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid var(--border-primary);
+            background-color: var(--bg-card);
+            color: var(--text-main);
+            transition: background-color 0.1s ease, color 0.1s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .action-btn-sm:hover {
+            background-color: var(--border-primary);
+            color: var(--bg-card);
+        }
+
+        /* Process Status Timeline */
+        .process-status {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .status-timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .status-stage {
+            position: relative;
+            padding-bottom: 4px;
+        }
+
+        .status-stage.active {
+            border-left-color: var(--border-primary);
+        }
+
+        .status-adfssstage::before {
+            content: '';
+            position: absolute;
+            left: -6px;
+            top: 4px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--border-secondary);
+            border: 2px solid var(--bg-card);
+        }
+
+        .status-stage.success::before {
+            background-color: var(--success-text);
+        }
+
+        .status-stage.danger::before {
+            background-color: var(--danger-text);
+        }
+
+        .status-stage.warning::before {
+            background-color: var(--warning-text);
+        }
+
+        .stage-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sub-tasks {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 6px;
+            background-color: var(--bg-canvas);
+            padding: 8px;
+            border-radius: 2px;
+            border: 1px solid var(--border-secondary);
+        }
+
+        .sub-task {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+        }
+
+        .sub-task-name {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-main);
+            font-weight: 700;
+        }
+
+        .sub-task-icon {
+            font-size: 12px;
+        }
+
+        .sub-task-icon.success {
+            color: var(--success-text);
+        }
+
+        .sub-task-icon.danger {
+            color: var(--danger-text);
+        }
+
+        /* Retry Action Button - strict utility */
+        .btn-retry {
+            padding: 4px 8px;
+            font-size: 10px;
+            background-color: var(--warning-bg);
+            border: 1px solid var(--warning-border);
+            color: var(--warning-text);
+            border-radius: 2px;
+            cursor: pointer;
+            font-weight: 700;
+            transition: background-color 0.1s ease, color 0.1s ease;
+            margin-top: 4px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            text-transform: uppercase;
+        }
+
+        .btn-retry:hover {
+            background-color: var(--warning-text);
+            color: var(--bg-card);
+        }
+
+        /* Admin Decisions Panel */
+        .admin-actions {
+            border-top: 1px solid var(--border-primary);
+            padding-top: 12px;
+            margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .admin-action-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 2px;
+        }
+
+        .btn-group-vertical {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .btn-action {
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: 2px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: center;
+            border: 1px solid var(--border-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            transition: background-color 0.1s ease, color 0.1s ease;
+        }
+
+        .btn-action-approve {
+            background-color: var(--success-bg);
+            color: var(--success-text);
+            border-color: var(--success-border);
+        }
+
+        .btn-action-approve:hover {
+            background-color: var(--success-text);
+            color: var(--bg-card);
+        }
+
+        .btn-action-reject {
+            background-color: var(--danger-bg);
+            color: var(--danger-text);
+            border-color: var(--danger-border);
+        }
+
+        .btn-action-reject:hover {
+            background-color: var(--danger-text);
+            color: var(--bg-card);
+        }
+
+        .btn-action-pending {
+            background-color: var(--bg-card);
+            color: var(--text-main);
+            border-color: var(--border-primary);
+        }
+
+        .btn-action-pending:hover {
+            background-color: var(--border-primary);
+            color: var(--bg-card);
+        }
+
+        /* Activity Log Section */
+        .log-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 250px;
+            overflow-y: auto;
+            margin-top: 6px;
+            padding-right: 4px;
+        }
+
+        .log-entry {
+            display: flex;
+            align-items: center;
+            padding: 6px 10px;
+            border-radius: 2px;
+            border: 1px solid var(--border-secondary);
+            border-left: 4px solid var(--border-secondary);
+            font-size: 12px;
+            gap: 10px;
+            background-color: var(--bg-card);
+        }
+
+        .log-entry.info {
+            border-left-color: var(--success-border);
+        }
+
+        .log-entry.warning {
+            border-left-color: var(--warning-border);
+        }
+
+        .log-entry.error {
+            border-left-color: var(--danger-border);
+        }
+
+        .log-time {
+            font-family: monospace;
+            color: var(--text-muted);
+            font-size: 11px;
+            white-space: nowrap;
+            font-weight: 700;
+        }
+
+        .log-badge {
+            font-size: 9px;
+            font-weight: 700;
+            padding: 1px 4px;
+            border-radius: 2px;
+            text-transform: uppercase;
+        }
+
+        .log-badge.info {
+            background-color: var(--success-bg);
+            color: var(--success-text);
+            border: 1px solid var(--success-border);
+        }
+
+        .log-badge.warning {
+            background-color: var(--warning-bg);
+            color: var(--warning-text);
+            border: 1px solid var(--warning-border);
+        }
+
+        .log-badge.error {
+            background-color: var(--danger-bg);
+            color: var(--danger-text);
+            border: 1px solid var(--danger-border);
+        }
+
+        .log-message {
+            color: var(--text-main);
+            font-weight: 700;
+        }
+
+        /* Scrollbar customization */
+        .log-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .log-list::-webkit-scrollbar-track {
+            background: var(--bg-canvas);
+        }
+
+        .log-list::-webkit-scrollbar-thumb {
+            background: var(--text-muted);
+            border-radius: 2px;
+        }
+
+        .log-list::-webkit-scrollbar-thumb:hover {
+            background: var(--text-main);
+        }
+
+
+        /* Portal Header Styling matching header.jpg and dome-marketplace.eu */
+        .portal-header {
+            background-color: #0A122C;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            box-sizing: border-box;
+            border-bottom: 1px solid #1E293B;
+            width: 100%;
+        }
+
+        .portal-header-left {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+
+        .portal-logo {
+            height: 38px;
+            display: block;
+        }
+
+        .portal-header-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            text-align: center;
+        }
+
+        .portal-title {
+            color: #FFFFFF;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            text-transform: uppercase;
+        }
+
+        .portal-header-right {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .portal-btn {
+            font-size: 13px;
+            font-weight: 700;
+            text-decoration: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-transform: none;
+            box-sizing: border-box;
+        }
+
+        .portal-btn-outline {
+            color: #FFFFFF;
+            background-color: transparent;
+            border: 2px solid #2A5C91;
+        }
+
+        .portal-btn-outline:hover {
+            border-color: #357ABD;
+            background-color: rgba(42, 92, 145, 0.15);
+        }
+
+        .portal-btn-solid {
+            color: #FFFFFF;
+            background-color: #2A5C91;
+            border: 2px solid transparent;
+        }
+
+        .portal-btn-solid:hover {
+            background-color: #357ABD;
+        }
+
+
+
+        /* Responsive Layout Overrides */
+        @media (max-width: 1024px) {
+            .gridwrapper {
+                grid-template-columns: 1fr;
+                grid-template-areas:
+                    "process-status"
+                    "company-profile"
+                    "person-registering"
+                    "legal-representative"
+                    "account-admin"
+                    "uploaded-documents"
+                    "log";
+            }
         }
     </style>
 </head>
 
-<body class="bg-background text-on-surface min-h-screen">
-    <!-- TopNavBar -->
-    <header
-        class="bg-white dark:bg-slate-950 flex justify-between items-center w-full px-6 py-3 max-w-full mx-auto border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50">
-        <div class="flex items-center gap-8">
-            <div class="text-xl font-black text-indigo-600 dark:text-indigo-400 tracking-tighter uppercase" style="">
-                Onboarding Admin</div>
+<body>
+    <!-- Portal Top Header -->
+    <header class="portal-header">
+        <div class="portal-header-left">
+            <img src="https://dome-marketplace.eu/assets/logos/DOME_Logo_White_Name.svg" alt="DOME Logo"
+                class="portal-logo">
+        </div>
+        <div class="portal-header-center">
+            <span class="portal-title">Onboard Admin</span>
+        </div>
+        <div class="portal-header-right">
+            <a href="/passkeys/api/logout" class="portal-btn portal-btn-solid">Logout</a>
         </div>
     </header>
-    <main class="max-w-[1400px] mx-auto px-6 py-8">
-        <!-- Breadcrumb / Header Actions -->
-        <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
-            <div>
-                <a class="inline-flex items-center text-indigo-600 hover:text-indigo-800 font-bold text-sm mb-2 group transition-all"
-                    href="/admin/index" style="">
-                    <span class="material-symbols-outlined mr-1 text-lg group-hover:-translate-x-1 transition-transform"
-                        data-icon="arrow_back" style="">arrow_back</span>
-                    Back to Registrations
+
+    <main>
+
+        <!-- Top Header Navigation -->
+        <header class="dashboard-header">
+            <div class="header-title-wrapper">
+                <a href="/admin/index" class="back-link">
+                    <i class="fa fa-arrow-left"></i> Back to Registrations
                 </a>
 
-                <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight" style="">Registration Detail</h1>
-                <p class="text-on-surface-variant font-medium mt-1" style="">ID: {{ .Reg.RegistrationID }} • Submitted
-                    on
+                <h1 class="dashboard-title">Registration Details</h1>
+                <p class="subtitle">ID: <span style="font-family: monospace; font-weight: 700;">{{ .Reg.RegistrationID
+                        }}</span> &bull; Submitted
                     {{ .Reg.CreatedAt.Format "Jan 2, 2006" }}
                 </p>
             </div>
-            <div class="flex gap-3">
+            <div>
                 {{ if eq .Reg.Approved 0 }}
-                <span class="px-6 py-2.5 bg-blue-100 text-blue-700 border-2 border-blue-300 rounded-lg text-sm font-extrabold
-                uppercase tracking-widest" style="">Full Onboard: PENDING</span>
+                <span class="badge badge-warning">
+                    <i class="fa fa-clock-o"></i> PENDING FINAL REVIEW
+                </span>
                 {{end}}
                 {{ if eq .Reg.Approved 1 }}
-                <span
-                    class="px-6 py-2.5 bg-green-100 text-green-700 border-2 border-green-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
-                    style="">Full Onboard: APPROVED</span>
+                <span class="badge badge-success">
+                    <i class="fa fa-clock-o"></i> APPROVED
+                </span>
                 {{end}}
                 {{ if eq .Reg.Approved 2 }}
-                <span
-                    class="px-6 py-2.5 bg-red-100 text-red-700 border-2 border-red-300 rounded-lg text-sm font-extrabold uppercase tracking-widest"
-                    style="">Full Onboard: REJECTED</span>
+                <span class="badge badge-danger">
+                    <i class="fa fa-clock-o"></i> REJECTED
+                </span>
                 {{end}}
             </div>
-            <div class="flex gap-3">
-                <form action="/admin/registration?vat_id={{ .Reg.VatID }}" method="post">
-                    <input type="hidden" name="status" value="approved">
-                    <button
-                        class="px-6 py-2.5 bg-primary text-on-primary font-bold rounded hover:bg-primary-container transition-all shadow-md active:scale-[0.98]"
-                        style="">
-                        Approve
-                    </button>
-                </form>
-                <form action="/admin/registration?vat_id={{ .Reg.VatID }}" method="post">
-                    <input type="hidden" name="status" value="rejected">
-                    <button
-                        class="px-6 py-2.5 bg-error text-on-error font-bold rounded hover:bg-error-container transition-all shadow-md active:scale-[0.98]"
-                        style="">
-                        Reject
-                    </button>
-                </form>
-                <form action="/admin/registration?vat_id={{ .Reg.VatID }}" method="post">
-                    <input type="hidden" name="status" value="pending">
-                    <button
-                        class="px-6 py-2.5 bg-white border border-outline-variant text-on-surface font-bold rounded hover:bg-surface-container-low transition-all shadow-sm active:scale-[0.98]"
-                        style="">
-                        Set Pending
-                    </button>
-                </form>
+        </header>
 
-            </div>
-        </div>
-        <!-- Top Content Area with Sidebar -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
-            <!-- Left Column: Main Info -->
-            <div class="lg:col-span-8 space-y-6">
-                <!-- Basic Information -->
-                <section class="bg-surface-container-lowest border border-outline-variant rounded-lg p-6 shadow-sm">
-                    <div class="flex items-center gap-2 mb-6 border-b border-outline-variant pb-4">
-                        <span class="material-symbols-outlined text-indigo-600" data-icon="person"
-                            style="">person</span>
+        <div class="gridwrapper">
 
-                        <h2 class="text-xl font-extrabold text-slate-900 uppercase tracking-tight" style="">Basic
-                            Information</h2>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1"
-                                style="">Full Name</label>
-                            <p class="text-lg font-bold text-slate-900" style="">{{ .Reg.FirstName }}
-                                {{ .Reg.LastName }}
-                            </p>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1"
-                                style="">Email Address</label>
-                            <p class="text-lg font-bold text-slate-900" style="">{{ .Reg.Email }}</p>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1"
-                                style="">Proposed Role</label>
-                            <span
-                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200"
-                                style="">
-                                {{ .Reg.Role }}</span>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1"
-                                style="">Submission Date</label>
-                            <p class="text-lg font-bold text-slate-900" style="">
-                                {{ .Reg.UpdatedAt.Format "2006-01-02 15:04:05" }}
-                            </p>
-                        </div>
-                    </div>
-                </section>
-                <!-- Company Profile -->
-                <section class="bg-surface-container-lowest border border-outline-variant rounded-lg p-6 shadow-sm">
-                    <div class="flex items-center gap-2 mb-6 border-b border-outline-variant pb-4">
-                        <span class="material-symbols-outlined text-indigo-600" data-icon="domain"
-                            style="">domain</span>
-
-                        <h2 class="text-xl font-extrabold text-slate-900 uppercase tracking-tight" style="">Company
-                            Profile</h2>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12 mb-6">
-                        <div class="md:col-span-2">
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1"
-                                style="">Legal Company Name</label>
-                            <p class="text-xl font-extrabold text-slate-900" style="">{{ .Reg.CompanyName }}</p>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1"
-                                style="">VAT ID</label>
-                            <p class="text-lg font-bold text-slate-900" style="">{{ .Reg.VatID }}</p>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1"
-                                style="">Registration Number</label>
-                            <p class="text-lg font-bold text-slate-900" style="">{{ .Reg.RegistrationID }}</p>
-                        </div>
-                    </div>
-                    <div class="bg-surface-container-low p-4 rounded border border-outline-variant">
-                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2"
-                            style="">Registered Address</label>
-                        <p class="text-slate-800 font-medium leading-relaxed" style="">
-                            {{ .Reg.StreetAddress }}<br />
-                            {{ .Reg.PostalCode }} {{ .Reg.City }}<br />
-                            {{ .Reg.Country }}
-                        </p>
-                    </div>
-                </section>
-                <!-- Representatives -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <section class="bg-surface-container-lowest border border-outline-variant rounded-lg p-6 shadow-sm">
-                        <div class="flex items-center gap-2 mb-4 border-b border-outline-variant pb-3">
-                            <span class="material-symbols-outlined text-indigo-600 text-xl" data-icon="gavel"
-                                style="">gavel</span>
-
-                            <h2 class="text-md font-extrabold text-slate-900 uppercase tracking-tight" style="">Legal
-                                Representative</h2>
-                        </div>
-                        <div class="space-y-4">
-                            <div>
-                                <p class="font-bold text-slate-900 text-lg" style="">{{ .Reg.LRFirstName }}
-                                    {{ .Reg.LRLastName }}
-                                </p>
-                            </div>
-                            <div class="grid grid-cols-1 gap-3">
-                                <div>
-                                    <label
-                                        class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5"
-                                        style="">Email</label>
-                                    <p class="text-sm font-bold text-slate-900" style="">{{ .Reg.LREmail }}</p>
-                                </div>
-                                <div class="flex justify-between">
-                                    <div>
-                                        <label
-                                            class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5"
-                                            style="">Country</label>
-                                        <p class="text-sm font-bold text-slate-900" style="">{{ .Reg.LRCountry }}</p>
-                                    </div>
-                                    <div class="text-right">
-                                        <label
-                                            class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5"
-                                            style="">ID Card</label>
-                                        <p class="text-sm font-bold text-slate-900" style="">{{ .Reg.LRIdCard }}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-                    <section class="bg-surface-container-lowest border border-outline-variant rounded-lg p-6 shadow-sm">
-                        <div class="flex items-center gap-2 mb-4 border-b border-outline-variant pb-3">
-                            <span class="material-symbols-outlined text-indigo-600 text-xl" data-icon="badge"
-                                style="">badge</span>
-
-                            <h2 class="text-md font-extrabold text-slate-900 uppercase tracking-tight" style="">LEAR
-                                Official</h2>
-                        </div>
-                        <div class="space-y-4">
-                            <div>
-                                <p class="font-bold text-slate-900 text-lg" style="">{{ .Reg.LEARFirstName }}
-                                    {{ .Reg.LEARLastName }}
-                                </p>
-                            </div>
-                            <div class="grid grid-cols-1 gap-3">
-                                <div>
-                                    <label
-                                        class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5"
-                                        style="">Email</label>
-                                    <p class="text-sm font-bold text-slate-900" style="">{{ .Reg.LEAREmail }}</p>
-                                </div>
-                                <div class="flex justify-between">
-                                    <div>
-                                        <label
-                                            class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5"
-                                            style="">ID Card</label>
-                                        <p class="text-sm font-bold text-slate-900" style="">{{ .Reg.LEARIdCard }}</p>
-                                    </div>
-                                    <div class="text-right">
-                                        <label
-                                            class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5"
-                                            style="">Mobile Number</label>
-                                        <p class="text-sm font-bold text-slate-900" style="">{{ .Reg.LEARMobileNumber }}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div class="pt-2 border-t border-outline-variant">
-                                    <label
-                                        class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1"
-                                        style="">Postal Address</label>
-                                    <p class="text-xs font-bold text-slate-900 leading-tight" style="">
-                                        {{ .Reg.LEARAddress }} - {{ .Reg.LEARCountry }}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
+            <!-- Company Profile Section -->
+            <div class="company-profile">
+                <div class="section-header">
+                    <span class="section-icon"><i class="fa fa-building"></i></span>
+                    <h3>Company Profile</h3>
                 </div>
-                <!-- Internal Notes -->
-                <section class="bg-surface-container-lowest border border-outline-variant rounded-lg p-6 shadow-sm">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center gap-2">
-                            <span class="material-symbols-outlined text-indigo-600" data-icon="sticky_note_2"
-                                style="">sticky_note_2</span>
 
-                            <h2 class="text-xl font-extrabold text-slate-900 uppercase tracking-tight" style="">Internal
-                                Admin Notes</h2>
-                        </div>
-                        <span class="text-xs font-bold text-slate-400" style="">Last updated: 2 hours ago</span>
+                <div class="fields-grid">
+                    <div class="field-group full-width">
+                        <span class="field-label">Legal Name</span>
+                        <span class="field-value" style="font-size: 15px;">{{ .Reg.CompanyName }}</span>
                     </div>
-                    <textarea
-                        class="w-full h-32 p-4 bg-surface-container-low border border-outline-variant rounded text-slate-800 focus:ring-2 focus:ring-primary focus:border-primary transition-all resize-none font-body placeholder:text-slate-400"
-                        placeholder="This is not yet implemented. Admin will be able to enter confidential notes here..."></textarea>
-                    <div class="mt-3 flex justify-end">
-                        <button
-                            class="px-4 py-1.5 bg-slate-900 text-white text-xs font-bold rounded uppercase tracking-widest hover:bg-slate-800 transition-colors"
-                            style="">Save Note</button>
+                    <div class="field-group">
+                        <span class="field-label">VAT ID</span>
+                        <span class="field-value highlight" style="font-family: monospace;">{{ .Reg.VatID }}</span>
                     </div>
-                </section>
-            </div>
-            <!-- Right Column: Process & Logs -->
-            <div class="lg:col-span-4 space-y-6">
-                <!-- Process Status Sidebar -->
-                <section class="bg-surface-container-lowest border border-outline-variant rounded-lg p-6 shadow-sm">
-                    <div class="flex items-center gap-2 mb-6 border-b border-outline-variant pb-4">
-                        <span class="material-symbols-outlined text-indigo-600" data-icon="schema"
-                            style="">schema</span>
-
-                        <h2 class="text-xl font-extrabold text-slate-900 uppercase tracking-tight" style="">Process
-                            Status</h2>
+                    <div class="field-group">
+                        <span class="field-label">Country</span>
+                        <span class="field-value" style="font-size: 15px;">{{ .Reg.Country }}</span>
                     </div>
-                    <div class="space-y-4 mb-8">
-                        <!-- Status Items -->
-                        <div
-                            class="flex items-center justify-between p-3 bg-surface-container-low border border-outline-variant rounded">
-                            <div class="flex items-center gap-3">
-                                {{ if .Reg.Notified }}
-                                <span class="material-symbols-outlined text-green-600" data-icon="check_circle"
-                                    style='font-variation-settings: "FILL" 1;'>check_circle</span>
-                                {{ else }}
-                                <span class="material-symbols-outlined text-slate-400" data-icon="pending"
-                                    style="">pending</span>
-                                {{ end }}
-                                <span class="font-bold text-slate-900 text-sm" style="">Registration Notified</span>
-
-                            </div>
-                            <button
-                                class="px-3 py-1 bg-white border border-green-200 text-green-700 text-[10px] font-bold uppercase tracking-widest rounded hover:bg-green-50 transition-colors"
-                                style="">Try again</button>
-                        </div>
-                        <div
-                            class="flex items-center justify-between p-3 bg-surface-container-low border border-outline-variant rounded">
-                            <div class="flex items-center gap-3">
-                                {{ if .Reg.Issued }}
-                                <span class="material-symbols-outlined text-green-600" data-icon="check_circle"
-                                    style='font-variation-settings: "FILL" 1;'>check_circle</span>
-                                {{ else }}
-                                <span class="material-symbols-outlined text-slate-400" data-icon="pending"
-                                    style="">pending</span>
-                                {{ end }}
-                                <span class="font-bold text-slate-900 text-sm" style="">Credential Issued</span>
-                            </div>
-                            <button
-                                class="px-3 py-1 bg-white border border-green-200 text-green-700 text-[10px] font-bold uppercase tracking-widest rounded hover:bg-green-50 transition-colors"
-                                style="">Try again</button>
-                        </div>
-                        <div
-                            class="flex items-center justify-between p-3 bg-surface-container-low border border-outline-variant rounded">
-                            <div class="flex items-center gap-3">
-                                {{ if .Reg.TMFRegistered }}
-                                <span class="material-symbols-outlined text-green-600" data-icon="check_circle"
-                                    style='font-variation-settings: "FILL" 1;'>check_circle</span>
-                                {{ else }}
-                                <span class="material-symbols-outlined text-slate-400" data-icon="pending"
-                                    style="">pending</span>
-                                {{ end }}
-                                <span class="font-bold text-slate-900 text-sm" style="">TMF Registered</span>
-                            </div>
-                            <button
-                                class="px-3 py-1 bg-white border border-green-200 text-green-700 text-[10px] font-bold uppercase tracking-widest rounded hover:bg-green-50 transition-colors"
-                                style="">Try again</button>
-                        </div>
-                        <div class="pt-6 border-t border-dashed border-outline-variant">
-
-                            <div
-                                class="flex items-center justify-between p-3 bg-surface-container-low border border-outline-variant rounded">
-                                <div class="flex items-center gap-3">
-                                    {{ if .Reg.LEARCompleted }}
-                                    <span class="material-symbols-outlined text-green-600" data-icon="check_circle"
-                                        style='font-variation-settings: "FILL" 1;'>check_circle</span>
-                                    {{ else }}
-                                    <span class="material-symbols-outlined text-slate-400" data-icon="pending"
-                                        style="">pending</span>
-                                    {{ end }}
-                                    <span class="font-bold text-slate-900 text-sm" style="">LEAR Completed</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div
-                            class="flex items-center justify-between p-3 bg-surface-container-low border border-outline-variant rounded">
-                            <div class="flex items-center gap-3">
-                                {{ if .Reg.FilesUploaded }}
-                                <span class="material-symbols-outlined text-indigo-600" data-icon="cloud_done"
-                                    style='font-variation-settings: "FILL" 1;'>cloud_done</span>
-                                {{ else }}
-                                <span class="material-symbols-outlined text-slate-400" data-icon="pending"
-                                    style="">pending</span>
-                                {{ end }}
-                                <span class="font-bold text-slate-900 text-sm" style="">Files Uploaded</span>
-                            </div>
-                        </div>
+                    <div class="field-group full-width">
+                        <span class="field-label">Street Address</span>
+                        <span class="field-value" style="font-size: 15px;">{{ .Reg.StreetAddress }}</span>
                     </div>
-                    <!-- Verified Separated Toggle -->
-                    <div class="pt-6 border-t border-dashed border-outline-variant">
-                        <div
-                            class="flex items-center justify-between bg-indigo-50 border border-indigo-200 p-4 rounded-lg">
-                            {{ if eq .Reg.Approved 1 }}
-                            <span class="material-symbols-outlined text-green-600" data-icon="check_circle"
-                                style='font-variation-settings: "FILL" 1;'>check_circle</span>
-                            {{ else }}
-                            <span class="material-symbols-outlined text-slate-400" data-icon="pending"
-                                style="">pending</span>
-                            {{ end }}
-
-                            <div>
-                                <p class="text-indigo-900 font-extrabold text-sm uppercase tracking-tight" style="">
-                                    Final Verification</p>
-                                <p class="text-[10px] font-bold text-indigo-600 uppercase" style="">Confirm all checks
-                                    passed</p>
-                            </div>
-                        </div>
+                    <div class="field-group">
+                        <span class="field-label">City</span>
+                        <span class="field-value">{{ .Reg.City }}</span>
                     </div>
-                </section>
-                <!-- Help/Documentation Widget -->
-                <div class="p-6 bg-slate-900 rounded-lg text-white">
-                    <h3 class="font-black uppercase tracking-tighter text-indigo-400 mb-2" style="">Compliance Guide
-                    </h3>
-                    <p class="text-xs text-slate-400 leading-relaxed mb-4" style="">Ensure all LEAR official
-                        appointments follow the 2024 Regulatory Guidelines Chapter 4.2 regarding digital signatures.</p>
-                    <a class="inline-flex items-center text-xs font-bold text-white bg-indigo-600 px-4 py-2 rounded uppercase tracking-widest hover:bg-indigo-500 transition-colors"
-                        href="#" style="">
-                        View SOP
-                        <span class="material-symbols-outlined text-sm ml-2" data-icon="open_in_new"
-                            style="">open_in_new</span>
-                    </a>
+                    <div class="field-group">
+                        <span class="field-label">Postal Code</span>
+                        <span class="field-value" style="font-family: monospace;">{{ .Reg.PostalCode }}</span>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Full Width Sections -->
-        <div class="space-y-6">
-            <!-- Uploaded Documents -->
-            <section
-                class="bg-surface-container-lowest border border-outline-variant rounded-lg shadow-sm overflow-hidden">
-                <div class="px-6 py-4 border-b border-outline-variant bg-white flex justify-between items-center">
-                    <div class="flex items-center gap-2">
-                        <span class="material-symbols-outlined text-indigo-600" data-icon="folder_open"
-                            style="">folder_open</span>
-
-                        <h2 class="text-xl font-extrabold text-slate-900 uppercase tracking-tight" style="">Uploaded
-                            Documents</h2>
-                    </div>
-                    <span class="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-black uppercase tracking-tighter"
-                        style="">4 Files Total</span>
+            <!-- Person Registering Section -->
+            <div class="person-registering">
+                <div class="section-header">
+                    <span class="section-icon"><i class="fa fa-user"></i></span>
+                    <h3>Person Registering</h3>
                 </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left">
-                        <thead class="bg-surface-container-low border-b border-outline-variant">
+                <div class="fields-grid">
+                    <div class="field-group">
+                        <span class="field-label">Full Name</span>
+                        <span class="field-value">{{ .Reg.FirstName }} {{ .Reg.LastName }}</span>
+                    </div>
+                    <div class="field-group">
+                        <span class="field-label">Email Address</span>
+                        <span class="field-value">{{ .Reg.Email }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Legal Representative Section -->
+            <div class="legal-representative">
+                <div class="section-header">
+                    <span class="section-icon"><i class="fa fa-gavel"></i></span>
+                    <h3>Legal Representative</h3>
+                </div>
+                <div class="fields-grid">
+                    <div class="field-group">
+                        <span class="field-label">Full Name</span>
+                        <span class="field-value">{{ .Reg.LRFirstName }} {{ .Reg.LRLastName }}</span>
+                    </div>
+                    <div class="field-group">
+                        <span class="field-label">Email Address</span>
+                        <span class="field-value">{{ .Reg.LREmail }}</span>
+                    </div>
+                    <div class="field-group">
+                        <span class="field-label">Nationality</span>
+                        <span class="field-value">{{ .Reg.LRCountry }}</span>
+                    </div>
+                    <div class="field-group">
+                        <span class="field-label">ID Card</span>
+                        <span class="field-value" style="font-family: monospace;">{{ .Reg.LRIdCard }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Account Admin Section -->
+            <div class="account-admin">
+                <div class="section-header">
+                    <span class="section-icon"><i class="fa fa-user-secret"></i></span>
+                    <h3>Account Admin (LEAR)</h3>
+                </div>
+                <div class="fields-grid">
+                    <div class="field-group">
+                        <span class="field-label">Full Name</span>
+                        <span class="field-value">{{ .Reg.LEARFirstName }} {{ .Reg.LEARLastName }}</span>
+                    </div>
+                    <div class="field-group">
+                        <span class="field-label">Email Address</span>
+                        <span class="field-value">{{ .Reg.LEAREmail }}</span>
+                    </div>
+                    <div class="field-group">
+                        <span class="field-label">Nationality</span>
+                        <span class="field-value">{{ .Reg.LEARCountry }}</span>
+                    </div>
+                    <div class="field-group">
+                        <span class="field-label">Mobile Number</span>
+                        <span class="field-value" style="font-family: monospace;">{{ .Reg.LEARMobileNumber }}</span>
+                    </div>
+                    <div class="field-group full-width">
+                        <span class="field-label">Registered Address</span>
+                        <span class="field-value">{{ .Reg.LEARAddress }}</span>
+                    </div>
+                    <div class="field-group">
+                        <span class="field-label">ID Card</span>
+                        <span class="field-value" style="font-family: monospace;">{{ .Reg.LEARIdCard }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Uploaded Documents Section -->
+            <div class="uploaded-documents">
+                <div class="section-header">
+                    <span class="section-icon"><i class="fa fa-folder-open"></i></span>
+                    <h3>Uploaded Documents</h3>
+                </div>
+                <div class="docs-table-wrapper">
+                    <table class="docs-table">
+                        <thead>
                             <tr>
-                                <th class="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest"
-                                    style="">Document Name</th>
-                                <th class="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest"
-                                    style="">Size</th>
-                                <th class="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest"
-                                    style="">Created</th>
-                                <th class="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest"
-                                    style="">Updated</th>
-                                <th class="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest"
-                                    style="">Status</th>
+                                <th>Document Name</th>
+                                <th>File Size</th>
+                                <th>Status</th>
+                                <th>Uploaded</th>
+                                <th>Updated</th>
+                                <th style="text-align: right;">Action</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-outline-variant">
+                        <tbody>
                             {{ range .Files }}
 
-                            <tr class="hover:bg-slate-50 transition-colors">
-                                <td class="px-6 py-4">
-                                    <a download="{{ .Name }}"
-                                        class="font-bold text-indigo-600 hover:text-indigo-800 hover:underline"
-                                        href="/admin/api/file/{{ .FileID }}" style="">{{ .Name }}</a>
-                                </td>
-                                <td class="px-6 py-4 text-sm font-medium text-slate-500" style="">{{ .Size }}</td>
-                                <td class="px-6 py-4 text-sm font-medium text-slate-500" style="">{{ .CreatedAt | date
-                                    "2006-01-02 15:04:05" }}</td>
-                                <td class="px-6 py-4 text-sm font-medium text-slate-500" style="">{{ .UpdatedAt | date
-                                    "2006-01-02 15:04:05" }}</td>
-                                <td class="px-6 py-4" style=""><select
-                                        class="appearance-none px-3 py-1 rounded-full text-[10px] font-bold bg-green-100 text-green-700 border border-green-200 uppercase tracking-wider focus:ring-2 focus:ring-green-500 focus:outline-none cursor-pointer">
-                                        <option selected="" value="approved">Approved</option>
-                                        <option value="in_review">In Review</option>
-                                        <option value="rejected">Rejected</option>
-                                    </select></td>
-                            </tr>
-
-                            {{ end }}
-
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-            <!-- Registration Activity Log -->
-            <section
-                class="bg-surface-container-lowest border border-outline-variant rounded-lg shadow-sm overflow-hidden">
-                <div class="px-6 py-4 border-b border-outline-variant bg-white flex justify-between items-center">
-                    <div class="flex items-center gap-2">
-                        <span class="material-symbols-outlined text-indigo-600" data-icon="history"
-                            style="">history</span>
-
-                        <h2 class="text-xl font-extrabold text-slate-900 uppercase tracking-tight" style="">Registration
-                            Activity Log</h2>
-                    </div>
-                    <button class="text-[10px] font-black text-indigo-600 hover:underline uppercase tracking-widest"
-                        style="">Full History</button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left">
-                        <thead class="bg-surface-container-low border-b border-outline-variant">
                             <tr>
-                                <th class="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest"
-                                    style="">Type</th>
-                                <th class="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest w-full"
-                                    style="">Details</th>
-                                <th class="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest text-right"
-                                    style="">Date / Time</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-outline-variant">
-
-                            {{ range .Logs }}
-                            <tr class="hover:bg-slate-50 transition-colors">
-                                <td class="px-6 py-4" style="">
-                                    {{ if eq .Type "info" }}
-                                    <span
-                                        class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-600 text-white uppercase tracking-wider"
-                                        style="">Info</span>
-                                    {{ end }}
-                                    {{ if eq .Type "warning" }}
-                                    <span
-                                        class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500 text-white uppercase tracking-wider"
-                                        style="">Warning</span>
-                                    {{ end }}
-                                    {{ if eq .Type "error" }}
-                                    <span
-                                        class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white uppercase tracking-wider"
-                                        style="">Error</span>
-                                    {{ end }}
+                                <td>
+                                    <div class="doc-name-cell">
+                                        <i class="fa fa-file-pdf-o doc-icon"></i>
+                                        <span>{{ .Name }}</span>
+                                    </div>
                                 </td>
-                                <td class="px-6 py-4 text-sm text-slate-600 w-full whitespace-normal" style="">
-                                    {{ .Message }}
+                                <td>{{ .Size }} bytes</td>
+                                {{ if eq .Status "uploaded" }}
+                                <td><span class="badge badge-warning"><i class="fa fa-hourglass-half"></i> In
+                                        Review</span></td>
+                                {{ else if eq .Status "verified" }}
+                                <td><span class="badge badge-success"><i class="fa fa-check-circle"></i> Verified</span>
                                 </td>
-                                <td class="px-6 py-4 text-right" style="">
-                                    <p class="text-xs font-black text-slate-400 uppercase tracking-tighter" style="">
-                                        {{ .CreatedAt | date "2006-01-02" }}
-                                    </p>
-                                    <p class="text-[10px] font-bold text-slate-500" style="">
-                                        {{ .CreatedAt | date "15:04" }}
-                                    </p>
+                                {{ else if eq .Status "rejected" }}
+                                <td><span class="badge badge-danger"><i class="fa fa-times-circle"></i> Rejected</span>
+                                </td>
+                                {{ end }}
+                                <td>{{ .CreatedAt.Format "Jan 2, 2006" }}</td>
+                                <td>{{ .UpdatedAt.Format "Jan 2, 2006" }}</td>
+                                <td style="text-align: right;">
+                                    <a href="/admin/api/file/{{ .FileID }}" class="action-btn-sm"
+                                        title="View Document"><i class="fa fa-eye"></i>
+                                        View</a>
                                 </td>
                             </tr>
                             {{ end }}
-
                         </tbody>
                     </table>
                 </div>
-            </section>
+            </div>
+
+            <!-- Process Status Section -->
+            <div class="process-status">
+                <div class="section-header">
+                    <span class="section-icon"><i class="fa fa-tasks"></i></span>
+                    <h3>Process Status</h3>
+                </div>
+
+                <div class="status-timeline">
+                    <!-- Stage 1 -->
+                    <div class="status-stage">
+
+                        <div class="stage-title">
+                            <span>Stage 1: Self-Registration</span>
+                        </div>
+
+                        <div class="sub-tasks">
+
+                            {{ if .Reg.Notified }}
+                            <div class="sub-task">
+                                <span class="sub-task-name"><i class="fa fa-check-circle sub-task-icon success"></i>
+                                    Customer Notification via email</span>
+                                <span class="badge badge-success">Sent</span>
+                            </div>
+                            {{ else }}
+                            <div class="sub-task" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                                <div
+                                    style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                                    <span class="sub-task-name"><i class="fa fa-times-circle sub-task-icon danger"></i>
+                                        Customer Notification via email</span>
+                                    <span class="badge badge-danger">Failed</span>
+                                </div>
+                                <button class="btn-retry" type="button"
+                                    onclick="alert('Retrying Email Notification...')">
+                                    <i class="fa fa-refresh"></i> Retry Email Notification
+                                </button>
+                            </div>
+                            {{ end }}
+
+                            {{ if .Reg.Issued }}
+                            <div class="sub-task">
+                                <span class="sub-task-name"><i class="fa fa-check-circle sub-task-icon success"></i>
+                                    Credential Issuance</span>
+                                <span class="badge badge-success">Issued</span>
+                            </div>
+                            {{ else }}
+                            <div class="sub-task" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                                <div
+                                    style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                                    <span class="sub-task-name"><i class="fa fa-times-circle sub-task-icon danger"></i>
+                                        Credential Issuance</span>
+                                    <span class="badge badge-danger">Failed</span>
+                                </div>
+                                <button class="btn-retry" type="button"
+                                    onclick="alert('Retrying Credential Issuance...')">
+                                    <i class="fa fa-refresh"></i> Retry Credential Issuance
+                                </button>
+                            </div>
+                            {{ end }}
+
+                            {{ if .Reg.TMFRegistered }}
+                            <div class="sub-task">
+                                <span class="sub-task-name"><i class="fa fa-check-circle sub-task-icon success"></i> TM
+                                    Forum Registration</span>
+                                <span class="badge badge-success">Registered</span>
+                            </div>
+                            {{ else }}
+                            <div class="sub-task" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                                <div
+                                    style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                                    <span class="sub-task-name"><i class="fa fa-times-circle sub-task-icon danger"></i>
+                                        TM Forum Registration</span>
+                                    <span class="badge badge-danger">Failed</span>
+                                </div>
+                                <button class="btn-retry" type="button"
+                                    onclick="alert('Retrying TM Forum Registration...')">
+                                    <i class="fa fa-refresh"></i> Retry TM Forum Registration
+                                </button>
+                            </div>
+                            {{ end }}
+
+                        </div>
+
+                    </div>
+
+                    <!-- Stage 2 -->
+
+                    {{ if .Reg.LEARCompleted }}
+                    <div class="status-stage">
+                        <div class="stage-title">
+                            <span>Stage 2: Representatives Data</span>
+                        </div>
+
+                        <div class="sub-tasks">
+
+                            {{ if .Reg.FilesUploaded }}
+                            <div class="sub-task">
+                                <span class="sub-task-name"><i class="fa fa-check-circle sub-task-icon success"></i>
+                                    Files
+                                    uploaded by user</span>
+                                <span class="badge badge-success">Uploaded</span>
+                            </div>
+
+                            {{ else }}
+                            <div class="sub-task">
+                                <span class="sub-task-name"><i class="fa fa-circle-o sub-task-icon"></i>
+                                    Files not yet uploaded</span>
+                                <span class="badge badge-secondary">Pending</span>
+                            </div>
+                            {{ end }}
+
+
+
+                            {{ if .Reg.LRCompleted }}
+                            <div class="sub-task">
+                                <span class="sub-task-name"><i class="fa fa-check-circle sub-task-icon success"></i>
+                                    LEARCredential sent to Account admin</span>
+                                <span class="badge badge-success">Sent</span>
+                            </div>
+                            {{ else }}
+                            <div class="sub-task" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                                <div
+                                    style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                                    <span class="sub-task-name"><i class="fa fa-times-circle sub-task-icon danger"></i>
+                                        LEARCredential to Account admin</span>
+                                    <span class="badge badge-danger">Not sent</span>
+                                </div>
+                                <button class="btn-retry" type="button"
+                                    onclick="alert('Sending LEARCredential to Account admin...')">
+                                    <i class="fa fa-refresh"></i> Send LEARCredential to Account admin
+                                </button>
+                            </div>
+                            {{ end }}
+
+                        </div>
+
+                    </div>
+
+                    {{ else }}
+
+                    <div class="status-stage">
+                        <div class="stage-title">
+                            <span>Stage 2: Representatives Data</span>
+                            <span class="badge">Not Started</span>
+                        </div>
+                    </div>
+
+                    {{ end }}
+
+
+                </div>
+
+                <!-- Admin Decisions Panel -->
+                <div class="admin-actions">
+                    <span class="admin-action-title">Admin Approval Action</span>
+                    <div class="btn-group-vertical">
+
+                        <form action="/admin/registration?vat_id={{ .Reg.VatID }}" method="post">
+                            <input type="hidden" name="status" value="approved">
+                            <button class="btn-action btn-action-approve">
+                                <i class="fa fa-check"></i> Approve Registration
+                            </button>
+                        </form>
+
+                        <form action="/admin/registration?vat_id={{ .Reg.VatID }}" method="post">
+                            <input type="hidden" name="status" value="rejected">
+                            <button class="btn-action btn-action-reject">
+                                <i class="fa fa-ban"></i> Reject Registration
+                            </button>
+                        </form>
+
+                        <form action="/admin/registration?vat_id={{ .Reg.VatID }}" method="post">
+                            <input type="hidden" name="status" value="pending">
+                            <button class="btn-action btn-action-pending">
+                                <i class="fa fa-undo"></i> Reset to Pending
+                            </button>
+                        </form>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Registration Log Section -->
+            <div class="log">
+                <div class="section-header">
+                    <span class="section-icon"><i class="fa fa-terminal"></i></span>
+                    <h3>Activity Log</h3>
+                </div>
+                <div class="log-list">
+                    <!-- Chronological log messages -->
+
+                    {{ range .Logs }}
+
+                    <div class="log-entry info">
+                        <span class="log-time">{{ .CreatedAt | date "2006-01-02" }}
+                            {{ .CreatedAt | date "15:04" }}</span>
+
+                        {{ if eq .Type "info" }}
+                        <span class="log-badge info">info</span>
+                        {{ else if eq .Type "warning" }}
+                        <span class="log-badge warning">warning</span>
+                        {{ else if eq .Type "error" }}
+                        <span class="log-badge error">error</span>
+                        {{ end }}
+
+
+                        <span class="log-message">{{ .Message }}</span>
+                    </div>
+
+                    {{ end }}
+
+                </div>
+            </div>
+
         </div>
+
     </main>
-    <!-- Mobile Bottom Navigation -->
-    <div
-        class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-2 flex justify-between items-center z-50">
-        <button class="flex flex-col items-center gap-1 text-slate-400" style="">
-            <span class="material-symbols-outlined" data-icon="dashboard" style="">dashboard</span>
-            <span class="text-[10px] font-bold uppercase" style="">Home</span>
-        </button>
-        <button class="flex flex-col items-center gap-1 text-indigo-600" style="">
-            <span class="material-symbols-outlined" data-icon="how_to_reg"
-                style='font-variation-settings: "FILL" 1;'>how_to_reg</span>
-            <span class="text-[10px] font-bold uppercase" style="">Registrations</span>
-        </button>
-        <button class="flex flex-col items-center gap-1 text-slate-400" style="">
-            <span class="material-symbols-outlined" data-icon="group" style="">group</span>
-            <span class="text-[10px] font-bold uppercase" style="">Users</span>
-        </button>
-        <button class="flex flex-col items-center gap-1 text-slate-400" style="">
-            <span class="material-symbols-outlined" data-icon="settings" style="">settings</span>
-            <span class="text-[10px] font-bold uppercase" style="">Setup</span>
-        </button>
-    </div>
 </body>
 
 </html>

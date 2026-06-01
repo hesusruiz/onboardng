@@ -4,8 +4,11 @@ import (
 	"crypto/x509"
 	"embed"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
+	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"text/template"
@@ -33,31 +36,67 @@ var templatesFS embed.FS
 
 var tplIndex, tplDetail *template.Template
 
-func init() {
+func loadTemplates(dir string) error {
 
 	// Register all functions from Sprout to the template handler
 	sproutHandler := sprout.New()
 	sproutHandler.AddGroups(all.RegistryGroup())
 	funcs := sproutHandler.Build()
 
-	var err error
-	tplIndex, err = template.New("index.hbs").Funcs(funcs).ParseFS(templatesFS, "templates/index.hbs")
+	fileSystem, err := getFileSystem(dir)
 	if err != nil {
-		panic(err)
+		return errl.Errorf("error getting filesystem: %v", err)
 	}
 
-	tplDetail, err = template.New("detail.hbs").Funcs(funcs).ParseFS(templatesFS, "templates/detail.hbs")
+	tplIndex, err = template.New("index.hbs").Funcs(funcs).ParseFS(fileSystem, "index.hbs")
 	if err != nil {
-		panic(err)
+		return errl.Errorf("error parsing index.hbs: %v", err)
 	}
 
+	tplDetail, err = template.New("detail.hbs").Funcs(funcs).ParseFS(fileSystem, "detail.hbs")
+	if err != nil {
+		return errl.Errorf("error parsing detail.hbs: %v", err)
+	}
+	return nil
+}
+
+// getFileSystem returns an fs.FS to serve frontend files. In development mode
+// it serves directly from the 'templates' directory to allow live reloads. In production,
+// it uses the embedded filesystem.
+func getFileSystem(dir string) (fs.FS, error) {
+
+	// Get the path to this specific .go file, and serve from the '/templates' subdirectory if it exists
+	if _, thisFilePath, _, ok := runtime.Caller(0); ok {
+
+		// The frontend files should be in the 'front' subdirectory
+		thisFileDir := filepath.Dir(thisFilePath)
+		frontendPath := filepath.Join(thisFileDir, dir)
+
+		if _, err := os.Stat(frontendPath); err == nil {
+			println("Development mode: Serving from", frontendPath)
+			return os.DirFS(frontendPath), nil
+		}
+	}
+
+	// Otherwise, serve from the embedded filesystem
+	// We use fs.Sub to strip the "front" prefix from the embed paths
+	f, err := fs.Sub(templatesFS, dir)
+	if err != nil {
+		return nil, errl.Errorf("error getting filesystem: %v", err)
+	}
+	return f, nil
 }
 
 func (s *Server) registerAdminRoutes(mux *http.ServeMux) {
 
+	err := loadTemplates("templates")
+	if err != nil {
+		panic(err)
+	}
+
 	originsEnv := os.Getenv("AUTH_ORIGINS")
 	if originsEnv == "" {
-		originsEnv = "http://localhost:8080"
+		originsEnv = "http://localhost:7777"
 	}
 	allowedOrigins := strings.Split(originsEnv, ",")
 
@@ -102,8 +141,55 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) {
 // PageAdminIndex returns the list of registrations, displaying the template index.html
 func (s *Server) PageAdminIndex(w http.ResponseWriter, r *http.Request) {
 
-	err := tplIndex.Execute(w, nil)
+	err := loadTemplates("templates")
 	if err != nil {
+		err = errl.Error(err)
+		slog.Error("loading templates", "error", err.Error())
+		http.Error(w, "Error loading templates", http.StatusInternalServerError)
+		return
+	}
+
+	// Pagination parameters if the caller does not specify them
+	limit := 100
+	offset := 0
+
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if parsedLimit, err := strconv.Atoi(l); err == nil {
+			limit = parsedLimit
+		}
+	}
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if parsedOffset, err := strconv.Atoi(o); err == nil {
+			offset = parsedOffset
+		}
+	}
+
+	regs, total, err := s.DB.GetRegistrations(limit, offset)
+	if err != nil {
+		err = errl.Error(err)
+		slog.Error("fetching registrations", "error", err.Error())
+		http.Error(w, "Error fetching registrations", http.StatusInternalServerError)
+		return
+	}
+
+	tplData := struct {
+		Regs       []db.RegistrationRecord
+		Limit      int
+		Offset     int
+		NumEntries int
+		Total      int
+	}{
+		Regs:       regs,
+		Limit:      limit,
+		Offset:     offset,
+		NumEntries: len(regs),
+		Total:      total,
+	}
+
+	err = tplIndex.Execute(w, tplData)
+	if err != nil {
+		err = errl.Error(err)
+		slog.Error("executing template", "error", err.Error())
 		http.Error(w, "Error executing template", http.StatusInternalServerError)
 		return
 	}
@@ -122,6 +208,7 @@ func (s *Server) PageAdminDetailsByVatID(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// If the user clicked a button in the details screen
 	if r.Method == http.MethodPost {
 		status := r.FormValue("status")
 		if status == "" {
@@ -147,6 +234,14 @@ func (s *Server) PageAdminDetailsByVatID(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
+	// If we are retrieving and presenting the details
+
+	err := loadTemplates("templates")
+	if err != nil {
+		http.Error(w, "Error loading templates", http.StatusInternalServerError)
+		return
+	}
+
 	registration, err := s.DB.GetRegistrationByVatID(vatID)
 	if err != nil {
 		http.Error(w, "Registration not found", http.StatusNotFound)
@@ -165,18 +260,28 @@ func (s *Server) PageAdminDetailsByVatID(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Append a test file entry, to see the template working
-	files = append(files, db.RegistrationFile{
-		FileID:         "test-file-id",
-		RegistrationID: registration.RegistrationID,
-		Name:           "test-file.pdf",
-		MimeType:       "application/pdf",
-		Size:           1024,
-		Status:         "uploaded",
-		Content:        []byte("test-file-content"),
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
-	})
+	// TODO: eliminate the things for testing
+	//
+
+	// registration.LEARCompleted = true
+
+	// // Append a test file entry, to see the template working
+	// files = append(files, db.RegistrationFile{
+	// 	FileID:         "test-file-id",
+	// 	RegistrationID: registration.RegistrationID,
+	// 	Name:           "test-file.pdf",
+	// 	MimeType:       "application/pdf",
+	// 	Size:           1024,
+	// 	Status:         "uploaded",
+	// 	Content:        []byte("test-file-content"),
+	// 	CreatedAt:      time.Now(),
+	// 	UpdatedAt:      time.Now(),
+	// })
+
+	// registration.FilesUploaded = true
+
+	//
+	// TODO: eliminate the things for testing
 
 	tplData := struct {
 		Reg   *db.RegistrationRecord
@@ -216,7 +321,7 @@ func (s *Server) APIAdminGetRegistrations(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	regs, err := s.DB.GetRegistrations(limit, offset)
+	regs, _, err := s.DB.GetRegistrations(limit, offset)
 	if err != nil {
 		s.SendJSON(w, r, http.StatusInternalServerError, false, "Error fetching registrations", err.Error())
 		return
