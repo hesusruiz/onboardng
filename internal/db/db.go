@@ -87,6 +87,7 @@ type RegistrationRecord struct {
 
 	// State of the second step of registration
 	// Data about the LR has been successfully registered
+	// TODO: this field is not being used now (and is not useful), perform a migration to detele it
 	LRCompleted bool `json:"lr_completed"`
 	// Data about the LEAR has been successfully registered
 	LEARCompleted bool `json:"lear_completed"`
@@ -387,7 +388,15 @@ func (s *Service) AmendRegistration(reg *RegistrationRecord) error {
 	return nil
 }
 
-func (s *Service) GetRegistrations(limit, offset int) ([]RegistrationRecord, error) {
+func (s *Service) GetRegistrations(limit, offset int) ([]RegistrationRecord, int, error) {
+
+	// Get the total number of records in the DB
+	var total int
+	err := s.conn.QueryRow("SELECT COUNT(*) FROM registrations").Scan(&total)
+	if err != nil {
+		return nil, 0, errl.Errorf("failed to count registrations: %w", err)
+	}
+
 	query := `
 	SELECT 
 		registration_id, email, first_name, last_name, company_name, country, vat_id,
@@ -405,7 +414,7 @@ func (s *Service) GetRegistrations(limit, offset int) ([]RegistrationRecord, err
 		sql.Named("offset", offset),
 	)
 	if err != nil {
-		return nil, errl.Errorf("failed to get registrations: %w", err)
+		return nil, 0, errl.Errorf("failed to get registrations: %w", err)
 	}
 	defer rows.Close()
 
@@ -421,16 +430,16 @@ func (s *Service) GetRegistrations(limit, offset int) ([]RegistrationRecord, err
 			&reg.LEARCompleted, &reg.FilesUploaded, &reg.Approved,
 		)
 		if err != nil {
-			return nil, errl.Errorf("failed to scan registration row: %w", err)
+			return nil, 0, errl.Errorf("failed to scan registration row: %w", err)
 		}
 		regs = append(regs, reg)
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, errl.Errorf("failed to iterate over registration rows: %w", err)
+		return nil, 0, errl.Errorf("failed to iterate over registration rows: %w", err)
 	}
 
-	return regs, nil
+	return regs, total, nil
 }
 
 func (s *Service) GetRegistration(vatID string, email string) (*RegistrationRecord, error) {

@@ -17,7 +17,7 @@ type DBServiceProvider interface {
 	GetRegistrationByVatID(vatID string) (*db.RegistrationRecord, error)
 	GetRegistrationByEmail(email string) (*db.RegistrationRecord, error)
 	GetRegistrationByEmailOrVatID(email string, vatID string) (*db.RegistrationRecord, error)
-	GetRegistrations(limit, offset int) ([]db.RegistrationRecord, error)
+	GetRegistrations(limit, offset int) ([]db.RegistrationRecord, int, error)
 	GetRegistrationLogs(vatID string, limit, offset int) ([]db.RegistrationLog, error)
 	GetRegistrationFiles(vatID string, limit, offset int) ([]db.RegistrationFile, error)
 	GetRegistrationFile(fileID string) (*db.RegistrationFile, error)
