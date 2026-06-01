@@ -141,6 +141,15 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) {
 // PageAdminIndex returns the list of registrations, displaying the template index.html
 func (s *Server) PageAdminIndex(w http.ResponseWriter, r *http.Request) {
 
+	// Retrieve the user from the request context
+	user := passkeys.FromContext(r.Context())
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	// Prepare the email to be used in the template
+	email := user.Email()
+
 	err := loadTemplates("templates")
 	if err != nil {
 		err = errl.Error(err)
@@ -173,12 +182,14 @@ func (s *Server) PageAdminIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tplData := struct {
+		Email      string
 		Regs       []db.RegistrationRecord
 		Limit      int
 		Offset     int
 		NumEntries int
 		Total      int
 	}{
+		Email:      email,
 		Regs:       regs,
 		Limit:      limit,
 		Offset:     offset,
@@ -201,6 +212,15 @@ func (s *Server) PageAdminDetailsByVatID(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+
+	// Retrieve the user from the request context
+	user := passkeys.FromContext(r.Context())
+	if user == nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	// Prepare the email to be used in the template
+	email := user.Email()
 
 	vatID := r.FormValue("vat_id")
 	if vatID == "" {
@@ -284,10 +304,12 @@ func (s *Server) PageAdminDetailsByVatID(w http.ResponseWriter, r *http.Request)
 	// TODO: eliminate the things for testing
 
 	tplData := struct {
+		Email string
 		Reg   *db.RegistrationRecord
 		Files []db.RegistrationFile
 		Logs  []db.RegistrationLog
 	}{
+		Email: email,
 		Reg:   registration,
 		Files: files,
 		Logs:  logs,

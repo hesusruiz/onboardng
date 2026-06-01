@@ -86,6 +86,13 @@
             gap: 4px;
         }
 
+        .header-user {
+            color: white;
+            font-size: 1rem;
+        }
+
+
+
         .back-link {
             display: inline-flex;
             align-items: center;
@@ -761,6 +768,7 @@
             <span class="portal-title">Onboard Admin</span>
         </div>
         <div class="portal-header-right">
+            <span class="header-user">{{ .Email }}</span>
             <a href="/passkeys/api/logout" class="portal-btn portal-btn-solid">Logout</a>
         </div>
     </header>

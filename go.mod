@@ -6,7 +6,7 @@ require (
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/go-sprout/sprout v1.0.3
 	github.com/google/uuid v1.6.0
-	github.com/hesusruiz/authgo v0.1.3
+	github.com/hesusruiz/authgo v0.1.4
 	github.com/mr-tron/base58 v1.3.0
 	github.com/stretchr/testify v1.11.1
 	modernc.org/sqlite v1.50.1
