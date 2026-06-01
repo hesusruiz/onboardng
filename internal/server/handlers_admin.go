@@ -263,22 +263,22 @@ func (s *Server) PageAdminDetailsByVatID(w http.ResponseWriter, r *http.Request)
 	// TODO: eliminate the things for testing
 	//
 
-	registration.LEARCompleted = true
+	// registration.LEARCompleted = true
 
-	// Append a test file entry, to see the template working
-	files = append(files, db.RegistrationFile{
-		FileID:         "test-file-id",
-		RegistrationID: registration.RegistrationID,
-		Name:           "test-file.pdf",
-		MimeType:       "application/pdf",
-		Size:           1024,
-		Status:         "uploaded",
-		Content:        []byte("test-file-content"),
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
-	})
+	// // Append a test file entry, to see the template working
+	// files = append(files, db.RegistrationFile{
+	// 	FileID:         "test-file-id",
+	// 	RegistrationID: registration.RegistrationID,
+	// 	Name:           "test-file.pdf",
+	// 	MimeType:       "application/pdf",
+	// 	Size:           1024,
+	// 	Status:         "uploaded",
+	// 	Content:        []byte("test-file-content"),
+	// 	CreatedAt:      time.Now(),
+	// 	UpdatedAt:      time.Now(),
+	// })
 
-	registration.FilesUploaded = true
+	// registration.FilesUploaded = true
 
 	//
 	// TODO: eliminate the things for testing
