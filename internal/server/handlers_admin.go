@@ -136,6 +136,23 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) {
 	mux.Handle("/admin/api/registration-files", adminChain(s.APIAdminGetRegistrationFiles))
 	mux.Handle("/admin/api/file/{file_id}", adminChain(s.APIAdminGetFile))
 
+	// Public route to serve homogenization styles for admin dashboard
+	mux.HandleFunc("/admin/styles.css", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/css")
+		fsys, err := getFileSystem("templates")
+		if err != nil {
+			slog.Error("error getting templates filesystem for styles.css", "error", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+		data, err := fs.ReadFile(fsys, "styles.css")
+		if err != nil {
+			slog.Error("error reading styles.css", "error", err)
+			http.Error(w, "Not Found", http.StatusNotFound)
+			return
+		}
+		w.Write(data)
+	})
 }
 
 // PageAdminIndex returns the list of registrations, displaying the template index.html

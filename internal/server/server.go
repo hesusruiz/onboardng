@@ -12,20 +12,21 @@ import (
 	"github.com/hesusruiz/utils/errl"
 )
 
+// Server defines the runtime configuration of the Onboarding server
 type Server struct {
-	// The runtime environment where the server runs (dev, pre, pre2, pro)
+	// The runtime environment where the server runs (dev, pre, pre2, pro), to enable slight behaviour differences
 	Runtime configuration.RuntimeEnv
 
-	// The database service provider
+	// The database service provider, can be replaced if a different storage mechanism is needed
 	DB DBServiceProvider
 
-	// The Issuer service provider
+	// The Verifiable Credential Issuer service provider
 	Issuer IssuanceServiceProvider
 
 	// The mail service provider
 	Mail MailServiceProvider
 
-	// We implement a rate limit on the emails and verification codes sent, using the source IPs
+	// A simple but robust rate limit on the emails and verification codes sent, using the source IPs
 	EmailRateLimiter  map[string]*RateLimitEntry
 	VerificationCodes map[string]*VerificationCodeEntry
 	IPLimiters        map[string]*rate.Limiter
@@ -36,7 +37,7 @@ type Server struct {
 	// The HTTP web server handler
 	Handler http.Handler
 
-	// Admin credentials
+	// SuperAdmin credentials, set at server startup via environment variables
 	AdminUser     string
 	AdminPassword string
 
@@ -68,7 +69,7 @@ func NewServer(runtime configuration.RuntimeEnv,
 
 	mux := http.NewServeMux()
 
-	// Static file serving
+	// Static file serving for the frontend, implemented as static files
 	// fileServer := http.FileServer(http.Dir(staticFilesDir))
 	fileServer := http.FileServer(http.Dir("dist/browser"))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
