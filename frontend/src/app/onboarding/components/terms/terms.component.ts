@@ -14,7 +14,7 @@ import { StepFooterComponent } from '../step-footer/step-footer.component';
 export class TermsComponent {
   @Input() acceptTermsControl!: FormControl;
   @Input() termsLabel = 'DOME Terms and Conditions for Customers';
-  @Input() termsUrl = 'https://onboard.dome.mycredential.eu/api/files/pbc_365946868/ki9zjz96v7re63n/20250303_dome_t_c_for_cloud_customers_6zqyb3yz7d.pdf';
+  @Input() termsUrl = 'https://dome-marketplace.eu/assets/documents/terms.pdf';
   @Output() next = new EventEmitter<void>();
   @Output() back = new EventEmitter<void>();
 }
