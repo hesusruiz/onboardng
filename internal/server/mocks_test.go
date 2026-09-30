@@ -68,9 +68,10 @@ type MockMail struct {
 	SendTestEmailFunc        func() error
 	SendWelcomeEmailFunc     func(reg *db.RegistrationRecord) error
 	SendIssuerErrorFunc      func(reg *db.RegistrationRecord, payload string, errorMsg string) error
+	SendEmailFunc            func(to, cc, bcc []string, subject string, templateName string, data any) error
 }
 
-func (m *MockMail) SendVerificationCode(email string, code string) error {
+func (m *MockMail) SendVerificationCodeEmail(email string, code string) error {
 	return m.SendVerificationCodeFunc(email, code)
 }
 func (m *MockMail) SendTestEmail() error {
@@ -81,6 +82,12 @@ func (m *MockMail) SendWelcomeEmail(reg *db.RegistrationRecord) error {
 }
 func (m *MockMail) SendIssuerError(reg *db.RegistrationRecord, payload string, errorMsg string) error {
 	return m.SendIssuerErrorFunc(reg, payload, errorMsg)
+}
+func (m *MockMail) SendEmail(to, cc, bcc []string, subject string, templateName string, data any) error {
+	if m.SendEmailFunc != nil {
+		return m.SendEmailFunc(to, cc, bcc, subject, templateName, data)
+	}
+	return nil
 }
 
 type MockIssuance struct {

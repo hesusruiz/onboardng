@@ -103,6 +103,7 @@ func (e *EnvConfig) String() string {
 	fmt.Fprintf(&b, "  IssuerTeamEmail: %v\n", e.Mail.IssuerTeamEmail)
 	fmt.Fprintf(&b, "  CCTeamEmail: %v\n", e.Mail.CCTeamEmail)
 	fmt.Fprintf(&b, "  TestRecipientEmail: %s\n", e.Mail.TestRecipientEmail)
+	fmt.Fprintf(&b, "  TemplateDir: %s\n", e.Mail.TemplateDir)
 	fmt.Fprintf(&b, "  SMTP:\n")
 	fmt.Fprintf(&b, "    Enabled: %t\n", e.Mail.SMTP.Enabled)
 	fmt.Fprintf(&b, "    Host: %s\n", e.Mail.SMTP.Host)
@@ -134,6 +135,7 @@ type MailConfig struct {
 	CCTeamEmail        []string `yaml:"cc_list_email"`
 	TestRecipientEmail string   `yaml:"test_recipient_email"`
 	SMTP               SMTPConfig
+	TemplateDir        string   `yaml:"template_dir,omitempty"`
 }
 
 type SMTPConfig struct {

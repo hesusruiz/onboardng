@@ -41,6 +41,43 @@ type RegistrationRequest struct {
 	Role          string `json:"role"`
 }
 
+func (s *RegistrationRequest) Validate() error {
+	if s.FirstName == "" {
+		return fmt.Errorf("first name is required")
+	}
+	if s.LastName == "" {
+		return fmt.Errorf("last name is required")
+	}
+	if s.CompanyName == "" {
+		return fmt.Errorf("company name is required")
+	}
+	if s.Country == "" {
+		return fmt.Errorf("country is required")
+	}
+	if s.VatId == "" {
+		return fmt.Errorf("VAT ID is required")
+	}
+	if s.StreetAddress == "" {
+		return fmt.Errorf("street address is required")
+	}
+	if s.City == "" {
+		return fmt.Errorf("city is required")
+	}
+	if s.PostalCode == "" {
+		return fmt.Errorf("postal code is required")
+	}
+	if s.Email == "" {
+		return fmt.Errorf("email is required")
+	}
+	if !isValidEmailFormat(s.Email) {
+		return fmt.Errorf("invalid email address format")
+	}
+	if s.Code == "" {
+		return fmt.Errorf("verification code is required")
+	}
+	return nil
+}
+
 // SendJSON utility helper
 func (s *Server) SendJSON(w http.ResponseWriter, r *http.Request, status int, success bool, message string, data any) {
 	slog.Info("Exit", "method", r.Method, "url", r.URL.Path, "status", status)
@@ -92,6 +129,11 @@ func generateRegistrationID() string {
 	return fmt.Sprintf("%s-%08d", dateStr, n)
 }
 
+// HandleSendEmailValidationCode receives an email address in the body of the request and sends a verification code
+// to that email address.
+// It does not check if the email address is already registered, to avoid email enumeration.
+// It uses the rate limiter (RegisterEmailAttempt) to prevent too many requests using the same email address.
+// The code will be received and validated by the HandleValidateEmailCode handler.
 func (s *Server) HandleSendEmailValidationCode(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -128,7 +170,7 @@ func (s *Server) HandleSendEmailValidationCode(w http.ResponseWriter, r *http.Re
 
 	// Send the code to the user in a separate goroutine
 	go func() {
-		if err := s.Mail.SendVerificationCode(req.Email, code); err != nil {
+		if err := s.Mail.SendVerificationCodeEmail(req.Email, code); err != nil {
 			slog.Error("❌ Error sending verification code", "error", err)
 		}
 	}()
@@ -136,6 +178,11 @@ func (s *Server) HandleSendEmailValidationCode(w http.ResponseWriter, r *http.Re
 	s.SendJSON(w, r, http.StatusOK, true, "Validation code sent to your email", map[string]string{"code": code})
 }
 
+// HandleValidateEmailCode receives an email address and a code in the body of the request and validates them.
+// It first calls VerifyCode to check if the code is correct for the given email.
+// If the code is correct, it then checks if the email address is already registered.
+// If the email address is registered, it returns the registration data.
+// If the email address is not registered, it just returns OK with empty registration data.
 func (s *Server) HandleValidateEmailCode(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -224,46 +271,9 @@ func (s *Server) HandleOrgStatus(w http.ResponseWriter, r *http.Request) {
 	s.SendJSON(w, r, http.StatusOK, true, "Registration fetched successfully", resp)
 }
 
-func (s *RegistrationRequest) Validate() error {
-	if s.FirstName == "" {
-		return fmt.Errorf("first name is required")
-	}
-	if s.LastName == "" {
-		return fmt.Errorf("last name is required")
-	}
-	if s.CompanyName == "" {
-		return fmt.Errorf("company name is required")
-	}
-	if s.Country == "" {
-		return fmt.Errorf("country is required")
-	}
-	if s.VatId == "" {
-		return fmt.Errorf("VAT ID is required")
-	}
-	if s.StreetAddress == "" {
-		return fmt.Errorf("street address is required")
-	}
-	if s.City == "" {
-		return fmt.Errorf("city is required")
-	}
-	if s.PostalCode == "" {
-		return fmt.Errorf("postal code is required")
-	}
-	if s.Email == "" {
-		return fmt.Errorf("email is required")
-	}
-	if !isValidEmailFormat(s.Email) {
-		return fmt.Errorf("invalid email address format")
-	}
-	if s.Code == "" {
-		return fmt.Errorf("verification code is required")
-	}
-	return nil
-}
-
-// HandleRegister handles the registration process
-// It validates the request data, generates a registration ID, and sends an email to the user
+// HandleRegister receives registration data, validates it and stores it in the database.
 func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
+	var requestData RegistrationRequest
 
 	// Perform all validations on input data
 	//
@@ -278,14 +288,13 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var requestData RegistrationRequest
 	if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
 		s.SendJSON(w, r, http.StatusBadRequest, false, "Invalid request body", nil)
 		return
 	}
 
 	if requestData.Website != "" {
-		slog.Info("🤖 Bot detected via honeypot field")
+		slog.Warn("Bot detected via honeypot field")
 		s.SendJSON(w, r, http.StatusOK, true, "Registration successful", nil)
 		return
 	}
@@ -385,7 +394,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Once the data is saved, we continue with the registration process.
-	// Even if we faind erros, we always return to the user with a success and a welcome message,
+	// Even if we find erros, we always return to the user with a success and a welcome message,
 	// so they know the process is in motion.
 	// The rest of the remaining steps, if any, will be performed manually by the internal team.
 
