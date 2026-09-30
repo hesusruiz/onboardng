@@ -17,7 +17,7 @@ export class CompanyInfoComponent {
   @Input() formGroup!: FormGroup;
   @Input() isLoading = false;
   @Input() errorMessage = '';
-  @Input() countries: Country[] = EEA_COUNTRIES;
+  @Input() countries: Country[] = EU_EFTA_COUNTRIES;
   @Output() complete = new EventEmitter<void>();
   @Output() back = new EventEmitter<void>();
 
@@ -30,7 +30,7 @@ export class CompanyInfoComponent {
   }
 }
 
-export const EEA_COUNTRIES: Country[] = [
+export const EU_EFTA_COUNTRIES: Country[] = [
   { code: 'AT', name: 'Austria' },
   { code: 'BE', name: 'Belgium' },
   { code: 'BG', name: 'Bulgaria' },
@@ -61,6 +61,7 @@ export const EEA_COUNTRIES: Country[] = [
   { code: 'SI', name: 'Slovenia' },
   { code: 'ES', name: 'Spain' },
   { code: 'SE', name: 'Sweden' },
+  { code: 'CH', name: 'Switzerland' },
 ];
 
 export const WORLD_COUNTRIES: Country[] = [
