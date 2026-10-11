@@ -95,7 +95,7 @@ func generate(cfg configuration.Config) error {
 			templateData := map[string]any{
 				"AppName":      cfg.AppName,
 				"Environments": cfg.Environments,
-				"Countries":    common.EEACountries,
+				"Countries":    common.EUEFTACountries,
 			}
 
 			// We execute "layout.html" which should include "content" (defined in the page)
