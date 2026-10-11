@@ -29,7 +29,7 @@ type MailServiceProvider interface {
 	SendVerificationCodeEmail(email string, code string) error
 	SendTestEmail() error
 	SendWelcomeEmail(reg *db.RegistrationRecord) error
-	SendIssuerError(reg *db.RegistrationRecord, payload string, errorMsg string) error
+	SendIssuerErrorEmail(reg *db.RegistrationRecord, payload string, errorMsg string) error
 	SendEmail(to, cc, bcc []string, subject string, templateName string, data any) error
 }
 

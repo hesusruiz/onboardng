@@ -80,7 +80,7 @@ func (m *MockMail) SendTestEmail() error {
 func (m *MockMail) SendWelcomeEmail(reg *db.RegistrationRecord) error {
 	return m.SendWelcomeEmailFunc(reg)
 }
-func (m *MockMail) SendIssuerError(reg *db.RegistrationRecord, payload string, errorMsg string) error {
+func (m *MockMail) SendIssuerErrorEmail(reg *db.RegistrationRecord, payload string, errorMsg string) error {
 	return m.SendIssuerErrorFunc(reg, payload, errorMsg)
 }
 func (m *MockMail) SendEmail(to, cc, bcc []string, subject string, templateName string, data any) error {

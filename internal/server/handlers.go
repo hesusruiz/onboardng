@@ -522,7 +522,7 @@ func performIssuance(ctx context.Context, token string, reg *db.RegistrationReco
 	}
 
 	if _, err := s.Issuer.LEARIssuanceRequest(ctx, token, soloCredential); err != nil {
-		slog.Error("❌ Error calling issuance service", "error", err)
+		slog.Error("Error calling issuance service", "error", err)
 
 		// Record the error in the database
 		_ = s.DB.SaveRegistrationLog(&db.RegistrationLog{
@@ -536,15 +536,15 @@ func performIssuance(ctx context.Context, token string, reg *db.RegistrationReco
 		// Format the information we sent to the Issuer
 		buf, errformat := json.MarshalIndent(soloCredential, "", "  ")
 		if errformat != nil {
-			slog.Error("❌ Error marshalling credential data", "error", errformat)
+			slog.Error("Error marshalling credential data", "error", errformat)
 			buf = []byte("Error marshalling credential data")
 		}
 
 		// Send an email to the internal team informing of the error, including the information that we wanted to issue
 		// They can perform the rest of the registration steps manually, transparently to the user.
 
-		if err := s.Mail.SendIssuerError(reg, string(buf), err.Error()); err != nil {
-			slog.Error("❌ Error sending issuer error email", "error", err)
+		if err := s.Mail.SendIssuerErrorEmail(reg, string(buf), err.Error()); err != nil {
+			slog.Error("Error sending issuer error email", "error", err)
 		}
 
 		return err
@@ -553,7 +553,7 @@ func performIssuance(ctx context.Context, token string, reg *db.RegistrationReco
 	// If the credential issuance was ok, update the database and send an email informing of the success
 	reg.Issued = true
 	if err := s.DB.UpdateRegistrationStatus(reg); err != nil {
-		slog.Error("❌ Error updating registration status with issuance success", "error", err)
+		slog.Error("Error updating registration status with issuance success", "error", err)
 	}
 	return nil
 }
@@ -575,7 +575,7 @@ func createTMForumOrganization(ctx context.Context, token string, requestData Re
 	_, err := s.Issuer.TMFCreateOrganization(ctx, token, newOrg)
 	if err != nil {
 		err = errl.Errorf("Failed to create organization for registration: %v", err)
-		slog.Error("❌ Error creating organization", "error", err)
+		slog.Error("Error creating organization", "error", err)
 		// Record the error in the database
 		_ = s.DB.SaveRegistrationLog(&db.RegistrationLog{
 			RegistrationID: reg.RegistrationID,
@@ -586,7 +586,7 @@ func createTMForumOrganization(ctx context.Context, token string, requestData Re
 	}
 	reg.TMFRegistered = true
 	if err := s.DB.UpdateRegistrationStatus(reg); err != nil {
-		slog.Error("❌ Error updating registration status with TMF success", "error", err)
+		slog.Error("Error updating registration status with TMF success", "error", err)
 	}
 	return nil
 }
@@ -608,7 +608,7 @@ func updateTMForumOrganization(ctx context.Context, token string, id string, req
 	_, err := s.Issuer.TMFUpdateOrganization(ctx, token, id, updatedOrg)
 	if err != nil {
 		err = errl.Errorf("Failed to update organization for registration: %v", err)
-		slog.Error("❌ Error updating organization", "error", err)
+		slog.Error("Error updating organization", "error", err)
 		// Record the error in the database
 		_ = s.DB.SaveRegistrationLog(&db.RegistrationLog{
 			RegistrationID: reg.RegistrationID,
@@ -619,7 +619,7 @@ func updateTMForumOrganization(ctx context.Context, token string, id string, req
 	}
 	reg.TMFRegistered = true
 	if err := s.DB.UpdateRegistrationStatus(reg); err != nil {
-		slog.Error("❌ Error updating registration status with TMF success", "error", err)
+		slog.Error("Error updating registration status with TMF success", "error", err)
 	}
 	return nil
 }

@@ -89,7 +89,7 @@ func Run() error {
 		secretKey := os.Getenv("AGE_SECRET_KEY")
 		if secretKey != "" {
 			os.Unsetenv("AGE_SECRET_KEY")
-			slog.Info("🔐 AGE_SECRET_KEY captured and removed from environment")
+			slog.Info("AGE_SECRET_KEY retrieved and removed from environment")
 		}
 
 		// Read secret key from file if not already set by env var
@@ -200,14 +200,14 @@ func serve(cfg configuration.Config, envFlag string, port string, watchFlag bool
 	}
 	issuanceService, err := credissuance.NewLEARIssuance(issuerCfg)
 	if err != nil {
-		slog.Error("❌ Error creating issuance service", "error", errl.Error(err))
+		slog.Error("Error creating issuance service", "error", errl.Error(err))
 		os.Exit(1)
 	}
 
 	// Initialize Database service
 	dbService, err := db.NewDBService(runtimeEnv, "data/onboarding.db")
 	if err != nil {
-		slog.Error("❌ Error initializing database service", "error", errl.Error(err))
+		slog.Error("Error initializing database service", "error", errl.Error(err))
 		return err
 	}
 	defer dbService.Close()
@@ -215,7 +215,7 @@ func serve(cfg configuration.Config, envFlag string, port string, watchFlag bool
 	// Initialize Mail service
 	mailService, err := mail.NewMailService(runtimeEnv, srvConfig.Mail)
 	if err != nil {
-		slog.Error("❌ Error initializing mail service", "error", errl.Error(err))
+		slog.Error("Error initializing mail service", "error", errl.Error(err))
 		return err
 	}
 
@@ -256,7 +256,7 @@ func serve(cfg configuration.Config, envFlag string, port string, watchFlag bool
 	}
 
 	// Start Server
-	slog.Info("🚀 Server running", "env", envFlag, "dir", cfg.DestDir, "url", "https://onboarddev.dome.mycredential.eu")
+	slog.Info("Server running", "env", envFlag, "dir", cfg.DestDir, "url", "https://onboarddev.dome.mycredential.eu")
 	if err := http.ListenAndServe(":"+port, srv.Handler); err != nil {
 		newerr := errl.Error(err)
 		slog.Error("Server failed", "error", newerr)

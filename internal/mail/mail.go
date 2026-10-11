@@ -144,7 +144,7 @@ func (s *Service) SendVerificationCodeEmail(email string, code string) error {
 	return s.SendEmail([]string{email}, []string{}, []string{}, "DOME Marketplace Verification Code", "email_verification.html", data)
 }
 
-func (s *Service) SendIssuerError(reg *db.RegistrationRecord, payload string, errorMsg string) error {
+func (s *Service) SendIssuerErrorEmail(reg *db.RegistrationRecord, payload string, errorMsg string) error {
 	data := map[string]any{
 		"FirstName":      reg.FirstName,
 		"CompanyName":    reg.CompanyName,

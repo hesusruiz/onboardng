@@ -7,10 +7,10 @@ import (
 	"github.com/hesusruiz/utils/errl"
 )
 
-// Sync executes the sqlite3_rsync binary to synchronize an origin database to a destination database.
+// SQLiteRsync executes the sqlite3_rsync binary to synchronize an origin database to a destination database.
 // It assumes the sqlite3_rsync binary is present in the path.
 // This function blocks until the command completes.
-func Sync(origin, destination string) error {
+func SQLiteRsync(origin, destination string) error {
 
 	binaryPath := "sqlite3_rsync"
 	cmd := exec.Command(binaryPath, origin, destination)
