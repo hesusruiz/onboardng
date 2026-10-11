@@ -68,7 +68,7 @@ var WorldCountries = []Country{
 // <option value="SI">Slovenia</option>
 // <option value="ES">Spain</option>
 // <option value="SE">Sweden</option>
-var EEACountries = []Country{
+var EUEFTACountries = []Country{
 	{Code: "AT", Name: "Austria"},
 	{Code: "BE", Name: "Belgium"},
 	{Code: "BG", Name: "Bulgaria"},
@@ -99,10 +99,11 @@ var EEACountries = []Country{
 	{Code: "SI", Name: "Slovenia"},
 	{Code: "ES", Name: "Spain"},
 	{Code: "SE", Name: "Sweden"},
+	{Code: "CH", Name: "Switzerland"},
 }
 
 func GetCountryName(code string) string {
-	for _, c := range EEACountries {
+	for _, c := range EUEFTACountries {
 		if c.Code == code {
 			return c.Name
 		}
@@ -111,7 +112,7 @@ func GetCountryName(code string) string {
 }
 
 func IsValidCountry(code string) bool {
-	for _, c := range EEACountries {
+	for _, c := range EUEFTACountries {
 		if c.Code == code {
 			return true
 		}

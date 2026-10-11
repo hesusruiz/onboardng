@@ -32,13 +32,16 @@ export class LegalRepresentativeComponent {
     { code: 'DE', name: 'Germany' },
     { code: 'GR', name: 'Greece' },
     { code: 'HU', name: 'Hungary' },
+    { code: 'IS', name: 'Iceland' },
     { code: 'IE', name: 'Ireland' },
     { code: 'IT', name: 'Italy' },
     { code: 'LV', name: 'Latvia' },
+    { code: 'LI', name: 'Liechtenstein' },
     { code: 'LT', name: 'Lithuania' },
     { code: 'LU', name: 'Luxembourg' },
     { code: 'MT', name: 'Malta' },
     { code: 'NL', name: 'Netherlands' },
+    { code: 'NO', name: 'Norway' },
     { code: 'PL', name: 'Poland' },
     { code: 'PT', name: 'Portugal' },
     { code: 'RO', name: 'Romania' },
@@ -46,6 +49,7 @@ export class LegalRepresentativeComponent {
     { code: 'SI', name: 'Slovenia' },
     { code: 'ES', name: 'Spain' },
     { code: 'SE', name: 'Sweden' },
+    { code: 'CH', name: 'Switzerland' },
   ];
 
   onNext(): void {
