@@ -4,7 +4,7 @@
 FROM hesusruiz/sqlite3-rsync-alpine:3.51.2 AS sqlite3_rsync
 
 # Stage 2: Build the OnboardNG binary
-FROM golang:1.25.7-alpine AS onboardngbuilder
+FROM golang:1.27.3-alpine AS onboardngbuilder
 
 # Install build tools for CGO and sqlite tools
 RUN apk update && \
