@@ -5,6 +5,66 @@ import (
 	"strings"
 )
 
+// Config holds the configuration for the application for a specific environment.
+type Config struct {
+	// The directory where the generated frontend will be placed.
+	DestDir string `yaml:"dest_dir"`
+	// The directory where the source code for the frontend is located.
+	SrcDir string `yaml:"src_dir"`
+	// The name of the application.
+	AppName string `yaml:"app_name"`
+
+	// Environment configuration
+	EnvConfig `yaml:",inline"`
+}
+
+// EnvConfig holds the configuration for a specific environment.
+type EnvConfig struct {
+	// The runtime environment.
+	Runtime RuntimeEnv
+
+	// The decrypted AGE secret key used for decryption of embedded files.
+	// This is not stored in the YAML config file.
+	AgeSecretKey string `yaml:"-"`
+
+	// Whether the environment is in debug mode.
+	Debug bool `yaml:"debug"`
+
+	// The DID key of the issuer.
+	MyDidkey string `yaml:"mydidkey,omitempty"`
+
+	// The url of this app externally visible.
+	AppURL string `yaml:"appURL,omitempty"`
+
+	// The path to the private key file corresponding to the didKey, which must be placed in a secure place.
+	PrivateKeyFile string `yaml:"privateKeyFile,omitempty"`
+	PrivateKey     string `yaml:"privateKey,omitempty"`
+
+	// The path to the machine credential file, which must be placed in a secure place.
+	MachineCredentialFile string `yaml:"machineCredentialFile,omitempty"`
+	MachineCredential     string `yaml:"machineCredential,omitempty"`
+
+	// The verifier configuration.
+	Verifier VerifierConfig `yaml:"verifier"`
+	// The issuer configuration.
+	Issuer IssuerConfig `yaml:"issuer"`
+	// The wallet configuration.
+	Wallet WalletConfig `yaml:"wallet"`
+	// The TMForum configuration.
+	TMForum TMForumConfig `yaml:"tmforum"`
+	// The mail configuration.
+	Mail MailConfig `yaml:"mail"`
+
+	// The features configuration.
+	Features Features `yaml:"features"`
+}
+
+// Features defines a set of feature flags which may depend on the environment at a given time
+type Features struct {
+	TMFServerEnabled bool `yaml:"tmfServerEnabled"`
+	DirectIssuance   bool `yaml:"directIssuance"`
+}
+
 type RuntimeEnv string
 
 const (
@@ -29,57 +89,27 @@ func (r RuntimeEnv) String() string {
 	return ""
 }
 
-// Config holds the configuration for the application.
-type Config struct {
-	// The directory where the generated frontend will be placed.
-	DestDir string `yaml:"dest_dir"`
-	// The directory where the source code for the frontend is located.
-	SrcDir string `yaml:"src_dir"`
-	// The name of the application.
-	AppName string `yaml:"app_name"`
-	// The environments configuration.
-	Environments map[string]EnvConfig `yaml:"environments"`
+func (r RuntimeEnv) IsDevelopment() bool {
+	return r == Development
 }
 
-// EnvConfig holds the configuration for a specific environment.
-type EnvConfig struct {
-	// The runtime environment.
-	Runtime RuntimeEnv
-
-	// The decrypted AGE secret key used for decryption of embedded files.
-	// This is not stored in the YAML config file.
-	AgeSecretKey string `yaml:"-"`
-
-	// Whether the environment is in debug mode.
-	Debug bool `yaml:"debug"`
-
-	// The DID key of the issuer.
-	MyDidkey string `yaml:"mydidkey,omitempty"`
-
-	// The path to the private key file corresponding to the didKey, which must be placed in a secure place.
-	PrivateKeyFile string `yaml:"privateKeyFile,omitempty"`
-	PrivateKey     string `yaml:"privateKey,omitempty"`
-
-	// The path to the machine credential file, which must be placed in a secure place.
-	MachineCredentialFile string `yaml:"machineCredentialFile,omitempty"`
-	MachineCredential     string `yaml:"machineCredential,omitempty"`
-
-	// The verifier configuration.
-	Verifier VerifierConfig `yaml:"verifier"`
-	// The issuer configuration.
-	Issuer IssuerConfig `yaml:"issuer"`
-	// The TMForum configuration.
-	TMForum TMForumConfig `yaml:"tmforum"`
-	// The mail configuration.
-	Mail MailConfig `yaml:"mail"`
-
-	// The features configuration.
-	Features Features `yaml:"features"`
+func (r RuntimeEnv) IsPreproduction() bool {
+	return r == Preproduction || r == Preproduction2
 }
 
-// Features defines a set of feature flags which may depend on the environment at a given time
-type Features struct {
-	TMFServerEnabled bool `yaml:"tmfServerEnabled"`
+func (r RuntimeEnv) IsProduction() bool {
+	return r == Production
+}
+
+func (c *Config) String() string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "AppName: %s\n", c.AppName)
+	fmt.Fprintf(&b, "DestDir: %s\n", c.DestDir)
+	fmt.Fprintf(&b, "SrcDir: %s\n", c.SrcDir)
+	b.WriteString(c.EnvConfig.String())
+
+	return b.String()
 }
 
 func (e *EnvConfig) String() string {
@@ -88,6 +118,7 @@ func (e *EnvConfig) String() string {
 
 	fmt.Fprintf(&b, "Runtime: %s\n", e.Runtime)
 	fmt.Fprintf(&b, "Debug: %t\n", e.Debug)
+	fmt.Fprintf(&b, "AppURL: %s\n", e.AppURL)
 	fmt.Fprintf(&b, "MyDidkey: %s\n", e.MyDidkey)
 	fmt.Fprintf(&b, "PrivateKeyFile: %s\n", e.PrivateKeyFile)
 	fmt.Fprintf(&b, "MachineCredentialFile: %s\n", e.MachineCredentialFile)
@@ -96,6 +127,8 @@ func (e *EnvConfig) String() string {
 	fmt.Fprintf(&b, "  TokenEndpoint: %s\n", e.Verifier.TokenEndpoint)
 	fmt.Fprintf(&b, "Issuer:\n")
 	fmt.Fprintf(&b, "  CredentialIssuancePath: %s\n", e.Issuer.CredentialIssuancePath)
+	fmt.Fprintf(&b, "Wallet:\n")
+	fmt.Fprintf(&b, "  CredentialIssuanceCallback: %s\n", e.Wallet.CredentialIssuanceCallback)
 	fmt.Fprintf(&b, "TMForum:\n")
 	fmt.Fprintf(&b, "  BaseURL: %s\n", e.TMForum.BaseURL)
 	fmt.Fprintf(&b, "Mail:\n")
@@ -103,6 +136,7 @@ func (e *EnvConfig) String() string {
 	fmt.Fprintf(&b, "  IssuerTeamEmail: %v\n", e.Mail.IssuerTeamEmail)
 	fmt.Fprintf(&b, "  CCTeamEmail: %v\n", e.Mail.CCTeamEmail)
 	fmt.Fprintf(&b, "  TestRecipientEmail: %s\n", e.Mail.TestRecipientEmail)
+	fmt.Fprintf(&b, "  TemplateDir: %s\n", e.Mail.TemplateDir)
 	fmt.Fprintf(&b, "  SMTP:\n")
 	fmt.Fprintf(&b, "    Enabled: %t\n", e.Mail.SMTP.Enabled)
 	fmt.Fprintf(&b, "    Host: %s\n", e.Mail.SMTP.Host)
@@ -110,6 +144,9 @@ func (e *EnvConfig) String() string {
 	fmt.Fprintf(&b, "    TLS: %t\n", e.Mail.SMTP.TLS)
 	fmt.Fprintf(&b, "    Username: %s\n", e.Mail.SMTP.Username)
 	fmt.Fprintf(&b, "    PasswordFile: %s\n", e.Mail.SMTP.PasswordFile)
+	fmt.Fprintf(&b, "Features:\n")
+	fmt.Fprintf(&b, "  TMFServerEnabled: %t\n", e.Features.TMFServerEnabled)
+	fmt.Fprintf(&b, "  DirectIssuance: %t\n", e.Features.DirectIssuance)
 
 	return b.String()
 }
@@ -127,6 +164,10 @@ type TMForumConfig struct {
 	BaseURL string `yaml:"baseUrl,omitempty"`
 }
 
+type WalletConfig struct {
+	CredentialIssuanceCallback string `yaml:"credentialIssuanceCallback,omitempty"`
+}
+
 type MailConfig struct {
 	AgeSecretKey       string   `yaml:"-"`
 	OnboardTeamEmail   []string `yaml:"onboard_team_email"`
@@ -134,6 +175,7 @@ type MailConfig struct {
 	CCTeamEmail        []string `yaml:"cc_list_email"`
 	TestRecipientEmail string   `yaml:"test_recipient_email"`
 	SMTP               SMTPConfig
+	TemplateDir        string `yaml:"template_dir,omitempty"`
 }
 
 type SMTPConfig struct {

@@ -237,7 +237,7 @@ func TestHandleRegister(t *testing.T) {
 		}
 		mockIssuance.TMFDeleteOrganizationFunc = func(context context.Context, token, id string) error { return nil }
 		mockDB.SaveRegistrationFunc = func(reg *db.RegistrationRecord) error { return nil }
-		mockMail.SendWelcomeEmailFunc = func(reg *db.RegistrationRecord) error { return nil }
+		mockMail.SendFirstPhaseEmailFunc = func(reg *db.RegistrationRecord) error { return nil }
 		mockIssuance.LEARIssuanceRequestFunc = func(context context.Context, token string, data *credissuance.LEARIssuanceRequestBody) ([]byte, error) {
 			return []byte("ok"), nil
 		}

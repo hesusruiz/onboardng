@@ -11,13 +11,13 @@ func Cred1() *LEARIssuanceRequestBody {
 				Organization:           "Test Organization",
 				Country:                "ES",
 				CommonName:             "Test User",
-				EmailAddress:           "jesus@alastria.io",
+				Email:                  "jesus@alastria.io",
 			},
 			Mandatee: Mandatee{
-				FirstName:   "Test",
-				LastName:    "User",
-				Nationality: "ES",
-				Email:       "jesus@alastria.io",
+				FirstName: "Test",
+				LastName:  "User",
+				// Nationality: "ES",
+				Email: "jesus@alastria.io",
 			},
 			Power: []Power{
 				{
@@ -42,13 +42,13 @@ func Cred2() *LEARIssuanceRequestBody {
 				Organization:           "",
 				Country:                "",
 				CommonName:             "",
-				EmailAddress:           "",
+				Email:                  "",
 			},
 			Mandatee: Mandatee{
-				FirstName:   "",
-				LastName:    "",
-				Nationality: "",
-				Email:       "",
+				FirstName: "",
+				LastName:  "",
+				// Nationality: "",
+				Email: "",
 			},
 			Power: []Power{
 				{

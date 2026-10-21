@@ -79,7 +79,7 @@ func (s *Service) Backup(ctx context.Context) error {
 
 	// Perform sync
 	slog.Info("Performing backup", slog.String("origin", absOrigin), slog.String("destination", destination))
-	if err := Sync(absOrigin, destination); err != nil {
+	if err := SQLiteRsync(absOrigin, destination); err != nil {
 		return errl.Errorf("failed to perform sync: %w", err)
 	}
 

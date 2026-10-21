@@ -229,6 +229,16 @@ export class OnboardingComponent {
         next: (res: any) => {
           this.isRegistering = false;
           if (res && res.success === true) {
+            // Check if the URL field exists in the response
+            console.log(res)
+            const targetUrl = res.data; // adjust property name to match your Go API
+            if (targetUrl) {
+              console.log("targetURL: ", targetUrl)
+              // Redirect the browser to the URL
+              window.location.href = targetUrl;
+              return;
+            }
+            // Fallback: stay on the onboarding wizard and move to step 5
             this.currentStep = 5;
           } else {
             this.registerError = res?.message || 'Registration failed. Please try again.';
