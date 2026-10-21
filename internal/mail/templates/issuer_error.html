@@ -12,13 +12,14 @@
     </div>
 
     <!-- Test Environment Warning -->
-    {{if ne .Runtime "PRO"}}
+    {{if not .Runtime.IsProduction}}
     <div
         style="background-color: #fff7ed; border-bottom: 1px solid #ffedd5; padding: 16px 24px; color: #9a3412; font-size: 14px;">
         <p style="margin: 0; font-weight: 700;">⚠️ DEVELOPMENT/TEST NOTICE ({{.Runtime}})</p>
-        <p style="margin: 4px 0 0 0; line-height: 1.4;">This is a test notification. In production, this error indicates
-            a critical system failure that must be addressed immediately by the team responsible for the Credential
-            Issuer.</p>
+        <p style="margin: 4px 0 0 0; line-height: 1.4;">This is a notification in a testing environment.</p>
+        <p style="margin: 4px 0 0 0; line-height: 1.4;">In production, this error indicates a critical system failure
+            that must be addressed immediately by the team responsible for
+            the Credential Issuer.</p>
     </div>
     {{end}}
 

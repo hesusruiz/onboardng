@@ -63,10 +63,13 @@ func TokenRequest(
 
 	// 2. Build the x-www-form-urlencoded request body for the token endpoint (RFC 7523)
 	var b bytes.Buffer
-	b.WriteString("client_id=" + didkey + "&")
+	b.WriteString("client_id=")
+	b.WriteString(didkey)
+	b.WriteString("&")
 	b.WriteString("grant_type=client_credentials&")
 	b.WriteString("client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer&")
-	b.WriteString("client_assertion=" + cliAssertion)
+	b.WriteString("client_assertion=")
+	b.WriteString(cliAssertion)
 
 	theBody := b.String()
 	fmt.Println("Token Request Body: ", theBody)

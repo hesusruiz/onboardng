@@ -66,8 +66,10 @@ func (m *MockDB) UpdateRepresentativesByVatID(vatID string, rep *db.Registration
 type MockMail struct {
 	SendVerificationCodeFunc func(email string, code string) error
 	SendTestEmailFunc        func() error
-	SendWelcomeEmailFunc     func(reg *db.RegistrationRecord) error
+	SendFirstPhaseEmailFunc  func(reg *db.RegistrationRecord) error
+	SendSecondPhaseEmailFunc func(reg *db.RegistrationRecord) error
 	SendIssuerErrorFunc      func(reg *db.RegistrationRecord, payload string, errorMsg string) error
+	SendCheckIssuerErrorFunc func(payload string, errorMsg string) error
 	SendEmailFunc            func(to, cc, bcc []string, subject string, templateName string, data any) error
 }
 
@@ -77,11 +79,17 @@ func (m *MockMail) SendVerificationCodeEmail(email string, code string) error {
 func (m *MockMail) SendTestEmail() error {
 	return m.SendTestEmailFunc()
 }
-func (m *MockMail) SendWelcomeEmail(reg *db.RegistrationRecord) error {
-	return m.SendWelcomeEmailFunc(reg)
+func (m *MockMail) SendFirstPhaseEmail(reg *db.RegistrationRecord) error {
+	return m.SendFirstPhaseEmailFunc(reg)
+}
+func (m *MockMail) SendSecondPhaseEmail(reg *db.RegistrationRecord) error {
+	return m.SendSecondPhaseEmailFunc(reg)
 }
 func (m *MockMail) SendIssuerErrorEmail(reg *db.RegistrationRecord, payload string, errorMsg string) error {
 	return m.SendIssuerErrorFunc(reg, payload, errorMsg)
+}
+func (m *MockMail) SendCheckIssuerErrorEmail(payload string, errorMsg string) error {
+	return m.SendCheckIssuerErrorFunc(payload, errorMsg)
 }
 func (m *MockMail) SendEmail(to, cc, bcc []string, subject string, templateName string, data any) error {
 	if m.SendEmailFunc != nil {
@@ -95,6 +103,7 @@ type MockIssuance struct {
 	TMFGetOrganizationByELSIFunc func(context context.Context, accessToken string, elsi string) ([]credissuance.Organization, error)
 	TMFDeleteOrganizationFunc    func(context context.Context, accessToken string, id string) error
 	LEARIssuanceRequestFunc      func(context context.Context, accessToken string, learCredData *credissuance.LEARIssuanceRequestBody) ([]byte, error)
+	LEARIssuanceRequestNewFunc   func(context context.Context, accessToken string, newCredData *credissuance.LEARIssuanceRequestBodyNew) (*credissuance.LEARIssuanceResponseNew, error)
 	TMFCreateOrganizationFunc    func(context context.Context, accessToken string, org *credissuance.Organization_Create) (*credissuance.Organization, error)
 	TMFUpdateOrganizationFunc    func(context context.Context, accessToken string, id string, org *credissuance.Organization_Update) (*credissuance.Organization, error)
 }
@@ -110,6 +119,9 @@ func (m *MockIssuance) TMFDeleteOrganization(context context.Context, accessToke
 }
 func (m *MockIssuance) LEARIssuanceRequest(context context.Context, accessToken string, learCredData *credissuance.LEARIssuanceRequestBody) ([]byte, error) {
 	return m.LEARIssuanceRequestFunc(context, accessToken, learCredData)
+}
+func (m *MockIssuance) LEARIssuanceRequestNew(context context.Context, accessToken string, newCredData *credissuance.LEARIssuanceRequestBodyNew) (*credissuance.LEARIssuanceResponseNew, error) {
+	return m.LEARIssuanceRequestNewFunc(context, accessToken, newCredData)
 }
 func (m *MockIssuance) TMFCreateOrganization(context context.Context, accessToken string, org *credissuance.Organization_Create) (*credissuance.Organization, error) {
 	return m.TMFCreateOrganizationFunc(context, accessToken, org)

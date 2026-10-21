@@ -1,7 +1,7 @@
 <div>
 
     <!-- Test Environment Warning -->
-    {{if ne .Runtime "PRO"}}
+    {{if not .Runtime.IsProduction}}
     <div style="color: #c53030; font-size: 14px; text-align: center;">
         <p>⚠️ Test Environment: {{.Runtime}}</p>
         <p>In production, this message is hidden and standard procedures apply.</p>
@@ -16,8 +16,9 @@
     <div>
 
         <p>Hello, {{.FirstName}} {{.LastName}}!</p>
-        <p>Thank you for joining the <strong>DOME Marketplace</strong>.
-            We are pleased to confirm that your registration request has been received.</p>
+        <p>Thanks for starting the process to become a Provider in the <strong>DOME Marketplace</strong>.
+            Your registration request has been received. Please remember to send the required documents so we can review
+            them and complete the registration process.</p>
 
         <!-- Registration ID Card -->
         <div
@@ -31,13 +32,13 @@
             </div>
         </div>
 
-        <p>Our team is currently processing your request. You will receive
-            a follow-up email shortly with detailed instructions on the next steps. Below is a summary of the data you
+        <p>Our team is currently processing your request. Below is a summary of the data you
             provided:</p>
 
         <!-- Summary Tables -->
         <h3 style="margin-top: 24px; font-size: 16px; font-weight: bold; color: #1e3a8a;">Company Information</h3>
-        <table style="width: 100%; border-collapse: collapse; border: 1px solid #cccccc; font-size: 14px; margin-bottom: 24px;">
+        <table
+            style="width: 100%; border-collapse: collapse; border: 1px solid #cccccc; font-size: 14px; margin-bottom: 24px;">
             <tr>
                 <td style="width: 30%; border: 1px solid #cccccc; padding: 8px;">Email Address</td>
                 <td style="width: 70%; border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.Email}}</td>
@@ -57,10 +58,12 @@
         </table>
 
         <h3 style="margin-top: 24px; font-size: 16px; font-weight: bold; color: #1e3a8a;">Legal Representative</h3>
-        <table style="width: 100%; border-collapse: collapse; border: 1px solid #cccccc; font-size: 14px; margin-bottom: 24px;">
+        <table
+            style="width: 100%; border-collapse: collapse; border: 1px solid #cccccc; font-size: 14px; margin-bottom: 24px;">
             <tr>
                 <td style="width: 30%; border: 1px solid #cccccc; padding: 8px;">First Name</td>
-                <td style="width: 70%; border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.LRFirstName}}</td>
+                <td style="width: 70%; border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.LRFirstName}}
+                </td>
             </tr>
             <tr>
                 <td style="border: 1px solid #cccccc; padding: 8px;">Last Name</td>
@@ -80,15 +83,19 @@
             </tr>
         </table>
 
-        <h3 style="margin-top: 24px; font-size: 16px; font-weight: bold; color: #1e3a8a;">Legal Entity Authorized Representative (LEAR)</h3>
-        <table style="width: 100%; border-collapse: collapse; border: 1px solid #cccccc; font-size: 14px; margin-bottom: 24px;">
+        <h3 style="margin-top: 24px; font-size: 16px; font-weight: bold; color: #1e3a8a;">Legal Entity Authorized
+            Representative (LEAR)</h3>
+        <table
+            style="width: 100%; border-collapse: collapse; border: 1px solid #cccccc; font-size: 14px; margin-bottom: 24px;">
             <tr>
                 <td style="width: 30%; border: 1px solid #cccccc; padding: 8px;">First Name</td>
-                <td style="width: 70%; border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.LEARFirstName}}</td>
+                <td style="width: 70%; border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.LEARFirstName}}
+                </td>
             </tr>
             <tr>
                 <td style="border: 1px solid #cccccc; padding: 8px;">Last Name</td>
-                <td style="width: 70%; border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.LEARLastName}}</td>
+                <td style="width: 70%; border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.LEARLastName}}
+                </td>
             </tr>
             <tr>
                 <td style="border: 1px solid #cccccc; padding: 8px;">Email Address</td>
@@ -113,12 +120,14 @@
         </table>
 
         <!-- Support Section -->
+        {{ if .OnboardTeamEmail }}
         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9; text-align: center;">
             <p style="font-size: 14px; color: #64748b; margin: 0;">If you have any questions or need immediate
                 assistance, please contact our support team:</p>
             <a href="mailto:{{.OnboardTeamEmail}}"
                 style="display: inline-block; margin-top: 12px; padding: 10px 20px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e3a8a; text-decoration: none; font-size: 14px; font-weight: 600;">{{.OnboardTeamEmail}}</a>
         </div>
+        {{ end }}
     </div>
 
     <!-- Footer -->

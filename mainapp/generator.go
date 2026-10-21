@@ -93,9 +93,9 @@ func generate(cfg configuration.Config) error {
 			outputFile, _ := os.Create(filepath.Join(cfg.DestDir, group.subDir, pageBase))
 
 			templateData := map[string]any{
-				"AppName":      cfg.AppName,
-				"Environments": cfg.Environments,
-				"Countries":    common.EUEFTACountries,
+				"AppName":   cfg.AppName,
+				"Config":    cfg,
+				"Countries": common.EUEFTACountries,
 			}
 
 			// We execute "layout.html" which should include "content" (defined in the page)

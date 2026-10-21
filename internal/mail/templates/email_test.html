@@ -40,12 +40,14 @@
             this code, please ignore this email.</p>
 
         <!-- Support Section -->
+        {{ if .OnboardTeamEmail }}
         <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f1f5f9; text-align: center;">
             <p style="font-size: 14px; color: #64748b; margin: 0;">If you have any questions, please contact our support
                 team:</p>
             <a href="mailto:{{.OnboardTeamEmail}}"
                 style="display: inline-block; margin-top: 12px; padding: 10px 20px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; color: #1e3a8a; text-decoration: none; font-size: 14px; font-weight: 600;">{{.OnboardTeamEmail}}</a>
         </div>
+        {{ end }}
     </div>
 
     <!-- Footer -->

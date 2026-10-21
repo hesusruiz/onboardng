@@ -1,0 +1,43 @@
+<div
+    style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 20px auto; border: 1px solid #fee2e2; border-radius: 12px; overflow: hidden; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+
+    <!-- Hero Status Header -->
+    <div style="background-color: #dc2626; padding: 24px; text-align: center; color: #ffffff;">
+
+        <h2 style="margin: 0; font-size: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
+            Credential Issuance Failure</h2>
+
+    </div>
+
+    <!-- Test Environment Warning -->
+    {{if not .Runtime.IsProduction}}
+    <div
+        style="background-color: #fff7ed; border-bottom: 1px solid #ffedd5; padding: 16px 24px; color: #9a3412; font-size: 14px;">
+        <p style="margin: 0; font-weight: 700;">⚠️ DEVELOPMENT/TEST NOTICE ({{.Runtime}})</p>
+        <p style="margin: 4px 0 0 0; line-height: 1.4;">This is a notification in a testing environment. Please fix the
+            error.</p>
+        <p style="margin: 4px 0 0 0; line-height: 1.4;">In production, this error indicates a critical system failure
+            that must be addressed immediately by the team responsible for
+            the Credential Issuer.</p>
+    </div>
+    {{end}}
+
+    <!-- Main Body -->
+    <div style="padding: 32px; color: #1e293b; line-height: 1.6;">
+        <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 16px; margin-bottom: 24px;">
+            <p style="margin: 0; font-weight: 600; color: #991b1b;">A registration error occurred because the Credential
+                Issuer is not responding as expected.</p>
+            <p style="margin: 4px 0 0 0; line-height: 1.4;">Error message: {{.ErrorMsg}}</p>
+        </div>
+
+        <div style="background-color: #1e293b; border-radius: 8px; padding: 20px; overflow-x: auto;">
+            <pre
+                style="margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 13px; color: #34d399; white-space: pre-wrap; word-break: break-all;">{{.Payload}}
+            </pre>
+        </div>
+
+        <!-- Footer -->
+        <div style="background-color: #f8fafc; padding: 24px; text-align: center; border-top: 1px solid #f1f5f9;">
+            <div style="font-size: 12px; color: #94a3b8;">&copy; 2024-2026 DOME Onboarding System</div>
+        </div>
+    </div>

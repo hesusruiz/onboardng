@@ -31,84 +31,27 @@ import (
 const stdCertHeader = "tls-client-certificate"
 const kubeCertHeader = "X-Amzn-Mtls-Clientcert"
 
-//go:embed templates
-var templatesFS embed.FS
-
-var tplIndex, tplDetail *template.Template
-
-func loadTemplates(dir string) error {
-
-	// Register all functions from Sprout to the template handler
-	sproutHandler := sprout.New()
-	sproutHandler.AddGroups(all.RegistryGroup())
-	funcs := sproutHandler.Build()
-
-	fileSystem, err := getFileSystem(dir)
-	if err != nil {
-		return errl.Errorf("error getting filesystem: %v", err)
-	}
-
-	tplIndex, err = template.New("index.hbs").Funcs(funcs).ParseFS(fileSystem, "index.hbs")
-	if err != nil {
-		return errl.Errorf("error parsing index.hbs: %v", err)
-	}
-
-	tplDetail, err = template.New("detail.hbs").Funcs(funcs).ParseFS(fileSystem, "detail.hbs")
-	if err != nil {
-		return errl.Errorf("error parsing detail.hbs: %v", err)
-	}
-	return nil
-}
-
-// getFileSystem returns an fs.FS to serve frontend files. In development mode
-// it serves directly from the 'templates' directory to allow live reloads. In production,
-// it uses the embedded filesystem.
-func getFileSystem(dir string) (fs.FS, error) {
-
-	// Get the path to this specific .go file, and serve from the '/templates' subdirectory if it exists
-	if _, thisFilePath, _, ok := runtime.Caller(0); ok {
-
-		// The frontend files should be in the 'front' subdirectory
-		thisFileDir := filepath.Dir(thisFilePath)
-		frontendPath := filepath.Join(thisFileDir, dir)
-
-		if _, err := os.Stat(frontendPath); err == nil {
-			println("Development mode: Serving from", frontendPath)
-			return os.DirFS(frontendPath), nil
-		}
-	}
-
-	// Otherwise, serve from the embedded filesystem
-	// We use fs.Sub to strip the "front" prefix from the embed paths
-	f, err := fs.Sub(templatesFS, dir)
-	if err != nil {
-		return nil, errl.Errorf("error getting filesystem: %v", err)
-	}
-	return f, nil
-}
-
 func (s *Server) registerAdminRoutes(mux *http.ServeMux) {
 
-	err := loadTemplates("templates")
+	// Load templates at startup just to check that they compile
+	_, _, err := loadTemplates("templates")
 	if err != nil {
 		panic(err)
 	}
 
-	originsEnv := os.Getenv("AUTH_ORIGINS")
-	if originsEnv == "" {
-		originsEnv = "http://localhost:7777"
-	}
-	allowedOrigins := strings.Split(originsEnv, ",")
+	allowedOrigins := s.AppURL
+	fmt.Printf("allowedOrigins: %v\n", allowedOrigins)
 
-	urlOrigin, err := url.Parse(allowedOrigins[0])
+	urlOrigin, err := url.Parse(allowedOrigins)
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("urlOrigin: ", urlOrigin.Hostname())
 
 	pk, err := passkeys.NewPasskeys(passkeys.Config{
 		RPDisplayName: "Admin Panel",
 		RPID:          urlOrigin.Hostname(),
-		RPOrigins:     allowedOrigins,
+		RPOrigins:     []string{allowedOrigins},
 		PathPrefix:    "/passkeys",
 		HomePage:      "/admin/index",
 	})
@@ -116,8 +59,14 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) {
 		panic(err)
 	}
 
-	fmt.Println("allowedOrigins, ", allowedOrigins)
-	fmt.Println("RPID, ", urlOrigin.Hostname())
+	// // TODO: invite admins for testing purposes
+	// _, err = pk.InviteUserPowers("jesus@alastria.io", []passkeys.OnePower{powersAdminWrite})
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	fmt.Println("allowedOrigins:", allowedOrigins)
+	fmt.Println("RPID:", urlOrigin.Hostname())
 	slog.Info("RPID", "rpid", urlOrigin.Hostname())
 
 	pk.RegisterHandlers(mux)
@@ -136,7 +85,7 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) {
 	mux.Handle("/admin/api/registration-files", adminChain(s.APIAdminGetRegistrationFiles))
 	mux.Handle("/admin/api/file/{file_id}", adminChain(s.APIAdminGetFile))
 
-	// Public route to serve homogenization styles for admin dashboard
+	// Public route to serve styles for admin dashboard
 	mux.HandleFunc("/admin/styles.css", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/css")
 		fsys, err := getFileSystem("templates")
@@ -167,14 +116,6 @@ func (s *Server) PageAdminIndex(w http.ResponseWriter, r *http.Request) {
 	// Prepare the email to be used in the template
 	email := user.Email()
 
-	err := loadTemplates("templates")
-	if err != nil {
-		err = errl.Error(err)
-		slog.Error("loading templates", "error", err.Error())
-		http.Error(w, "Error loading templates", http.StatusInternalServerError)
-		return
-	}
-
 	// Pagination parameters if the caller does not specify them
 	limit := 100
 	offset := 0
@@ -198,7 +139,11 @@ func (s *Server) PageAdminIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userWrite := user.HasRole(powersAdminWrite)
+
 	tplData := struct {
+		User       *passkeys.User
+		UserWrite  bool
 		Email      string
 		Regs       []db.RegistrationRecord
 		Limit      int
@@ -206,6 +151,8 @@ func (s *Server) PageAdminIndex(w http.ResponseWriter, r *http.Request) {
 		NumEntries int
 		Total      int
 	}{
+		User:       user,
+		UserWrite:  userWrite,
 		Email:      email,
 		Regs:       regs,
 		Limit:      limit,
@@ -214,7 +161,15 @@ func (s *Server) PageAdminIndex(w http.ResponseWriter, r *http.Request) {
 		Total:      total,
 	}
 
-	err = tplIndex.Execute(w, tplData)
+	tpl, err := loadTemplate("templates", "index.hbs")
+	if err != nil {
+		err = errl.Error(err)
+		slog.Error("loading templates", "error", err.Error())
+		http.Error(w, "Error loading templates", http.StatusInternalServerError)
+		return
+	}
+
+	err = tpl.Execute(w, tplData)
 	if err != nil {
 		err = errl.Error(err)
 		slog.Error("executing template", "error", err.Error())
@@ -271,14 +226,6 @@ func (s *Server) PageAdminDetailsByVatID(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	// If we are retrieving and presenting the details
-
-	err := loadTemplates("templates")
-	if err != nil {
-		http.Error(w, "Error loading templates", http.StatusInternalServerError)
-		return
-	}
-
 	registration, err := s.DB.GetRegistrationByVatID(vatID)
 	if err != nil {
 		http.Error(w, "Registration not found", http.StatusNotFound)
@@ -320,19 +267,31 @@ func (s *Server) PageAdminDetailsByVatID(w http.ResponseWriter, r *http.Request)
 	//
 	// TODO: eliminate the things for testing
 
+	userWrite := user.HasRole(powersAdminWrite)
+
 	tplData := struct {
-		Email string
-		Reg   *db.RegistrationRecord
-		Files []db.RegistrationFile
-		Logs  []db.RegistrationLog
+		User      *passkeys.User
+		UserWrite bool
+		Email     string
+		Reg       *db.RegistrationRecord
+		Files     []db.RegistrationFile
+		Logs      []db.RegistrationLog
 	}{
-		Email: email,
-		Reg:   registration,
-		Files: files,
-		Logs:  logs,
+		User:      user,
+		UserWrite: userWrite,
+		Email:     email,
+		Reg:       registration,
+		Files:     files,
+		Logs:      logs,
 	}
 
-	err = tplDetail.Execute(w, tplData)
+	tpl, err := loadTemplate("templates", "detail.hbs")
+	if err != nil {
+		http.Error(w, "Error loading templates", http.StatusInternalServerError)
+		return
+	}
+
+	err = tpl.Execute(w, tplData)
 	if err != nil {
 		slog.Error("Error executing template", "err", errl.Error(err))
 		return
@@ -573,4 +532,100 @@ func (s *Server) retrieveCertificate(r *http.Request) (
 	}
 
 	return cert, issuer, subject, b64der, nil
+}
+
+//go:embed templates
+var templatesFS embed.FS
+
+func loadTemplates(dir string) (index, detail *template.Template, err error) {
+
+	// Register all functions from Sprout to the template handler
+	sproutHandler := sprout.New()
+	sproutHandler.AddGroups(all.RegistryGroup())
+	funcs := sproutHandler.Build()
+
+	fileSystem, err := getFileSystem(dir)
+	if err != nil {
+		return nil, nil, errl.Errorf("error getting filesystem: %v", err)
+	}
+
+	tplIndex, err := template.New("index.hbs").Funcs(funcs).ParseFS(fileSystem, "index.hbs")
+	if err != nil {
+		return nil, nil, errl.Errorf("error parsing index.hbs: %v", err)
+	}
+
+	tplDetail, err := template.New("detail.hbs").Funcs(funcs).ParseFS(fileSystem, "detail.hbs")
+	if err != nil {
+		return nil, nil, errl.Errorf("error parsing detail.hbs: %v", err)
+	}
+	return tplIndex, tplDetail, nil
+}
+
+func loadTemplate(dir string, templateName string) (tpl *template.Template, err error) {
+
+	// Register all functions from Sprout to the template handler
+	sproutHandler := sprout.New()
+	sproutHandler.AddGroups(all.RegistryGroup())
+	funcs := sproutHandler.Build()
+
+	fileSystem, err := getFileSystem(dir)
+	if err != nil {
+		return nil, errl.Errorf("error getting filesystem: %v", err)
+	}
+
+	tpl, err = template.New(templateName).Funcs(funcs).ParseFS(fileSystem, templateName)
+	if err != nil {
+		return nil, errl.Errorf("error parsing %s: %v", templateName, err)
+	}
+
+	return tpl, nil
+}
+
+// getFileSystem returns an fs.FS to serve frontend files. In development mode
+// it serves directly from the 'templates' directory to allow live reloads. In production,
+// it uses the embedded filesystem.
+func getFileSystem(dir string) (fs.FS, error) {
+
+	// Get the path to this specific .go file, and serve from the '/templates' subdirectory if it exists
+	if _, thisFilePath, _, ok := runtime.Caller(0); ok {
+
+		// The frontend files should be in the 'front' subdirectory
+		thisFileDir := filepath.Dir(thisFilePath)
+		frontendPath := filepath.Join(thisFileDir, dir)
+
+		if _, err := os.Stat(frontendPath); err == nil {
+			println("Development mode: Serving from", frontendPath)
+			return os.DirFS(frontendPath), nil
+		}
+	}
+
+	// Otherwise, serve from the embedded filesystem
+	// We use fs.Sub to strip the "front" prefix from the embed paths
+	f, err := fs.Sub(templatesFS, dir)
+	if err != nil {
+		return nil, errl.Errorf("error getting filesystem: %v", err)
+	}
+	return f, nil
+}
+
+var powersAdminWrite = passkeys.OnePower{
+	Type:     "domain",
+	Domain:   "onboardng",
+	Function: "admin",
+	Action:   []string{"write"},
+}
+
+var powersAdminRead = passkeys.OnePower{
+	Type:     "domain",
+	Domain:   "onboardng",
+	Function: "admin",
+	Action:   []string{"read"},
+}
+
+func isAdminWrite(u *passkeys.User) bool {
+	return u.HasRole(powersAdminWrite)
+}
+
+func isAdminRead(u *passkeys.User) bool {
+	return u.HasRole(powersAdminRead)
 }

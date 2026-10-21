@@ -22,10 +22,6 @@ import (
 //go:embed templates
 var templatesFS embed.FS
 
-type MailSender interface {
-	SendWelcomeEmail(reg *db.RegistrationRecord) error
-}
-
 type Service struct {
 	runtime            configuration.RuntimeEnv
 	onboardTeamEmail   []string
@@ -92,7 +88,9 @@ func NewMailService(runtime configuration.RuntimeEnv, cfg configuration.MailConf
 	}, nil
 }
 
-func (s *Service) SendWelcomeEmail(reg *db.RegistrationRecord) error {
+// SendFirstPhaseEmail sends the welcome email to the registered user, after completing first phase of Onboarding.
+// It copies the interested internal people.
+func (s *Service) SendFirstPhaseEmail(reg *db.RegistrationRecord) error {
 	data := map[string]any{
 		"RegistrationID":   reg.RegistrationID,
 		"Email":            reg.Email,
@@ -101,18 +99,23 @@ func (s *Service) SendWelcomeEmail(reg *db.RegistrationRecord) error {
 		"CompanyName":      reg.CompanyName,
 		"Country":          reg.Country,
 		"VatID":            reg.VatID,
-		"Runtime":          s.runtime.String(),
-		"OnboardTeamEmail": s.onboardTeamEmail[0],
+		"Runtime":          s.runtime,
+		"OnboardTeamEmail": s.onboardTeamEmail,
 	}
 
-	to := []string{reg.Email}
-	cc := s.onboardTeamEmail
-	bcc := s.ccTeamEmail
 	subject := "Welcome to DOME Marketplace!"
 
-	return s.SendEmail(to, cc, bcc, subject, "email_welcome.html", data)
+	// Send mail to the user who onboarded
+	to := []string{reg.Email}
+	// Copy the interested internal people
+	cc := s.onboardTeamEmail
+	bcc := s.ccTeamEmail
+
+	return s.SendEmail(to, cc, bcc, subject, "email_first_phase.html", data)
 }
 
+// SendSecondPhaseEmail sends an email to the user to indicate that they need to complete the second phase of the onboarding process.
+// The second phase is for the user to complete the onboarding process in the Credential Issuer.
 func (s *Service) SendSecondPhaseEmail(reg *db.RegistrationRecord) error {
 	data := map[string]any{
 		"RegistrationID":   reg.RegistrationID,
@@ -122,28 +125,64 @@ func (s *Service) SendSecondPhaseEmail(reg *db.RegistrationRecord) error {
 		"CompanyName":      reg.CompanyName,
 		"Country":          reg.Country,
 		"VatID":            reg.VatID,
-		"Runtime":          s.runtime.String(),
-		"OnboardTeamEmail": s.onboardTeamEmail[0],
+		"Runtime":          s.runtime,
+		"OnboardTeamEmail": s.onboardTeamEmail,
 	}
 
+	subject := "Welcome to DOME Marketplace!"
+	// Send mail to the user who onboarded
 	to := []string{reg.Email}
+	// Copy the interested internal people
 	cc := s.onboardTeamEmail
 	bcc := s.ccTeamEmail
-	subject := "Welcome to DOME Marketplace!"
 
-	return s.SendEmail(to, cc, bcc, subject, "email_welcome.html", data)
+	return s.SendEmail(to, cc, bcc, subject, "email_second_phase.html", data)
 }
 
+// SendReminderEmail sends an email to the user after a period of time to remind them to complete the onboarding process.
+func (s *Service) SendReminderEmail(reg *db.RegistrationRecord) error {
+	data := map[string]any{
+		"RegistrationID":   reg.RegistrationID,
+		"Email":            reg.Email,
+		"FirstName":        reg.FirstName,
+		"LastName":         reg.LastName,
+		"CompanyName":      reg.CompanyName,
+		"Country":          reg.Country,
+		"VatID":            reg.VatID,
+		"Runtime":          s.runtime,
+		"OnboardTeamEmail": s.onboardTeamEmail,
+	}
+
+	subject := "Reminder: Please complete your registration to DOME Marketplace!"
+	// Send mail to the user who onboarded
+	to := []string{reg.Email}
+	// Copy the interested internal people
+	cc := s.onboardTeamEmail
+	bcc := s.ccTeamEmail
+
+	return s.SendEmail(to, cc, bcc, subject, "email_reminder.html", data)
+}
+
+// SendVerificationCodeEmail sends an email to the user with a verification code, to check that the user controls the email.
 func (s *Service) SendVerificationCodeEmail(email string, code string) error {
 	data := map[string]any{
 		"Code":             code,
-		"Runtime":          s.runtime.String(),
-		"OnboardTeamEmail": s.onboardTeamEmail[0],
+		"Runtime":          s.runtime,
+		"OnboardTeamEmail": s.onboardTeamEmail,
 	}
 
-	return s.SendEmail([]string{email}, []string{}, []string{}, "DOME Marketplace Verification Code", "email_verification.html", data)
+	subject := "DOME Marketplace Verification Code"
+	// Send mail to the user
+	to := []string{email}
+	// No cc and bcc
+	cc := []string{}
+	bcc := []string{}
+
+	return s.SendEmail(to, cc, bcc, subject, "email_verification.html", data)
 }
 
+// SendIssuerErrorEmail sends an email to the team in charge of the Issuer so they can handle the techinical error.
+// The payload is the payload sent to the issuer.
 func (s *Service) SendIssuerErrorEmail(reg *db.RegistrationRecord, payload string, errorMsg string) error {
 	data := map[string]any{
 		"FirstName":      reg.FirstName,
@@ -151,23 +190,38 @@ func (s *Service) SendIssuerErrorEmail(reg *db.RegistrationRecord, payload strin
 		"RegistrationID": reg.RegistrationID,
 		"Payload":        payload,
 		"ErrorMsg":       errorMsg,
-		"Runtime":        s.runtime.String(),
+		"Runtime":        s.runtime,
 	}
 
-	return s.SendEmail(s.issuerTeamEmail, []string{}, []string{}, "DOME: Error in Credential Issuer during customer registration", "issuer_error.html", data)
+	subject := "DOME: Error in Credential Issuer during customer registration"
+	// Send mail to the team in charge of the Issuer so they can handle the techinical error
+	to := s.issuerTeamEmail
+	// No cc and bcc
+	cc := []string{}
+	bcc := []string{}
+
+	return s.SendEmail(to, cc, bcc, subject, "issuer_error.html", data)
+}
+
+// SendCheckIssuerErrorEmail sends an email to the team in charge of the Issuer if an error was received during
+// the self-checks that the serfer performs at startup and scheduled times.
+func (s *Service) SendCheckIssuerErrorEmail(payload string, errorMsg string) error {
+	data := map[string]any{
+		"Payload":  payload,
+		"ErrorMsg": errorMsg,
+		"Runtime":  s.runtime,
+	}
+
+	subject := "DOME: Error in Credential Issuer during customer self-registration test"
+	return s.SendEmail(s.issuerTeamEmail, []string{s.testRecipientEmail}, []string{}, subject, "check_issuer_error.html", data)
 }
 
 func (s *Service) SendTestEmail() error {
-	data := struct {
-		Email            string
-		Code             string
-		Runtime          configuration.RuntimeEnv
-		OnboardTeamEmail string
-	}{
-		Email:            s.testRecipientEmail,
-		Code:             "123456",
-		Runtime:          s.runtime,
-		OnboardTeamEmail: s.onboardTeamEmail[0],
+	data := map[string]any{
+		"Email":            s.testRecipientEmail,
+		"Code":             "123456",
+		"Runtime":          s.runtime,
+		"OnboardTeamEmail": s.onboardTeamEmail,
 	}
 
 	return s.SendEmail([]string{s.testRecipientEmail}, []string{}, []string{}, "DOME Marketplace Test Email", "email_test.html", data)
@@ -188,7 +242,7 @@ func (s *Service) getTemplate(name string) (*template.Template, error) {
 
 	// 1. Try loading from disk if TemplateDir is configured or in Development mode
 	templateDir := s.templateDir
-	if templateDir == "" && s.runtime == configuration.Development {
+	if templateDir == "" && s.runtime.IsDevelopment() {
 		templateDir = "internal/mail/templates"
 	}
 
@@ -243,7 +297,7 @@ func (s *Service) SendEmail(to, cc, bcc []string, subject string, templateName s
 	allRecipients = append(allRecipients, cc...)
 	allRecipients = append(allRecipients, bcc...)
 
-	// Build the email message
+	// Build the email message. The bcc users will receive the message but will not be displayed in the message headers.
 	msg := []byte("From: " + from + "\n" +
 		"To: " + strings.Join(to, ", ") + "\n" +
 		"Cc: " + strings.Join(cc, ", ") + "\n" +

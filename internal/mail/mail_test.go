@@ -2,6 +2,7 @@ package mail
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"net"
 	"net/textproto"
@@ -109,7 +110,7 @@ func (s *mockSMTPServer) handle(conn net.Conn) {
 	}
 }
 
-func TestSendWelcomeEmail(t *testing.T) {
+func TestSendFirstPhaseEmail(t *testing.T) {
 
 	// Start mock SMTP server
 	mockServer, err := newMockSMTPServer("127.0.0.1:0")
@@ -165,9 +166,9 @@ func TestSendWelcomeEmail(t *testing.T) {
 	}
 
 	// Send email
-	err = mailService.SendWelcomeEmail(reg)
+	err = mailService.SendFirstPhaseEmail(reg)
 	if err != nil {
-		t.Fatalf("SendWelcomeEmail failed: %v", err)
+		t.Fatalf("SendFirstPhaseEmail failed: %v", err)
 	}
 
 	// Verify received email
@@ -293,5 +294,50 @@ func TestSendEmailWithCustomTemplate(t *testing.T) {
 		t.Error("expected error when trying to request path with directory traversal, but got none")
 	} else if !strings.Contains(err.Error(), "secret.txt") {
 		t.Errorf("expected error message to refer to the sanitized base name 'secret.txt', got: %v", err)
+	}
+}
+
+func TestTemplateRuntimeEnvRendering(t *testing.T) {
+	mailService, err := NewMailService(configuration.Development, configuration.MailConfig{})
+	if err != nil {
+		t.Fatalf("failed to create mail service: %v", err)
+	}
+
+	tmpl, err := mailService.getTemplate("email_verification.html")
+	if err != nil {
+		t.Fatalf("failed to get template: %v", err)
+	}
+
+	// 1. In Development: banner should be included
+	var devBuf bytes.Buffer
+	devData := map[string]any{
+		"Code":             "123456",
+		"Runtime":          configuration.Development,
+		"OnboardTeamEmail": "support@example.com",
+	}
+	if err := tmpl.Execute(&devBuf, devData); err != nil {
+		t.Fatalf("failed to execute template with Development runtime: %v", err)
+	}
+	devContent := devBuf.String()
+	if !strings.Contains(devContent, "Test Environment") {
+		t.Errorf("expected banner in Development, but not found")
+	}
+	if !strings.Contains(devContent, "SBX") {
+		t.Errorf("expected runtime String() 'SBX' in Development output, got: %s", devContent)
+	}
+
+	// 2. In Production: banner should NOT be included
+	var prodBuf bytes.Buffer
+	prodData := map[string]any{
+		"Code":             "123456",
+		"Runtime":          configuration.Production,
+		"OnboardTeamEmail": "support@example.com",
+	}
+	if err := tmpl.Execute(&prodBuf, prodData); err != nil {
+		t.Fatalf("failed to execute template with Production runtime: %v", err)
+	}
+	prodContent := prodBuf.String()
+	if strings.Contains(prodContent, "Test Environment") {
+		t.Errorf("expected banner to be hidden in Production, but found in output")
 	}
 }

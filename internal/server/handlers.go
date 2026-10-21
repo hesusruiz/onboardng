@@ -129,7 +129,8 @@ func generateRegistrationID() string {
 	return fmt.Sprintf("%s-%08d", dateStr, n)
 }
 
-// HandleSendEmailValidationCode receives an email address in the body of the request and sends a verification code
+// HandleSendEmailValidationCode is the first step in the registration process.
+// It receives an email address in the body of the request and sends a verification code
 // to that email address.
 // It does not check if the email address is already registered, to avoid email enumeration.
 // It uses the rate limiter (RegisterEmailAttempt) to prevent too many requests using the same email address.
@@ -171,18 +172,19 @@ func (s *Server) HandleSendEmailValidationCode(w http.ResponseWriter, r *http.Re
 	// Send the code to the user in a separate goroutine
 	go func() {
 		if err := s.Mail.SendVerificationCodeEmail(req.Email, code); err != nil {
-			slog.Error("❌ Error sending verification code", "error", err)
+			slog.Error("Error sending verification code", "error", err)
 		}
 	}()
 
 	s.SendJSON(w, r, http.StatusOK, true, "Validation code sent to your email", map[string]string{"code": code})
 }
 
-// HandleValidateEmailCode receives an email address and a code in the body of the request and validates them.
-// It first calls VerifyCode to check if the code is correct for the given email.
-// If the code is correct, it then checks if the email address is already registered.
-// If the email address is registered, it returns the registration data.
-// If the email address is not registered, it just returns OK with empty registration data.
+// HandleValidateEmailCode is the second step in the registration process.
+// It receives an email address and a code in the body of the request and validates them.
+// The received code must be the same as the one sent by the HandleSendEmailValidationCode handler.
+// It then checks if the email address is already registered.
+// - If the email address is registered, it returns the registration data.
+// - If the email address is not registered, it just returns OK with empty registration data.
 func (s *Server) HandleValidateEmailCode(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -233,6 +235,195 @@ func (s *Server) HandleValidateEmailCode(w http.ResponseWriter, r *http.Request)
 	s.SendJSON(w, r, http.StatusOK, true, "Email verified successfully", regRequest)
 }
 
+// HandleRegister is the third and last step in the first phase of theregistration process.
+// It receives registration data, validates it and stores it in the database.
+// Then it proceeds to the automatic processes:
+// - Send a welcome email to the user
+// - Send a notification email to the onboarding team
+// - Perform the verifiable credential issuance
+// - Update the TM Forum server with the organization data
+// - Send a notification email to the onboarding team with the result of the registration
+func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
+	var requestData RegistrationRequest
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if !validateCSRF(r) {
+		s.SendJSON(w, r, http.StatusForbidden, false, "Security check failed: missing CSRF header", nil)
+		return
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
+		s.SendJSON(w, r, http.StatusBadRequest, false, "Invalid request body", nil)
+		return
+	}
+
+	if requestData.Website != "" {
+		slog.Warn("Bot detected via honeypot field")
+		s.SendJSON(w, r, http.StatusOK, true, "Registration successful", nil)
+		return
+	}
+
+	if err := requestData.Validate(); err != nil {
+		s.SendJSON(w, r, http.StatusBadRequest, false, err.Error(), nil)
+		return
+	}
+
+	// Check that Role is either "Buyer" or "Seller"
+	if requestData.Role != "Buyer" && requestData.Role != "Seller" {
+		s.SendJSON(w, r, http.StatusBadRequest, false, "Invalid role", nil)
+		return
+	}
+
+	// Verify the code again to prevent spurious calls
+	if !s.VerifyCode(requestData.Email, requestData.Code) {
+		s.SendJSON(w, r, http.StatusBadRequest, false, "Invalid or expired verification code", nil)
+		return
+	}
+
+	slog.Info("Attempting to issue credential for registration", "email", requestData.Email, "vatID", requestData.VatId)
+
+	// Check if there is a registration for this email or VAT ID
+	regRecord, err := s.DB.GetRegistrationByEmailOrVatID(requestData.Email, requestData.VatId)
+
+	// There are several possibilities:
+	// 1. If new email == old email AND new vatID != old vatID, reject with message "email already registered"
+	// 2. If new vatID == old vatID AND new email != old email, reject with message "company already registered"
+	// 3. If new email == old email AND new vatID == old vatID, continue with the request
+	// 4. If new email != old email AND new vatID != old vatID, continue with the request
+
+	if err == nil {
+		if regRecord.Email == requestData.Email && regRecord.VatID != requestData.VatId {
+			s.SendJSON(w, r, http.StatusConflict, false, "Email already registered", nil)
+			return
+		}
+		if regRecord.VatID == requestData.VatId && regRecord.Email != requestData.Email {
+			s.SendJSON(w, r, http.StatusConflict, false, "Company already registered", nil)
+			return
+		}
+	}
+
+	// Get an access token to authenticate in the Issuer and TM Forum APIs
+	token, err := s.Issuer.GetAccessToken(r.Context())
+	if err != nil {
+		err = errl.Errorf("Failed to get access token for credential issuance: %v", err)
+		slog.Error("Error getting access token", "error", err)
+		s.SendJSON(w, r, http.StatusInternalServerError, false, "Error getting access token", err.Error())
+		return
+	}
+
+	// Check in the TMF server if the organization already exists.
+	// In PRO, we use the first organization found and continue with the registration.
+	// In other environments, we continue with the registration, deleting all orgs except the first.
+	var existingOrgID string
+	if s.Features.TMFServerEnabled {
+		existingOrgs, _ := s.Issuer.TMFGetOrganizationByELSI(r.Context(), token, requestData.VatId)
+		if len(existingOrgs) > 0 {
+			slog.Info("Organization already exists in TMF server", "vatId", requestData.VatId)
+
+			switch s.Runtime {
+
+			case configuration.Production:
+				slog.Info("Using the first organization found and continuing", "environment", s.Runtime)
+				existingOrgID = existingOrgs[0].ID
+
+			case configuration.Development, configuration.Preproduction:
+				slog.Info("Deleting all organizations except the first and continuing", "environment", s.Runtime)
+				existingOrgID = existingOrgs[0].ID
+				// Delete all organizations except the first one
+				for i := 1; i < len(existingOrgs); i++ {
+					org := existingOrgs[i]
+					if err := s.Issuer.TMFDeleteOrganization(r.Context(), token, org.ID); err != nil {
+						err = errl.Errorf("Failed to delete organization for registration: %v", err)
+						slog.Error("Error deleting organization", "error", err)
+					}
+					slog.Info("Existing organization deleted from TM Forum server", "orgId", org.ID)
+				}
+
+			}
+		}
+	}
+	_ = existingOrgID
+
+	// Before doing anything else, store the data provided by the user in the database
+	// This is a draft registration, subject to some verifications
+	reg, err := saveToDB(requestData, s)
+	if err != nil {
+		err = errl.Errorf("Failed to save registration: %w", err)
+		slog.Error("Error saving registration", "error", err)
+		s.SendJSON(w, r, http.StatusInternalServerError, false, "Error saving to database", err.Error())
+		return
+	}
+
+	// Once the data is saved, we continue with the registration process.
+	// Even if we find erros, we always return to the user with a success and a welcome message,
+	// so they know the process is in motion. The internal team will handle the errors to complete the process.
+	// The rest of the remaining steps, if any, will be performed manually by the internal team.
+
+	// Send a welcome email to the user, with copy to the relevant onboarding team, so they can followup on the onboarding process
+	if err := s.Mail.SendFirstPhaseEmail(reg); err != nil {
+		err = errl.Errorf("Failed to send welcome email: %w", err)
+		slog.Error("Error sending welcome email", "error", err)
+		// Record the error in the database
+		_ = s.DB.SaveRegistrationLog(&db.RegistrationLog{
+			RegistrationID: reg.RegistrationID,
+			Email:          reg.Email,
+			VatID:          reg.VatID,
+			Type:           "error",
+			Message:        fmt.Sprintf("Welcome email error: %v", err.Error()),
+		})
+	} else {
+		slog.Info("Welcome email sent", "email", reg.Email)
+		reg.Notified = true
+		if updateErr := s.DB.UpdateRegistrationStatus(reg); updateErr != nil {
+			slog.Error("Error updating registration status with email result", "error", updateErr)
+		}
+	}
+
+	if s.Features.DirectIssuance {
+		// Perform the verifiable credential issuance
+		redirectUri, err := performIssuanceNew(r.Context(), token, reg, s, requestData)
+		if err != nil {
+			slog.Error("Error performing issuance", "error", err)
+		}
+		// Instruct the client to perform the redirect
+		s.SendJSON(w, r, http.StatusOK, true, "Redirecting...", redirectUri)
+
+	} else {
+		// Perform the verifiable credential issuance
+		err = performIssuance(r.Context(), token, reg, s, requestData)
+		if err != nil {
+			slog.Error("Error performing issuance", "error", err)
+		}
+		s.SendJSON(w, r, http.StatusOK, true, "Registration successful", nil)
+	}
+
+	// if s.Features.TMFServerEnabled {
+	// 	if existingOrgID != "" {
+	// 		err = updateTMForumOrganization(r.Context(), token, existingOrgID, requestData, reg, s)
+	// 	} else {
+	// 		err = createTMForumOrganization(r.Context(), token, requestData, reg, s)
+	// 	}
+	// 	if err != nil {
+	// 		err = errl.Error(err)
+	// 		slog.Error("Error updating TM Forum", "error", err)
+	// 		// Record the error in the database
+	// 		_ = s.DB.SaveRegistrationLog(&db.RegistrationLog{
+	// 			RegistrationID: reg.RegistrationID,
+	// 			Email:          reg.Email,
+	// 			VatID:          reg.VatID,
+	// 			Type:           "error",
+	// 			Message:        fmt.Sprintf("TM Forum update error: %v", err),
+	// 		})
+	// 	}
+	// }
+
+	// s.SendJSON(w, r, http.StatusOK, true, "Registration successful", nil)
+}
+
 // HandleHealth returns a simple 200 OK response for health checks
 func (s *Server) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -271,181 +462,6 @@ func (s *Server) HandleOrgStatus(w http.ResponseWriter, r *http.Request) {
 	s.SendJSON(w, r, http.StatusOK, true, "Registration fetched successfully", resp)
 }
 
-// HandleRegister receives registration data, validates it and stores it in the database.
-func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
-	var requestData RegistrationRequest
-
-	// Perform all validations on input data
-	//
-
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	if !validateCSRF(r) {
-		s.SendJSON(w, r, http.StatusForbidden, false, "Security check failed: missing CSRF header", nil)
-		return
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
-		s.SendJSON(w, r, http.StatusBadRequest, false, "Invalid request body", nil)
-		return
-	}
-
-	if requestData.Website != "" {
-		slog.Warn("Bot detected via honeypot field")
-		s.SendJSON(w, r, http.StatusOK, true, "Registration successful", nil)
-		return
-	}
-
-	// TODO: this is temporal
-	if requestData.City == "" {
-		requestData.City = "Las Rozas de Madrid"
-	}
-
-	if err := requestData.Validate(); err != nil {
-		s.SendJSON(w, r, http.StatusBadRequest, false, err.Error(), nil)
-		return
-	}
-
-	if requestData.Role == "" {
-		requestData.Role = "Buyer"
-	}
-
-	// Verify the code again to prevent spurious calls
-	if !s.VerifyCode(requestData.Email, requestData.Code) {
-		s.SendJSON(w, r, http.StatusBadRequest, false, "Invalid or expired verification code", nil)
-		return
-	}
-
-	slog.Info("Attempting to issue credential for registration", "email", requestData.Email, "vatID", requestData.VatId)
-
-	// Check if there is a registration for this email or VAT ID
-	regRecord, err := s.DB.GetRegistrationByEmailOrVatID(requestData.Email, requestData.VatId)
-
-	// There are several possibilities:
-	// 1. If new email == old email AND new vatID != old vatID, reject with message "email already registered"
-	// 2. If new vatID == old vatID AND new email != old email, reject with message "company already registered"
-	// 3. If new email == old email AND new vatID == old vatID, continue with the request
-	// 4. If new email != old email AND new vatID != old vatID, continue with the request
-
-	if err == nil {
-		if regRecord.Email == requestData.Email && regRecord.VatID != requestData.VatId {
-			s.SendJSON(w, r, http.StatusConflict, false, "Email already registered", nil)
-			return
-		}
-		if regRecord.VatID == requestData.VatId && regRecord.Email != requestData.Email {
-			s.SendJSON(w, r, http.StatusConflict, false, "Company already registered", nil)
-			return
-		}
-	}
-
-	// Get an access token to authenticate in the Issuer and TM Forum APIs
-	token, err := s.Issuer.GetAccessToken(r.Context())
-	if err != nil {
-		err = errl.Errorf("Failed to get access token for credential issuance: %v", err)
-		slog.Error("❌ Error getting access token", "error", err)
-		s.SendJSON(w, r, http.StatusInternalServerError, false, "Error getting access token", err.Error())
-		return
-	}
-
-	// Check in the TMF server if the organization already exists.
-	// In PRO, we use the first organization found and continue with the registration.
-	// In other environments, we continue with the registration, deleting all orgs except the first.
-	var existingOrgID string
-	if s.Features.TMFServerEnabled {
-		existingOrgs, _ := s.Issuer.TMFGetOrganizationByELSI(r.Context(), token, requestData.VatId)
-		if len(existingOrgs) > 0 {
-			slog.Info("Organization already exists in TMF server", "vatId", requestData.VatId)
-
-			switch s.Runtime {
-
-			case configuration.Production:
-				slog.Info("Using the first organization found and continuing", "environment", s.Runtime)
-				existingOrgID = existingOrgs[0].ID
-
-			case configuration.Development, configuration.Preproduction:
-				slog.Info("Deleting all organizations except the first and continuing", "environment", s.Runtime)
-				existingOrgID = existingOrgs[0].ID
-				// Delete all organizations except the first one
-				for i := 1; i < len(existingOrgs); i++ {
-					org := existingOrgs[i]
-					if err := s.Issuer.TMFDeleteOrganization(r.Context(), token, org.ID); err != nil {
-						err = errl.Errorf("Failed to delete organization for registration: %v", err)
-						slog.Error("❌ Error deleting organization", "error", err)
-					}
-					slog.Info("Existing organization deleted from TM Forum server", "orgId", org.ID)
-				}
-
-			}
-		}
-	}
-
-	// The first step is to save to the database the data provided by the user
-	// This is a draft registration, subject to some verifications
-	reg, err := saveToDB(requestData, s)
-	if err != nil {
-		// For any other error, registration stops with failure
-		err = errl.Errorf("Failed to save registration: %w", err)
-		slog.Error("❌ Error saving registration", "error", err)
-		s.SendJSON(w, r, http.StatusInternalServerError, false, "Error saving to database", err.Error())
-		return
-	}
-
-	// Once the data is saved, we continue with the registration process.
-	// Even if we find erros, we always return to the user with a success and a welcome message,
-	// so they know the process is in motion.
-	// The rest of the remaining steps, if any, will be performed manually by the internal team.
-
-	// Send a welcome email to the user, with copy to the relevant onboarding team, so they can followup on the onboarding process
-	if err := s.Mail.SendWelcomeEmail(reg); err != nil {
-		err = errl.Errorf("Failed to send welcome email: %w", err)
-		slog.Error("❌ Error sending welcome email", "error", err)
-		// Record the error in the database
-		_ = s.DB.SaveRegistrationLog(&db.RegistrationLog{
-			RegistrationID: reg.RegistrationID,
-			Email:          reg.Email,
-			VatID:          reg.VatID,
-			Type:           "error",
-			Message:        fmt.Sprintf("Welcome email error: %v", err.Error()),
-		})
-	} else {
-		slog.Info("📧 Welcome email sent", "email", reg.Email)
-		reg.Notified = true
-		if updateErr := s.DB.UpdateRegistrationStatus(reg); updateErr != nil {
-			slog.Error("❌ Error updating registration status with email result", "error", updateErr)
-		}
-	}
-
-	// Perform the verifiable credential issuance
-	err = performIssuance(r.Context(), token, reg, s, requestData)
-	if err != nil {
-		slog.Error("❌ Error performing issuance", "error", err)
-	}
-
-	if s.Features.TMFServerEnabled {
-		if existingOrgID != "" {
-			err = updateTMForumOrganization(r.Context(), token, existingOrgID, requestData, reg, s)
-		} else {
-			err = createTMForumOrganization(r.Context(), token, requestData, reg, s)
-		}
-		if err != nil {
-			slog.Error("❌ Error updating TM Forum", "error", err)
-			// Record the error in the database
-			_ = s.DB.SaveRegistrationLog(&db.RegistrationLog{
-				RegistrationID: reg.RegistrationID,
-				Email:          reg.Email,
-				VatID:          reg.VatID,
-				Type:           "error",
-				Message:        fmt.Sprintf("TM Forum update error: %v", err),
-			})
-		}
-	}
-
-	s.SendJSON(w, r, http.StatusOK, true, "Registration successful", nil)
-}
-
 // saveToDB converts a RegistrationRequest received from the API to a database RegistrationRecord and saves it to the database.
 // It assumes that the request data has been validated
 func saveToDB(requestData RegistrationRequest, s *Server) (*db.RegistrationRecord, error) {
@@ -469,11 +485,145 @@ func saveToDB(requestData RegistrationRequest, s *Server) (*db.RegistrationRecor
 		if errors.Is(err, db.ErrorAlreadyExists) {
 			slog.Error("Registration conflict", "error", err)
 		} else {
-			slog.Error("❌ Error saving initial registration", "error", err)
+			slog.Error("Error saving initial registration", "error", err)
 		}
-		return nil, err
+		return nil, errl.Error(err)
 	}
 	return reg, nil
+}
+
+func performIssuanceNew(ctx context.Context, token string, reg *db.RegistrationRecord, s *Server, requestData RegistrationRequest) (string, error) {
+
+	// Add the VATxx- prefix to the VAT ID if the user has not provided it
+	organizationIdentifierPrefix := "VAT" + requestData.Country
+	organizationIdentifier := requestData.VatId
+	if !strings.HasPrefix(requestData.VatId, organizationIdentifierPrefix) {
+		organizationIdentifier = organizationIdentifierPrefix + "-" + requestData.VatId
+	}
+
+	// Create the mandate data to incluse in the Verifiable Credential for a LEAR
+	payload := credissuance.Payload{
+		Mandator: credissuance.Mandator{
+			OrganizationIdentifier: organizationIdentifier,
+			Organization:           requestData.CompanyName,
+			Country:                requestData.Country,
+			CommonName:             requestData.FirstName + " " + requestData.LastName,
+			Email:                  requestData.Email,
+		},
+		Mandatee: credissuance.Mandatee{
+			FirstName: requestData.FirstName,
+			LastName:  requestData.LastName,
+			// Nationality: requestData.Country,
+			Email: requestData.Email,
+		},
+		Power: []credissuance.Power{
+			{
+				Type:     "domain",
+				Domain:   "DOME",
+				Function: "Onboarding",
+				Action:   credissuance.Strings{"Execute"},
+			},
+			{
+				Type:     "domain",
+				Domain:   "DOME",
+				Function: "ProductOffering",
+				Action:   credissuance.Strings{"Create", "Update", "Delete"},
+			},
+		},
+	}
+
+	newCredential := &credissuance.LEARIssuanceRequestBodyNew{
+		CredentialConfigurationID: "learcredential.employee.w3c.4",
+		Delivery:                  "ui",
+		Email:                     requestData.Email,
+		Payload:                   payload,
+	}
+
+	// // Create the struct needed by the Issuer API for a credential for the self-registration
+	// _ = &credissuance.LEARIssuanceRequestBody{
+	// 	Schema:        "LEARCredentialEmployee",
+	// 	OperationMode: "S",
+	// 	Format:        "jwt_vc_json",
+	// 	Payload: credissuance.Payload{
+	// 		Mandator: credissuance.Mandator{
+	// 			OrganizationIdentifier: organizationIdentifier,
+	// 			Organization:           requestData.CompanyName,
+	// 			Country:                requestData.Country,
+	// 			CommonName:             requestData.FirstName + " " + requestData.LastName,
+	// 			Email:                  requestData.Email,
+	// 			// SerialNumber:           "1234567890", // TODO: this is temporary because the Issuer requires a serialNumber
+	// 		},
+	// 		Mandatee: credissuance.Mandatee{
+	// 			FirstName: requestData.FirstName,
+	// 			LastName:  requestData.LastName,
+	// 			// Nationality: requestData.Country,
+	// 			Email: requestData.Email,
+	// 		},
+	// 		Power: []credissuance.Power{
+	// 			{
+	// 				Type:     "domain",
+	// 				Domain:   "DOME",
+	// 				Function: "Onboarding",
+	// 				Action:   credissuance.Strings{"Execute"},
+	// 			},
+	// 			{
+	// 				Type:     "domain",
+	// 				Domain:   "DOME",
+	// 				Function: "ProductOffering",
+	// 				Action:   credissuance.Strings{"Create", "Update", "Delete"},
+	// 			},
+	// 		},
+	// 	},
+	// }
+
+	issuanceResponse, err := s.Issuer.LEARIssuanceRequestNew(ctx, token, newCredential)
+	if err != nil {
+		slog.Error("Error calling issuance service", "error", err)
+
+		// Record the error in the database
+		_ = s.DB.SaveRegistrationLog(&db.RegistrationLog{
+			RegistrationID: reg.RegistrationID,
+			Email:          reg.Email,
+			VatID:          reg.VatID,
+			Type:           "error",
+			Message:        fmt.Sprintf("Issuance error (in performIssuance): %v", err),
+		})
+
+		// Format the information we sent to the Issuer
+		buf, errformat := json.MarshalIndent(newCredential, "", "  ")
+		if errformat != nil {
+			slog.Error("Error marshalling credential data", "error", errformat)
+			buf = []byte("Error marshalling credential data")
+		}
+
+		// Send an email to the internal team informing of the error, including the information that we wanted to issue
+		// They can perform the rest of the registration steps manually, transparently to the user.
+
+		if err := s.Mail.SendIssuerErrorEmail(reg, string(buf), err.Error()); err != nil {
+			slog.Error("Error sending issuer error email", "error", err)
+		}
+
+		return "", errl.Error(err)
+	}
+
+	// Get the credential_offer_uri from the issuance response
+	credentialOfferURI := issuanceResponse.Responses[0].Body.CredentialOfferURI
+
+	// Strip the prefix "https://wallet.dome-marketplace-sbx.org/wallet/protocol/callback?"
+	credentialOfferURI = strings.TrimPrefix(credentialOfferURI, "https://wallet.dome-marketplace-sbx.org/wallet/protocol/callback?")
+
+	// Build the redirect Uri with the credential offer URI
+	redirectUri := "/qr?" + credentialOfferURI
+
+	slog.Info("Redirecting to QR page", "redirectUri", redirectUri)
+
+	// // If the credential issuance was ok, update the database
+	// reg.Issued = true
+	// if err := s.DB.UpdateRegistrationStatus(reg); err != nil {
+	// 	slog.Error("Error updating registration status with issuance success", "error", err)
+	// }
+
+	return redirectUri, nil
 }
 
 func performIssuance(ctx context.Context, token string, reg *db.RegistrationRecord, s *Server, requestData RegistrationRequest) error {
@@ -495,14 +645,14 @@ func performIssuance(ctx context.Context, token string, reg *db.RegistrationReco
 				Organization:           requestData.CompanyName,
 				Country:                requestData.Country,
 				CommonName:             requestData.FirstName + " " + requestData.LastName,
-				EmailAddress:           requestData.Email,
+				Email:                  requestData.Email,
 				SerialNumber:           "1234567890", // TODO: this is temporary because the Issuer requires a serialNumber
 			},
 			Mandatee: credissuance.Mandatee{
-				FirstName:   requestData.FirstName,
-				LastName:    requestData.LastName,
-				Nationality: requestData.Country,
-				Email:       requestData.Email,
+				FirstName: requestData.FirstName,
+				LastName:  requestData.LastName,
+				// Nationality: requestData.Country,
+				Email: requestData.Email,
 			},
 			Power: []credissuance.Power{
 				{
@@ -547,10 +697,10 @@ func performIssuance(ctx context.Context, token string, reg *db.RegistrationReco
 			slog.Error("Error sending issuer error email", "error", err)
 		}
 
-		return err
+		return errl.Error(err)
 	}
 
-	// If the credential issuance was ok, update the database and send an email informing of the success
+	// If the credential issuance was ok, update the database
 	reg.Issued = true
 	if err := s.DB.UpdateRegistrationStatus(reg); err != nil {
 		slog.Error("Error updating registration status with issuance success", "error", err)
@@ -705,28 +855,45 @@ func (s *Server) HandleUpdateRepresentatives(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Update DB
-	repParams := &db.RegistrationRecord{
-		LRFirstName:      req.LRFirstName,
-		LRLastName:       req.LRLastName,
-		LREmail:          req.LREmail,
-		LRCountry:        req.LRCountry,
-		LRIdCard:         req.LRIdCard,
-		LEARFirstName:    req.LEARFirstName,
-		LEARLastName:     req.LEARLastName,
-		LEAREmail:        req.LEAREmail,
-		LEARCountry:      req.LEARCountry,
-		LEARAddress:      req.LEARAddress,
-		LEARIdCard:       req.LEARIdCard,
-		LEARMobileNumber: req.LEARMobileNumber,
-		LEARCompleted:    true,
-		Role:             "Seller",
-	}
+	current.LRFirstName = req.LRFirstName
+	current.LRLastName = req.LRLastName
+	current.LREmail = req.LREmail
+	current.LRCountry = req.LRCountry
+	current.LRIdCard = req.LRIdCard
+	current.LEARFirstName = req.LEARFirstName
+	current.LEARLastName = req.LEARLastName
+	current.LEAREmail = req.LEAREmail
+	current.LEARCountry = req.LEARCountry
+	current.LEARAddress = req.LEARAddress
+	current.LEARIdCard = req.LEARIdCard
+	current.LEARMobileNumber = req.LEARMobileNumber
+	current.LEARCompleted = true
+	current.Role = "Seller"
 
-	err = s.DB.UpdateRepresentativesByVatID(req.VatID, repParams)
+	err = s.DB.UpdateRepresentativesByVatID(req.VatID, current)
 	if err != nil {
-		slog.Error("❌ Error updating representatives", "error", err)
+		slog.Error("Error updating representatives", "error", err)
 		s.SendJSON(w, r, http.StatusInternalServerError, false, "Error updating registration", err.Error())
 		return
+	}
+
+	if err := s.Mail.SendSecondPhaseEmail(current); err != nil {
+		err = errl.Errorf("Failed to send second phase email: %w", err)
+		slog.Error("Error sending second phase email", "error", err)
+		// Record the error in the database
+		_ = s.DB.SaveRegistrationLog(&db.RegistrationLog{
+			RegistrationID: current.RegistrationID,
+			Email:          current.Email,
+			VatID:          current.VatID,
+			Type:           "error",
+			Message:        fmt.Sprintf("Second phase email error: %v", err.Error()),
+		})
+	} else {
+		slog.Info("Second phase email sent", "email", current.Email)
+		current.Notified = true
+		if updateErr := s.DB.UpdateRegistrationStatus(current); updateErr != nil {
+			slog.Error("Error updating registration status with email result", "error", updateErr)
+		}
 	}
 
 	s.SendJSON(w, r, http.StatusOK, true, "Representatives updated successfully", nil)

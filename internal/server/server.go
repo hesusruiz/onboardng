@@ -17,11 +17,17 @@ type Server struct {
 	// The runtime environment where the server runs (dev, pre, pre2, pro), to enable slight behaviour differences
 	Runtime configuration.RuntimeEnv
 
+	// The application URL
+	AppURL string
+
 	// The database service provider, can be replaced if a different storage mechanism is needed
 	DB DBServiceProvider
 
 	// The Verifiable Credential Issuer service provider
 	Issuer IssuanceServiceProvider
+
+	// The Wallet URL
+	WalletURL string
 
 	// The mail service provider
 	Mail MailServiceProvider
@@ -45,26 +51,34 @@ type Server struct {
 	Features configuration.Features
 }
 
-func NewServer(runtime configuration.RuntimeEnv,
-	dbService DBServiceProvider,
-	issuer IssuanceServiceProvider,
-	mailService MailServiceProvider,
-	staticFilesDir string,
-	adminUser string,
-	adminPassword string,
-	features configuration.Features) (*Server, error) {
+type ServerConfig struct {
+	Runtime        configuration.RuntimeEnv
+	AppURL         string
+	DB             DBServiceProvider
+	Issuer         IssuanceServiceProvider
+	WalletURL      string
+	Mail           MailServiceProvider
+	StaticFilesDir string
+	AdminUser      string
+	AdminPassword  string
+	Features       configuration.Features
+}
+
+func NewHTTPServer(cfg *ServerConfig) (*Server, error) {
 
 	s := &Server{
-		Runtime:           runtime,
-		DB:                dbService,
-		Issuer:            issuer,
-		Mail:              mailService,
+		Runtime:           cfg.Runtime,
+		AppURL:            cfg.AppURL,
+		DB:                cfg.DB,
+		Issuer:            cfg.Issuer,
+		WalletURL:         cfg.WalletURL,
+		Mail:              cfg.Mail,
 		EmailRateLimiter:  make(map[string]*RateLimitEntry),
 		VerificationCodes: make(map[string]*VerificationCodeEntry),
 		IPLimiters:        make(map[string]*rate.Limiter),
-		AdminUser:         adminUser,
-		AdminPassword:     adminPassword,
-		Features:          features,
+		AdminUser:         cfg.AdminUser,
+		AdminPassword:     cfg.AdminPassword,
+		Features:          cfg.Features,
 	}
 
 	mux := http.NewServeMux()
@@ -90,6 +104,8 @@ func NewServer(runtime configuration.RuntimeEnv,
 		fileServer.ServeHTTP(w, r)
 	})
 
+	mux.Handle("/myassets/", http.StripPrefix("/myassets/", http.FileServer(http.Dir("src/assets"))))
+
 	// Middleware to wrap the Admin routes
 	nonAdminChain := func(next http.HandlerFunc) http.Handler {
 		return s.LogRequest(s.EnableCORS(s.RateLimitIP(next)))
@@ -101,6 +117,7 @@ func NewServer(runtime configuration.RuntimeEnv,
 	mux.Handle("/api/register", nonAdminChain(s.HandleRegister))
 	mux.Handle("/api/representatives", nonAdminChain(s.HandleUpdateRepresentatives))
 	mux.Handle("/api/orgstatus", nonAdminChain(s.HandleOrgStatus))
+	mux.Handle("/qr", nonAdminChain(s.QRCodeHandler))
 	mux.Handle("/health", s.EnableCORS(s.RateLimitIP(http.HandlerFunc(s.HandleHealth))))
 
 	// Admin routes
@@ -117,11 +134,19 @@ func NewServer(runtime configuration.RuntimeEnv,
 	s.Handler = mux
 
 	// Perform the run-time checks to see if everything works as expected
-	err := s.CheckAll()
-	if err != nil {
-		err = errl.Errorf("Self-Diagnostics: failed to check all: %v", err)
-		slog.Error(err.Error())
-		return nil, errl.Error(err)
+	// Only if we are not in development
+	if !s.Runtime.IsDevelopment() {
+		err := s.CheckAll()
+		if err != nil {
+			err = errl.Errorf("Self-Diagnostics: failed to check all: %v", err)
+			slog.Error(err.Error())
+
+			if s.Runtime.IsProduction() {
+				return nil, errl.Error(err)
+			} else {
+				slog.Warn("Self-Diagnostics: failed to check all, but runtime is not production, so we continue")
+			}
+		}
 	}
 
 	return s, nil
