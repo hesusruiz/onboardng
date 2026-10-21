@@ -26,10 +26,12 @@ type DBServiceProvider interface {
 
 // MailServiceProvider enables easy testing or replacing of the mail implementation
 type MailServiceProvider interface {
-	SendVerificationCode(email string, code string) error
+	SendVerificationCodeEmail(email string, code string) error
 	SendTestEmail() error
-	SendWelcomeEmail(reg *db.RegistrationRecord) error
-	SendIssuerError(reg *db.RegistrationRecord, payload string, errorMsg string) error
+	SendFirstPhaseEmail(reg *db.RegistrationRecord) error
+	SendSecondPhaseEmail(reg *db.RegistrationRecord) error
+	SendIssuerErrorEmail(reg *db.RegistrationRecord, payload string, errorMsg string) error
+	SendCheckIssuerErrorEmail(payload string, errorMsg string) error
 }
 
 // IssuanceServiceProvider enables easy testing or replacing of the issuance implementation
@@ -41,6 +43,7 @@ type IssuanceServiceProvider interface {
 	// LEARIssuanceRequest initiates the second step of the process: requesting the issuance
 	// of a new Verifiable Credential using the previously obtained access token.
 	LEARIssuanceRequest(ctx context.Context, accessToken string, learCredData *credissuance.LEARIssuanceRequestBody) ([]byte, error)
+	LEARIssuanceRequestNew(ctx context.Context, accessToken string, newCredData *credissuance.LEARIssuanceRequestBodyNew) (*credissuance.LEARIssuanceResponseNew, error)
 
 	TMFCreateOrganization(ctx context.Context, accessToken string, org *credissuance.Organization_Create) (*credissuance.Organization, error)
 	TMFUpdateOrganization(ctx context.Context, accessToken string, id string, org *credissuance.Organization_Update) (*credissuance.Organization, error)

@@ -19,6 +19,7 @@ import (
 
 	"github.com/hesusruiz/onboardng/internal/configuration"
 	"github.com/hesusruiz/onboardng/internal/crypto"
+	"github.com/hesusruiz/onboardng/internal/util"
 	"github.com/hesusruiz/utils/errl"
 )
 
@@ -29,6 +30,23 @@ type LEARIssuanceRequestBody struct {
 	Format        string  `json:"format,omitempty"`
 	ResponseUri   string  `json:"response_uri,omitempty"`
 	Payload       Payload `json:"payload"`
+}
+
+type LEARIssuanceRequestBodyNew struct {
+	CredentialConfigurationID string  `json:"credential_configuration_id"`
+	Delivery                  string  `json:"delivery"`
+	Email                     string  `json:"email"`
+	Payload                   Payload `json:"payload"`
+}
+
+type LEARIssuanceResponseNew struct {
+	Responses []struct {
+		Channel string `json:"channel"`
+		Status  int    `json:"status"`
+		Body    struct {
+			CredentialOfferURI string `json:"credential_offer_uri"`
+		} `json:"body"`
+	} `json:"responses"`
 }
 
 // ParseLEARIssuanceRequestBody unmarshals a JSON byte slice into a LEARIssuanceRequestBody.
@@ -54,17 +72,16 @@ type Mandator struct {
 	Organization           string `json:"organization,omitempty"`
 	Country                string `json:"country,omitempty"`
 	CommonName             string `json:"commonName,omitempty"`
-	EmailAddress           string `json:"emailAddress,omitempty"`
+	Email                  string `json:"email,omitempty"`
 	SerialNumber           string `json:"serialNumber,omitempty"`
 }
 
 // Mandatee represents the natural person or machine receiving the delegated powers.
 type Mandatee struct {
-	FirstName    string `json:"firstName,omitempty"`
-	LastName     string `json:"lastName,omitempty"`
-	Nationality  string `json:"nationality,omitempty"`
-	Email        string `json:"email,omitempty"`
-	SerialNumber string `json:"serialNumber,omitempty"`
+	FirstName string `json:"firstName,omitempty"`
+	LastName  string `json:"lastName,omitempty"`
+	//	Nationality string `json:"nationality,omitempty"`
+	Email string `json:"email,omitempty"`
 }
 
 // Power specifies the delegated capability (e.g., Execute Onboarding in the DOME domain).
@@ -211,13 +228,12 @@ func (l *LEARIssuance) LEARIssuanceRequest(ctx context.Context, accessToken stri
 
 	resp, err := l.httpClient.Do(req)
 	if err != nil {
-		return nil, errl.Errorf("error calling LEAR Issuance Endpoint: %w", err)
+		return nil, errl.Errorf("error calling LEAR Issuance Endpoint (%s): %w", l.credentialIssuancePath, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode > 399 {
-		fmt.Println("Error calling LEAR Issuance Endpoint:", resp.Status)
-		return nil, errl.Errorf("error calling LEAR Issuance Endpoint: %v", resp.Status)
+		return nil, errl.Errorf("error calling LEAR Issuance Endpoint (%s): %v", l.credentialIssuancePath, resp.Status)
 	}
 
 	ResponseBody, err := io.ReadAll(resp.Body)
@@ -226,4 +242,88 @@ func (l *LEARIssuance) LEARIssuanceRequest(ctx context.Context, accessToken stri
 	}
 
 	return ResponseBody, nil
+}
+
+// LEARIssuanceRequestNew calls the Issuer to issue a new Verifiable Credential.
+func (l *LEARIssuance) LEARIssuanceRequestNew(ctx context.Context, accessToken string, learCredData *LEARIssuanceRequestBodyNew) (*LEARIssuanceResponseNew, error) {
+
+	if accessToken == "" {
+		return nil, errl.Errorf("access token is required for LEARIssuanceRequest")
+	}
+
+	fmt.Printf("Access Token: %v\n", accessToken)
+	fmt.Printf("Issuance Endpoint: %v\n", l.credentialIssuancePath)
+
+	// The request buffer
+	buf, err := json.Marshal(learCredData)
+	if err != nil {
+		return nil, errl.Errorf("error marshalling request body: %w", err)
+	}
+	requestBody := bytes.NewBuffer(buf)
+
+	// The request to send
+	req, err := http.NewRequestWithContext(ctx, "POST", l.credentialIssuancePath, requestBody)
+	if err != nil {
+		return nil, errl.Errorf("error creating http request: %w", err)
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+	if accessToken != "" {
+		req.Header.Add("Authorization", "Bearer "+accessToken)
+	}
+
+	resp, err := l.httpClient.Do(req)
+	if err != nil {
+		return nil, errl.Errorf("error calling LEAR Issuance Endpoint (%s): %w", l.credentialIssuancePath, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode > 399 {
+		return nil, errl.Errorf("error calling LEAR Issuance Endpoint (%s): %v", l.credentialIssuancePath, resp.Status)
+	}
+
+	ResponseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errl.Errorf("error reading response body: %w", err)
+	}
+
+	// The response is a JSON object with this format:
+	// {
+	//   "responses": [
+	//     {
+	//       "channel": "ui",
+	//       "status": 200,
+	//       "body": { "credential_offer_uri": "openid-credential-offer://?credential_offer_uri=https%3A%2F%2F..." }
+	//     }
+	//   ]
+	// }
+
+	// Parse the response body
+	var response LEARIssuanceResponseNew
+	if err := json.Unmarshal(ResponseBody, &response); err != nil {
+		// Print the response body on error
+		fmt.Printf("Error response body: %v\n", string(ResponseBody))
+		return nil, errl.Errorf("error unmarshalling response body: %w", err)
+	}
+
+	// Check the response status
+	if len(response.Responses) == 0 {
+		fmt.Printf("Error response body: %v\n", util.PrettyPrint(response))
+		return nil, errl.Errorf("empty response from LEAR Issuance Endpoint")
+	}
+
+	responseStatus := response.Responses[0].Status
+	if responseStatus < 200 || responseStatus > 399 {
+		fmt.Printf("Error response body: %v\n", util.PrettyPrint(response))
+		return nil, errl.Errorf("error response from LEAR Issuance Endpoint: %d", responseStatus)
+	}
+
+	credentialOfferURI := response.Responses[0].Body.CredentialOfferURI
+	if credentialOfferURI == "" {
+		fmt.Printf("Error response body: %v\n", util.PrettyPrint(response))
+		return nil, errl.Errorf("credential offer URI is missing in response from LEAR Issuance Endpoint")
+	}
+
+	fmt.Printf("Success response body: %v\n", util.PrettyPrint(response))
+	return &response, nil
 }

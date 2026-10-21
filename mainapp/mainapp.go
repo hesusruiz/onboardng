@@ -27,22 +27,30 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Run is the main entry point for the application
+// It defines the commands that can be run:
+// - serve: run the server and serve the frontend
+// - generate: generate the frontend of the application
+// - seal: seal (encrypt) the application config file
 func Run() error {
 
 	// Define the main serve command
 	serveCmd := flag.NewFlagSet("serve", flag.ExitOnError)
-	serveCfgPath := serveCmd.String("config", "config.age", "Path to config file (.yaml or .age)")
+	serveCfgPath := serveCmd.String("config", "", "Path to config file (.yaml or .age)")
 	watchFlag := serveCmd.Bool("watch", false, "watch for changes and start server")
 	envFlag := serveCmd.String("env", "dev", "environment to serve (dev, pre or pro)")
 	port := serveCmd.String("port", "7777", "port for the server")
 
 	// Define the generate command
 	generateCmd := flag.NewFlagSet("generate", flag.ExitOnError)
+	genCfgPath := generateCmd.String("config", "", "Path to config file (.yaml or .age)")
+	genEnvFlag := generateCmd.String("env", "dev", "environment to use (dev, pre or pro)")
 
 	// Define the seal command
 	sealCmd := flag.NewFlagSet("seal", flag.ExitOnError)
-	sealIn := sealCmd.String("in", "config/config.yaml", "Plaintext YAML file to encrypt")
-	sealOut := sealCmd.String("out", "config.age", "Target encrypted file path")
+	sealIn := sealCmd.String("in", "", "Plaintext YAML file to encrypt")
+	sealOut := sealCmd.String("out", "", "Target encrypted file path")
+	sealEnv := sealCmd.String("env", "dev", "environment to seal (dev, pre or pro)")
 	newKey := sealCmd.Bool("newkey", false, "Generate a new key to use for encryption")
 
 	command := os.Getenv("ONBOARDNG_COMMAND")
@@ -89,7 +97,7 @@ func Run() error {
 		secretKey := os.Getenv("AGE_SECRET_KEY")
 		if secretKey != "" {
 			os.Unsetenv("AGE_SECRET_KEY")
-			slog.Info("🔐 AGE_SECRET_KEY captured and removed from environment")
+			slog.Info("AGE_SECRET_KEY retrieved and removed from environment")
 		}
 
 		// Read secret key from file if not already set by env var
@@ -100,13 +108,21 @@ func Run() error {
 			}
 		}
 
-		cfg := LoadEncryptedConfig(*serveCfgPath, secretKey)
+		configPath := resolveConfigPath(*serveCfgPath, *envFlag)
+		cfg := LoadEncryptedConfig(configPath, secretKey)
 
 		return serve(cfg, *envFlag, *port, *watchFlag, secretKey)
 
 	case "generate":
 		// Generate the frontend
 		generateCmd.Parse(cmdArgs)
+
+		if envConfig := os.Getenv("ONBOARDNG_CONFIG"); envConfig != "" {
+			*genCfgPath = envConfig
+		}
+		if runtimeEnv := os.Getenv("ONBOARDNG_ENV"); runtimeEnv != "" {
+			*genEnvFlag = runtimeEnv
+		}
 
 		// Read and immediately UNSET the secret key from the environment
 		secretKey := os.Getenv("AGE_SECRET_KEY")
@@ -122,12 +138,28 @@ func Run() error {
 			}
 		}
 
-		cfg := LoadEncryptedConfig(*serveCfgPath, secretKey)
+		configPath := resolveConfigPath(*genCfgPath, *genEnvFlag)
+		cfg := LoadEncryptedConfig(configPath, secretKey)
 		return generate(cfg)
 
 	case "seal":
 		// Seal the config file
 		sealCmd.Parse(cmdArgs)
+
+		if envConfig := os.Getenv("ONBOARDNG_CONFIG"); envConfig != "" && *sealIn == "" {
+			*sealIn = envConfig
+		}
+		if runtimeEnv := os.Getenv("ONBOARDNG_ENV"); runtimeEnv != "" {
+			*sealEnv = runtimeEnv
+		}
+
+		if *sealIn == "" {
+			*sealIn = filepath.Join("config", fmt.Sprintf("config.%s.yaml", *sealEnv))
+		}
+		if *sealOut == "" {
+			*sealOut = fmt.Sprintf("config.%s.age", *sealEnv)
+		}
+
 		if err := sealConfig(*sealIn, *sealOut, *newKey); err != nil {
 			log.Fatalf("Error sealing config: %v", err)
 		}
@@ -159,63 +191,65 @@ func usage(runCmd, generateCmd, sealCmd *flag.FlagSet) {
 	fmt.Println()
 }
 
-func serve(cfg configuration.Config, envFlag string, port string, watchFlag bool, secretKey string) error {
+// resolveConfigPath resolves the configuration file path based on provided path and environment.
+func resolveConfigPath(configPath string, env string) string {
+	if configPath != "" {
+		return configPath
+	}
+	// Check for environment encrypted config (e.g. config.dev.age)
+	envAge := fmt.Sprintf("config.%s.age", env)
+	if _, err := os.Stat(envAge); err == nil {
+		return envAge
+	}
+	// Check for environment plaintext YAML (e.g. config/config.dev.yaml)
+	envYaml := filepath.Join("config", fmt.Sprintf("config.%s.yaml", env))
+	if _, err := os.Stat(envYaml); err == nil {
+		return envYaml
+	}
+	// Check for general config.age
+	if _, err := os.Stat("config.age"); err == nil {
+		return "config.age"
+	}
+	// Default to environment-specific yaml path
+	return envYaml
+}
 
-	runtimeEnv := configuration.RuntimeEnv(envFlag)
+func serve(cfg configuration.Config, envFlag string, port string, watchFlag bool, secretKey string) error {
 
 	slog.Info("Starting server", "env", envFlag, "port", port, "watch", watchFlag)
 
-	// Get the configuration corresponding to the runtime environment
-	srvConfig, ok := cfg.Environments[envFlag]
-	if !ok {
-		return errl.Errorf("environment %s not found in config", envFlag)
+	cfg.Runtime = configuration.RuntimeEnv(envFlag)
+	cfg.AgeSecretKey = secretKey
+	cfg.Mail.AgeSecretKey = secretKey
+
+	// Override the App URL if set in environment variables
+	originsEnv := os.Getenv("AUTH_ORIGINS")
+	if originsEnv != "" {
+		allowedOrigins := strings.Split(originsEnv, ",")
+		cfg.AppURL = allowedOrigins[0]
 	}
 
-	srvConfig.Runtime = runtimeEnv
-	fmt.Println(srvConfig.String())
-
-	// Pass the secret key to the environment configuration
-	srvConfig.AgeSecretKey = secretKey
-	srvConfig.Mail.AgeSecretKey = secretKey
-	cfg.Environments[envFlag] = srvConfig
+	fmt.Println(cfg.String())
 
 	// Setup issuer
-	issuerCfg := configuration.EnvConfig{
-		Runtime:           runtimeEnv,
-		Debug:             srvConfig.Debug,
-		PrivateKey:        srvConfig.PrivateKey,
-		MachineCredential: srvConfig.MachineCredential,
-		MyDidkey:          srvConfig.MyDidkey,
-		Verifier: configuration.VerifierConfig{
-			URL:           srvConfig.Verifier.URL,
-			TokenEndpoint: srvConfig.Verifier.TokenEndpoint,
-		},
-		Issuer: configuration.IssuerConfig{
-			CredentialIssuancePath: srvConfig.Issuer.CredentialIssuancePath,
-		},
-		TMForum: configuration.TMForumConfig{
-			BaseURL: srvConfig.TMForum.BaseURL,
-		},
-		Features: srvConfig.Features,
-	}
-	issuanceService, err := credissuance.NewLEARIssuance(issuerCfg)
+	issuanceService, err := credissuance.NewLEARIssuance(cfg.EnvConfig)
 	if err != nil {
-		slog.Error("❌ Error creating issuance service", "error", errl.Error(err))
+		slog.Error("Error creating issuance service", "error", errl.Error(err))
 		os.Exit(1)
 	}
 
 	// Initialize Database service
-	dbService, err := db.NewDBService(runtimeEnv, "data/onboarding.db")
+	dbService, err := db.NewDBService(cfg.Runtime, "data/onboarding.db")
 	if err != nil {
-		slog.Error("❌ Error initializing database service", "error", errl.Error(err))
+		slog.Error("Error initializing database service", "error", errl.Error(err))
 		return err
 	}
 	defer dbService.Close()
 
 	// Initialize Mail service
-	mailService, err := mail.NewMailService(runtimeEnv, srvConfig.Mail)
+	mailService, err := mail.NewMailService(cfg.Runtime, cfg.Mail)
 	if err != nil {
-		slog.Error("❌ Error initializing mail service", "error", errl.Error(err))
+		slog.Error("Error initializing mail service", "error", errl.Error(err))
 		return err
 	}
 
@@ -230,7 +264,7 @@ func serve(cfg configuration.Config, envFlag string, port string, watchFlag bool
 
 	adminUser := os.Getenv("ADMIN_USER")
 	if adminUser == "" {
-		if runtimeEnv != configuration.Production {
+		if !cfg.Runtime.IsProduction() {
 			adminUser = "admin"
 		} else {
 			log.Fatalf("Error: ADMIN_USER environment variable is not set")
@@ -238,14 +272,27 @@ func serve(cfg configuration.Config, envFlag string, port string, watchFlag bool
 	}
 	adminPassword := os.Getenv("ADMIN_PASSWORD")
 	if adminPassword == "" {
-		if runtimeEnv != configuration.Production {
+		if !cfg.Runtime.IsProduction() {
 			adminPassword = "pepe"
 		} else {
 			log.Fatalf("Error: ADMIN_PASSWORD environment variable is not set")
 		}
 	}
 
-	srv, err := server.NewServer(runtimeEnv, dbService, issuanceService, mailService, cfg.DestDir, adminUser, adminPassword, srvConfig.Features)
+	serverConfig := &server.ServerConfig{
+		Runtime:        cfg.Runtime,
+		AppURL:         cfg.AppURL,
+		DB:             dbService,
+		Issuer:         issuanceService,
+		WalletURL:      cfg.Wallet.CredentialIssuanceCallback,
+		Mail:           mailService,
+		StaticFilesDir: cfg.DestDir,
+		AdminUser:      adminUser,
+		AdminPassword:  adminPassword,
+		Features:       cfg.Features,
+	}
+
+	srv, err := server.NewHTTPServer(serverConfig)
 	if err != nil {
 		log.Fatalf("Error: Could not create server: %v", err)
 	}
@@ -256,7 +303,7 @@ func serve(cfg configuration.Config, envFlag string, port string, watchFlag bool
 	}
 
 	// Start Server
-	slog.Info("🚀 Server running", "env", envFlag, "dir", cfg.DestDir, "url", "https://onboarddev.dome.mycredential.eu")
+	slog.Info("Server running", "env", envFlag, "dir", cfg.DestDir, "url", cfg.AppURL)
 	if err := http.ListenAndServe(":"+port, srv.Handler); err != nil {
 		newerr := errl.Error(err)
 		slog.Error("Server failed", "error", newerr)
@@ -328,26 +375,22 @@ func LoadEncryptedConfig(path string, secretKey string) configuration.Config {
 		log.Fatalf("Error: Failed to parse YAML: %v", err)
 	}
 
-	// Prepare each environment: decrypt or read internal credentials
-	for name, env := range cfg.Environments {
-		env.AgeSecretKey = secretKey
+	cfg.AgeSecretKey = secretKey
+	cfg.Mail.AgeSecretKey = secretKey
 
-		// Prepare Private Key
-		priv, err := decryptInternalCredential(env.PrivateKey, env.PrivateKeyFile, secretKey)
-		if err != nil {
-			log.Fatalf("Error preparing private key for environment %s: %v", name, err)
-		}
-		env.PrivateKey = priv
-
-		// Prepare Machine Credential
-		machine, err := decryptInternalCredential(env.MachineCredential, env.MachineCredentialFile, secretKey)
-		if err != nil {
-			log.Fatalf("Error preparing machine credential for environment %s: %v", name, err)
-		}
-		env.MachineCredential = machine
-
-		cfg.Environments[name] = env
+	// Prepare Private Key
+	priv, err := decryptInternalCredential(cfg.PrivateKey, cfg.PrivateKeyFile, secretKey)
+	if err != nil {
+		log.Fatalf("Error preparing private key: %v", err)
 	}
+	cfg.PrivateKey = priv
+
+	// Prepare Machine Credential
+	machine, err := decryptInternalCredential(cfg.MachineCredential, cfg.MachineCredentialFile, secretKey)
+	if err != nil {
+		log.Fatalf("Error preparing machine credential: %v", err)
+	}
+	cfg.MachineCredential = machine
 
 	return cfg
 }
@@ -434,25 +477,28 @@ func sealConfig(inputPath, outputPath string, newKey bool) error {
 		publicKey = identity.Recipient()
 	} // End of if newKey
 
-	// Encrypt private key and machine credential for each environment
+	// Encrypt private key and machine credential
 	// Encrypt also the SMTP password
-	for name, env := range cfg.Environments {
-		privateKeyEncrypted, err := sealFile(env.PrivateKeyFile, publicKey)
+	if cfg.PrivateKeyFile != "" {
+		privateKeyEncrypted, err := sealFile(cfg.PrivateKeyFile, publicKey)
 		if err != nil {
 			return err
 		}
-		machineCredentialEncrypted, err := sealFile(env.MachineCredentialFile, publicKey)
+		cfg.PrivateKey = string(privateKeyEncrypted)
+	}
+	if cfg.MachineCredentialFile != "" {
+		machineCredentialEncrypted, err := sealFile(cfg.MachineCredentialFile, publicKey)
 		if err != nil {
 			return err
 		}
-		smtpPasswordEncrypted, err := sealFile(env.Mail.SMTP.PasswordFile, publicKey)
+		cfg.MachineCredential = string(machineCredentialEncrypted)
+	}
+	if cfg.Mail.SMTP.PasswordFile != "" {
+		smtpPasswordEncrypted, err := sealFile(cfg.Mail.SMTP.PasswordFile, publicKey)
 		if err != nil {
 			return err
 		}
-		env.PrivateKey = string(privateKeyEncrypted)
-		env.MachineCredential = string(machineCredentialEncrypted)
-		env.Mail.SMTP.Password = string(smtpPasswordEncrypted)
-		cfg.Environments[name] = env
+		cfg.Mail.SMTP.Password = string(smtpPasswordEncrypted)
 	}
 
 	// Marshall to YAML
@@ -537,6 +583,8 @@ func sealFile(inputPath string, publicKey age.Recipient) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// startWatcher is a development/debugging feature that rebuilds the frontend when the frontend source code changes.
+// It should not be used in production
 func startWatcher(cfg configuration.Config) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -545,6 +593,8 @@ func startWatcher(cfg configuration.Config) {
 	}
 	defer watcher.Close()
 
+	// We are going to watch the src directory and its subdirectories for changes
+	// If you have some other directories you want to watch, add them to watchPaths
 	watchPaths := []string{
 		cfg.SrcDir,
 	}
@@ -572,7 +622,9 @@ func startWatcher(cfg configuration.Config) {
 			if !ok {
 				return
 			}
-			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Remove|fsnotify.Rename) != 0 {
+			// We only care about events that modify files in the src directory
+			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Remove|fsnotify.Rename) != 0 &&
+				strings.HasPrefix(event.Name, cfg.SrcDir) {
 				slog.Info("📝 File updated. Regenerating...", "file", event.Name)
 				generate(cfg)
 			}

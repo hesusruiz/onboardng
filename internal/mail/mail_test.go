@@ -2,10 +2,12 @@ package mail
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"net"
 	"net/textproto"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -94,7 +96,8 @@ func (s *mockSMTPServer) handle(conn net.Conn) {
 				if err != nil || line == "." {
 					break
 				}
-				message.WriteString(line + "\n")
+				message.WriteString(line)
+				message.WriteString("\n")
 			}
 			s.received <- message.String()
 			conn.Write([]byte("250 OK\r\n"))
@@ -107,7 +110,7 @@ func (s *mockSMTPServer) handle(conn net.Conn) {
 	}
 }
 
-func TestSendWelcomeEmail(t *testing.T) {
+func TestSendFirstPhaseEmail(t *testing.T) {
 
 	// Start mock SMTP server
 	mockServer, err := newMockSMTPServer("127.0.0.1:0")
@@ -163,9 +166,9 @@ func TestSendWelcomeEmail(t *testing.T) {
 	}
 
 	// Send email
-	err = mailService.SendWelcomeEmail(reg)
+	err = mailService.SendFirstPhaseEmail(reg)
 	if err != nil {
-		t.Fatalf("SendWelcomeEmail failed: %v", err)
+		t.Fatalf("SendFirstPhaseEmail failed: %v", err)
 	}
 
 	// Verify received email
@@ -185,5 +188,156 @@ func TestSendWelcomeEmail(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Errorf("timeout waiting for email")
+	}
+}
+
+func TestSendEmailWithCustomTemplate(t *testing.T) {
+	// Start mock SMTP server
+	mockServer, err := newMockSMTPServer("127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to start mock SMTP server: %v", err)
+	}
+	mockServer.start()
+	defer mockServer.stop()
+
+	// Get server host and port
+	host, portStr, _ := net.SplitHostPort(mockServer.addr)
+	var port int
+	fmt.Sscanf(portStr, "%d", &port)
+
+	// Create temporary template directory
+	tempDir, err := os.MkdirTemp("", "templates")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Write a custom template file
+	customTmpl := `<p>Custom Template Body: {{.Val}}</p>`
+	err = os.WriteFile(filepath.Join(tempDir, "custom.html"), []byte(customTmpl), 0644)
+	if err != nil {
+		t.Fatalf("failed to write temp template file: %v", err)
+	}
+
+	// Create temporary password file
+	tmpFile, err := os.CreateTemp("", "smtppassword")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+	tmpFile.WriteString("testpassword")
+	tmpFile.Close()
+
+	mailCfg := configuration.MailConfig{
+		OnboardTeamEmail: []string{"onboard@example.com"},
+		TemplateDir:      tempDir,
+		SMTP: configuration.SMTPConfig{
+			Enabled:      true,
+			Host:         host,
+			Port:         port,
+			TLS:          false,
+			Username:     "test@example.com",
+			PasswordFile: tmpFile.Name(),
+		},
+	}
+
+	mailService, err := NewMailService(configuration.Development, mailCfg)
+	if err != nil {
+		t.Fatalf("failed to create mail service: %v", err)
+	}
+
+	// 1. Verify custom template is loaded from disk
+	data := map[string]any{"Val": "Hello dynamic templates!"}
+	err = mailService.SendEmail([]string{"recipient@example.com"}, nil, nil, "Subject", "custom.html", data)
+	if err != nil {
+		t.Fatalf("failed to send custom email: %v", err)
+	}
+
+	select {
+	case msg := <-mockServer.received:
+		if !strings.Contains(msg, "Custom Template Body: Hello dynamic templates!") {
+			t.Errorf("expected email to contain custom body, got: %s", msg)
+		}
+	case <-time.After(2 * time.Second):
+		t.Errorf("timeout waiting for email")
+	}
+
+	// 2. Verify fallback to embedded template (e.g. email_test.html)
+	testData := struct {
+		Email            string
+		Code             string
+		Runtime          configuration.RuntimeEnv
+		OnboardTeamEmail string
+	}{
+		Email:            "recipient@example.com",
+		Code:             "987654",
+		Runtime:          configuration.Development,
+		OnboardTeamEmail: "support@example.com",
+	}
+	err = mailService.SendEmail([]string{"recipient@example.com"}, nil, nil, "Test Fallback", "email_test.html", testData)
+	if err != nil {
+		t.Fatalf("failed to send fallback email: %v", err)
+	}
+
+	select {
+	case msg := <-mockServer.received:
+		if !strings.Contains(msg, "987654") {
+			t.Errorf("expected email to contain embedded code 987654, got: %s", msg)
+		}
+	case <-time.After(2 * time.Second):
+		t.Errorf("timeout waiting for email")
+	}
+
+	// 3. Verify directory traversal protection (filepath.Base sanitization)
+	err = mailService.SendEmail([]string{"recipient@example.com"}, nil, nil, "Traversal Test", "../../../secret.txt", nil)
+	if err == nil {
+		t.Error("expected error when trying to request path with directory traversal, but got none")
+	} else if !strings.Contains(err.Error(), "secret.txt") {
+		t.Errorf("expected error message to refer to the sanitized base name 'secret.txt', got: %v", err)
+	}
+}
+
+func TestTemplateRuntimeEnvRendering(t *testing.T) {
+	mailService, err := NewMailService(configuration.Development, configuration.MailConfig{})
+	if err != nil {
+		t.Fatalf("failed to create mail service: %v", err)
+	}
+
+	tmpl, err := mailService.getTemplate("email_verification.html")
+	if err != nil {
+		t.Fatalf("failed to get template: %v", err)
+	}
+
+	// 1. In Development: banner should be included
+	var devBuf bytes.Buffer
+	devData := map[string]any{
+		"Code":             "123456",
+		"Runtime":          configuration.Development,
+		"OnboardTeamEmail": "support@example.com",
+	}
+	if err := tmpl.Execute(&devBuf, devData); err != nil {
+		t.Fatalf("failed to execute template with Development runtime: %v", err)
+	}
+	devContent := devBuf.String()
+	if !strings.Contains(devContent, "Test Environment") {
+		t.Errorf("expected banner in Development, but not found")
+	}
+	if !strings.Contains(devContent, "SBX") {
+		t.Errorf("expected runtime String() 'SBX' in Development output, got: %s", devContent)
+	}
+
+	// 2. In Production: banner should NOT be included
+	var prodBuf bytes.Buffer
+	prodData := map[string]any{
+		"Code":             "123456",
+		"Runtime":          configuration.Production,
+		"OnboardTeamEmail": "support@example.com",
+	}
+	if err := tmpl.Execute(&prodBuf, prodData); err != nil {
+		t.Fatalf("failed to execute template with Production runtime: %v", err)
+	}
+	prodContent := prodBuf.String()
+	if strings.Contains(prodContent, "Test Environment") {
+		t.Errorf("expected banner to be hidden in Production, but found in output")
 	}
 }

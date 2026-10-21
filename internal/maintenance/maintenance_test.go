@@ -6,10 +6,8 @@ import (
 	"time"
 )
 
-func TestShouldRun(t *testing.T) {
-	s := NewMaintenanceService()
-
-	// Every day at 03:00
+func TestScheduleNext(t *testing.T) {
+	// Everyday at 03:00
 	schedEveryday := Schedule{Hour: 3, Minute: 0}
 
 	// Sundays at 04:30
@@ -21,72 +19,170 @@ func TestShouldRun(t *testing.T) {
 	tests := []struct {
 		name     string
 		schedule Schedule
-		now      time.Time
-		lastRun  time.Time
-		want     bool
+		from     time.Time
+		want     time.Time
 	}{
 		{
-			name:     "Everyday - matching time",
+			name:     "Everyday - from earlier today",
 			schedule: schedEveryday,
-			now:      time.Date(2026, 2, 28, 3, 0, 0, 0, time.UTC),
-			want:     true,
+			from:     time.Date(2026, 2, 28, 1, 0, 0, 0, time.UTC),
+			want:     time.Date(2026, 2, 28, 3, 0, 0, 0, time.UTC),
 		},
 		{
-			name:     "Everyday - wrong hour",
+			name:     "Everyday - from exact scheduled time advances to tomorrow",
 			schedule: schedEveryday,
-			now:      time.Date(2026, 2, 28, 4, 0, 0, 0, time.UTC),
-			want:     false,
+			from:     time.Date(2026, 2, 28, 3, 0, 0, 0, time.UTC),
+			want:     time.Date(2026, 3, 1, 3, 0, 0, 0, time.UTC),
 		},
 		{
-			name:     "Everyday - wrong minute",
+			name:     "Everyday - from later today advances to tomorrow",
 			schedule: schedEveryday,
-			now:      time.Date(2026, 2, 28, 3, 1, 0, 0, time.UTC),
-			want:     false,
+			from:     time.Date(2026, 2, 28, 4, 0, 0, 0, time.UTC),
+			want:     time.Date(2026, 3, 1, 3, 0, 0, 0, time.UTC),
 		},
 		{
-			name:     "Everyday - matching time but already run this minute",
-			schedule: schedEveryday,
-			now:      time.Date(2026, 2, 28, 3, 0, 10, 0, time.UTC),
-			lastRun:  time.Date(2026, 2, 28, 3, 0, 5, 0, time.UTC),
-			want:     false,
-		},
-		{
-			name:     "Sunday - matching day and time",
+			name:     "Sunday - from Saturday advances to Sunday",
 			schedule: schedSunday,
-			now:      time.Date(2026, 3, 1, 4, 30, 0, 0, time.UTC), // 2026-03-01 is Sunday
-			want:     true,
+			from:     time.Date(2026, 2, 28, 10, 0, 0, 0, time.UTC), // Saturday
+			want:     time.Date(2026, 3, 1, 4, 30, 0, 0, time.UTC),  // Sunday
 		},
 		{
-			name:     "Sunday - wrong day (Saturday)",
+			name:     "Sunday - from Sunday earlier",
 			schedule: schedSunday,
-			now:      time.Date(2026, 2, 28, 4, 30, 0, 0, time.UTC), // 2026-02-28 is Saturday
-			want:     false,
+			from:     time.Date(2026, 3, 1, 2, 0, 0, 0, time.UTC),  // Sunday
+			want:     time.Date(2026, 3, 1, 4, 30, 0, 0, time.UTC), // Sunday
 		},
 		{
-			name:     "MonThu - Monday matching",
-			schedule: schedMonThu,
-			now:      time.Date(2026, 2, 23, 5, 0, 0, 0, time.UTC), // 2026-02-23 is Monday
-			want:     true,
+			name:     "Sunday - from Sunday after advances to next Sunday",
+			schedule: schedSunday,
+			from:     time.Date(2026, 3, 1, 5, 0, 0, 0, time.UTC),  // Sunday
+			want:     time.Date(2026, 3, 8, 4, 30, 0, 0, time.UTC), // Next Sunday
 		},
 		{
-			name:     "MonThu - Thursday matching",
+			name:     "MonThu - from Sunday advances to Monday",
 			schedule: schedMonThu,
-			now:      time.Date(2026, 2, 26, 5, 0, 0, 0, time.UTC), // 2026-02-26 is Thursday
-			want:     true,
+			from:     time.Date(2026, 2, 22, 12, 0, 0, 0, time.UTC), // Sunday
+			want:     time.Date(2026, 2, 23, 5, 0, 0, 0, time.UTC),  // Monday
 		},
 		{
-			name:     "MonThu - Wednesday wrong",
+			name:     "MonThu - from Monday after advances to Thursday",
 			schedule: schedMonThu,
-			now:      time.Date(2026, 2, 25, 5, 0, 0, 0, time.UTC), // 2026-02-25 is Wednesday
-			want:     false,
+			from:     time.Date(2026, 2, 23, 6, 0, 0, 0, time.UTC), // Monday
+			want:     time.Date(2026, 2, 26, 5, 0, 0, 0, time.UTC), // Thursday
+		},
+		{
+			name:     "MonThu - from Wednesday advances to Thursday",
+			schedule: schedMonThu,
+			from:     time.Date(2026, 2, 25, 12, 0, 0, 0, time.UTC), // Wednesday
+			want:     time.Date(2026, 2, 26, 5, 0, 0, 0, time.UTC),  // Thursday
+		},
+		{
+			name:     "MonThu - from Thursday after advances to next Monday",
+			schedule: schedMonThu,
+			from:     time.Date(2026, 2, 26, 6, 0, 0, 0, time.UTC), // Thursday
+			want:     time.Date(2026, 3, 2, 5, 0, 0, 0, time.UTC),  // Next Monday
+		},
+		{
+			name:     "EveryHour everyday - earlier in current hour",
+			schedule: Schedule{Hour: EveryHour, Minute: 15},
+			from:     time.Date(2026, 2, 28, 10, 10, 0, 0, time.UTC),
+			want:     time.Date(2026, 2, 28, 10, 15, 0, 0, time.UTC),
+		},
+		{
+			name:     "EveryHour everyday - exact minute advances to next hour",
+			schedule: Schedule{Hour: EveryHour, Minute: 15},
+			from:     time.Date(2026, 2, 28, 10, 15, 0, 0, time.UTC),
+			want:     time.Date(2026, 2, 28, 11, 15, 0, 0, time.UTC),
+		},
+		{
+			name:     "EveryHour everyday - later in current hour advances to next hour",
+			schedule: Schedule{Hour: EveryHour, Minute: 15},
+			from:     time.Date(2026, 2, 28, 10, 20, 0, 0, time.UTC),
+			want:     time.Date(2026, 2, 28, 11, 15, 0, 0, time.UTC),
+		},
+		{
+			name:     "EveryHour everyday - late night advances across midnight",
+			schedule: Schedule{Hour: EveryHour, Minute: 15},
+			from:     time.Date(2026, 2, 28, 23, 45, 0, 0, time.UTC),
+			want:     time.Date(2026, 3, 1, 0, 15, 0, 0, time.UTC),
+		},
+		{
+			name:     "EveryHour on Sunday - from Saturday advances to Sunday 00:Minute",
+			schedule: Schedule{Weekdays: []time.Weekday{time.Sunday}, Hour: -1, Minute: 30},
+			from:     time.Date(2026, 2, 28, 14, 0, 0, 0, time.UTC), // Saturday
+			want:     time.Date(2026, 3, 1, 0, 30, 0, 0, time.UTC),  // Sunday
+		},
+		{
+			name:     "EveryHour on Sunday - during Sunday runs next hour",
+			schedule: Schedule{Weekdays: []time.Weekday{time.Sunday}, Hour: EveryHour, Minute: 30},
+			from:     time.Date(2026, 3, 1, 14, 15, 0, 0, time.UTC), // Sunday
+			want:     time.Date(2026, 3, 1, 14, 30, 0, 0, time.UTC), // Sunday
+		},
+		{
+			name:     "EveryHour on Sunday - end of Sunday advances to next Sunday 00:Minute",
+			schedule: Schedule{Weekdays: []time.Weekday{time.Sunday}, Hour: EveryHour, Minute: 30},
+			from:     time.Date(2026, 3, 1, 23, 45, 0, 0, time.UTC), // Sunday
+			want:     time.Date(2026, 3, 8, 0, 30, 0, 0, time.UTC),  // Next Sunday
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.schedule.Next(tt.from)
+			if !got.Equal(tt.want) {
+				t.Errorf("Next() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestShouldRun(t *testing.T) {
+	s := NewMaintenanceService()
+
+	targetTime := time.Date(2026, 2, 28, 3, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name    string
+		nextRun time.Time
+		now     time.Time
+		want    bool
+	}{
+		{
+			name:    "Before scheduled time",
+			nextRun: targetTime,
+			now:     targetTime.Add(-10 * time.Second),
+			want:    false,
+		},
+		{
+			name:    "Exactly at scheduled time",
+			nextRun: targetTime,
+			now:     targetTime,
+			want:    true,
+		},
+		{
+			name:    "After scheduled time (ticker drift/delay)",
+			nextRun: targetTime,
+			now:     targetTime.Add(45 * time.Second),
+			want:    true,
+		},
+		{
+			name:    "Significantly after scheduled time (paused/delayed tick)",
+			nextRun: targetTime,
+			now:     targetTime.Add(2 * time.Minute),
+			want:    true,
+		},
+		{
+			name:    "Uninitialized task (zero nextRun)",
+			nextRun: time.Time{},
+			now:     targetTime,
+			want:    false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			task := &task{
-				schedule: tt.schedule,
-				lastRun:  tt.lastRun,
+				nextRun: tt.nextRun,
 			}
 			if got := s.shouldRun(task, tt.now); got != tt.want {
 				t.Errorf("shouldRun() = %v, want %v", got, tt.want)
@@ -94,6 +190,7 @@ func TestShouldRun(t *testing.T) {
 		})
 	}
 }
+
 func TestTaskExecution(t *testing.T) {
 	s := NewMaintenanceService()
 
@@ -106,7 +203,6 @@ func TestTaskExecution(t *testing.T) {
 		deadline, ok := ctx.Deadline()
 		if ok {
 			hasDeadline = true
-			// Check if deadline is roughly 1 hour from now
 			remaining := time.Until(deadline)
 			if remaining > 59*time.Minute && remaining < 61*time.Minute {
 				// Success
@@ -118,11 +214,23 @@ func TestTaskExecution(t *testing.T) {
 		return nil
 	})
 
-	// Manually trigger task check with matching time
-	now := time.Date(2026, 2, 28, 10, 0, 0, 0, time.UTC)
+	now := time.Date(2026, 2, 28, 10, 0, 15, 0, time.UTC) // 15 seconds after 10:00 (simulate tick)
+	// Ensure the task's nextRun is set to 10:00:00 on this test date
+	s.tasks[0].nextRun = time.Date(2026, 2, 28, 10, 0, 0, 0, time.UTC)
+
+	// Trigger task check
 	s.checkAndRunTasks(now)
 
-	// Wait for task to execute
+	// Verify that nextRun was advanced and lastRun was updated
+	expectedNext := time.Date(2026, 3, 1, 10, 0, 0, 0, time.UTC)
+	if !s.tasks[0].nextRun.Equal(expectedNext) {
+		t.Errorf("expected nextRun to advance to %v, got %v", expectedNext, s.tasks[0].nextRun)
+	}
+	if !s.tasks[0].lastRun.Equal(now) {
+		t.Errorf("expected lastRun to be %v, got %v", now, s.tasks[0].lastRun)
+	}
+
+	// Wait for task goroutine to execute
 	select {
 	case <-executed:
 		if !calledWithContext {

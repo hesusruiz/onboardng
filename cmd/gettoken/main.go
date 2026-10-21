@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/hesusruiz/onboardng/credissuance"
@@ -27,36 +28,26 @@ func main() {
 		}
 	}
 
-	//Load encrypted config
-	cfg := mainapp.LoadEncryptedConfig(*configPath, secretKey)
-
-	// Get the environment config for the runtime environment
-	srvConfig, ok := cfg.Environments[*envFlag]
-	if !ok {
-		log.Fatalf("Environment %s not found in config", *envFlag)
+	resolvedConfigPath := *configPath
+	if resolvedConfigPath == "config.age" {
+		envAge := fmt.Sprintf("config.%s.age", *envFlag)
+		envYaml := filepath.Join("config", fmt.Sprintf("config.%s.yaml", *envFlag))
+		if _, err := os.Stat(envAge); err == nil {
+			resolvedConfigPath = envAge
+		} else if _, err := os.Stat(envYaml); err == nil {
+			resolvedConfigPath = envYaml
+		}
 	}
+
+	// Load encrypted config
+	cfg := mainapp.LoadEncryptedConfig(resolvedConfigPath, secretKey)
 
 	// Pass the runtime environment
 	runtimeEnv := configuration.RuntimeEnv(*envFlag)
+	cfg.Runtime = runtimeEnv
 
 	// Configuration for the Issuer service
-	issuerCfg := configuration.EnvConfig{
-		Runtime:           runtimeEnv,
-		Debug:             srvConfig.Debug,
-		PrivateKey:        srvConfig.PrivateKey,
-		MachineCredential: srvConfig.MachineCredential,
-		MyDidkey:          srvConfig.MyDidkey,
-		Verifier: configuration.VerifierConfig{
-			URL:           srvConfig.Verifier.URL,
-			TokenEndpoint: srvConfig.Verifier.TokenEndpoint,
-		},
-		Issuer: configuration.IssuerConfig{
-			CredentialIssuancePath: srvConfig.Issuer.CredentialIssuancePath,
-		},
-		TMForum: configuration.TMForumConfig{
-			BaseURL: srvConfig.TMForum.BaseURL,
-		},
-	}
+	issuerCfg := cfg.EnvConfig
 
 	// Create the Issuer service (acting as client of the Issuer server)
 	issuanceService, err := credissuance.NewLEARIssuance(issuerCfg)

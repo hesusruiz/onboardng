@@ -1,70 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registrations Overview - Operational Dashboard</title>
+<!-- Variables passed to this template -->
+<!--
+    Email      string
+    Regs       []db.RegistrationRecord
+    Limit      int
+    Offset     int
+    NumEntries int
+    Total      int
 
-    <!-- External stylesheet dependencies -->
-    <link rel="stylesheet" href="assets/w3.css" />
-    <link rel="stylesheet" href="assets/dome.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
-        rel="stylesheet">
-    <link rel="stylesheet" href="/admin/styles.css" />
-</head>
+    Where RegistrationRecord is:
 
-<body>
-    <!-- Portal Top Header -->
-    <header class="portal-header">
-        <div class="portal-header-left">
-            <img src="https://dome-marketplace.eu/assets/logos/DOME_Logo_White_Name.svg" alt="DOME Logo"
-                class="portal-logo">
-        </div>
-        <div class="portal-header-center">
-            <span class="portal-title">Onboard Admin</span>
-        </div>
-        <div class="portal-header-right">
-            <span class="header-user">{{ .Email }}</span>
-            <a href="/passkeys/api/logout" class="portal-btn portal-btn-solid">Logout</a>
-        </div>
-    </header>
-
-    <div class="main-content">
-        <!-- Top Header Navigation -->
-        <header class="dashboard-header">
-            <div class="header-title-wrapper">
-                <h1 class="dashboard-title">Registration List</h1>
-            </div>
-            <div class="stats-strip">
-                <div class="stat-badge">
-                    <span>Total</span>
-                    <span class="count">{{ .Total }}</span>
-                </div>
-
-                <!-- <div class="stat-badge" style="border-color: var(--warning-border);">
-                    <span style="color: var(--warning-text);">Review</span>
-                    <span class="count" style="background: var(--warning-border);">x</span>
-                </div>
-                <div class="stat-badge" style="border-color: var(--success-border);">
-                    <span style="color: var(--success-text);">Approved</span>
-                    <span class="count" style="background: var(--success-border);">y</span>
-                </div>
-                <div class="stat-badge" style="border-color: var(--danger-border);">
-                    <span style="color: var(--danger-text);">Rejected</span>
-                    <span class="count" style="background: var(--danger-border);">z</span>
-                </div> -->
-
-            </div>
-        </header>
-
-        <!-- // RegistrationRecord represents a user registration record in the database
 type RegistrationRecord struct {
-
-	// The first step of registration, called a "solo" registration, without real verification
-	//
-
 	// Unique identifier of the registration
 	RegistrationID string `json:"registration_id"`
 
@@ -141,8 +89,67 @@ type RegistrationRecord struct {
 	FilesUploaded bool `json:"files_uploaded"`
 	// Status of the second step: 0 = pending, 1 = approved, 2 = rejected
 	Approved int `json:"approved"`
-} -->
+}
+-->
 
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrations Overview - Operational Dashboard</title>
+
+    <!-- External stylesheet dependencies -->
+    <link rel="stylesheet" href="assets/w3.css" />
+    <link rel="stylesheet" href="assets/dome.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/admin/styles.css" />
+</head>
+
+<body>
+    <!-- Portal Top Header -->
+    <header class="portal-header">
+        <div class="portal-header-left">
+            <img src="https://dome-marketplace.eu/assets/logos/DOME_Logo_White_Name.svg" alt="DOME Logo"
+                class="portal-logo">
+        </div>
+        <div class="portal-header-center">
+            <span class="portal-title">Onboard Admin</span>
+        </div>
+        <div class="portal-header-right">
+            <span class="header-user">{{ .Email }}</span>
+            <a href="/passkeys/api/logout" class="portal-btn portal-btn-solid">Logout</a>
+        </div>
+    </header>
+
+    <div class="main-content">
+        <!-- Top Header Navigation -->
+        <header class="dashboard-header">
+            <div class="header-title-wrapper">
+
+                <h1 class="dashboard-title">Registration List</h1>
+            </div>
+            <div class="stats-strip">
+                <div class="stat-badge">
+                    <span>Total</span>
+                    <span class="count">{{ .Total }}</span>
+                </div>
+
+                <!-- <div class="stat-badge" style="border-color: var(--warning-border);">
+                    <span style="color: var(--warning-text);">Review</span>
+                    <span class="count" style="background: var(--warning-border);">x</span>
+                </div>
+                <div class="stat-badge" style="border-color: var(--success-border);">
+                    <span style="color: var(--success-text);">Approved</span>
+                    <span class="count" style="background: var(--success-border);">y</span>
+                </div>
+                <div class="stat-badge" style="border-color: var(--danger-border);">
+                    <span style="color: var(--danger-text);">Rejected</span>
+                    <span class="count" style="background: var(--danger-border);">z</span>
+                </div> -->
+
+            </div>
+        </header>
 
         <div class="w3-container" style="padding: 0;">
             <div class="dashboard-card">
@@ -217,10 +224,6 @@ type RegistrationRecord struct {
                                             title="{{ if .Notified }}Welcome email sent successfully to customer{{ else }}Welcome email to customer pending or failed{{ end }}">Notified</span>
                                         <span class="badge {{ if .Issued }}badge-success{{ else }}badge-danger{{ end }}"
                                             title="{{ if .Issued }}Verifiable Credential issued successfully{{ else }}Verifiable Credential pending or failed{{ end }}">Issued</span>
-                                        <span
-                                            class="badge {{ if .TMFRegistered }}badge-success{{ else }}badge-danger{{ end }}"
-                                            title="{{ if .TMFRegistered }}Registered in TMF successfully{{ else }}Registration in TMF pending or failed{{ end }}">In
-                                            TMF</span>
                                     </div>
                                 </td>
 
