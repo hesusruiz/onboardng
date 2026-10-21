@@ -100,42 +100,6 @@ func (s *Server) CheckIssuer(ctx context.Context, token string, vatID string) er
 		organizationIdentifier = organizationIdentifierPrefix + "-" + requestData.VatId
 	}
 
-	// Create the struct needed by the Issuer API for a credential for the self-registration
-	_ = &credissuance.LEARIssuanceRequestBody{
-		Schema:        "LEARCredentialEmployee",
-		OperationMode: "S",
-		Format:        "jwt_vc_json",
-		Payload: credissuance.Payload{
-			Mandator: credissuance.Mandator{
-				OrganizationIdentifier: organizationIdentifier,
-				Organization:           requestData.CompanyName,
-				Country:                requestData.Country,
-				CommonName:             requestData.FirstName + " " + requestData.LastName,
-				Email:                  requestData.Email,
-			},
-			Mandatee: credissuance.Mandatee{
-				FirstName: requestData.FirstName,
-				LastName:  requestData.LastName,
-				// Nationality: requestData.Country,
-				Email: requestData.Email,
-			},
-			Power: []credissuance.Power{
-				{
-					Type:     "domain",
-					Domain:   "DOME",
-					Function: "Onboarding",
-					Action:   credissuance.Strings{"Execute"},
-				},
-				{
-					Type:     "domain",
-					Domain:   "DOME",
-					Function: "ProductOffering",
-					Action:   credissuance.Strings{"Create", "Update", "Delete"},
-				},
-			},
-		},
-	}
-
 	payload := credissuance.Payload{
 		Mandator: credissuance.Mandator{
 			OrganizationIdentifier: organizationIdentifier,
@@ -166,31 +130,93 @@ func (s *Server) CheckIssuer(ctx context.Context, token string, vatID string) er
 		},
 	}
 
-	newCredential := &credissuance.LEARIssuanceRequestBodyNew{
-		CredentialConfigurationID: "learcredential.employee.w3c.4",
-		Delivery:                  "ui",
-		Email:                     requestData.Email,
-		Payload:                   payload,
-	}
+	if s.Features.DirectIssuance {
 
-	if _, err := s.Issuer.LEARIssuanceRequestNew(ctx, token, newCredential); err != nil {
-		slog.Error("Error calling issuance service", "error", err)
-
-		// Format the information we sent to the Issuer
-		buf, errformat := json.MarshalIndent(newCredential, "", "  ")
-		if errformat != nil {
-			slog.Error("Error marshalling credential data", "error", errformat)
-			buf = []byte("Error marshalling credential data")
+		newCredential := &credissuance.LEARIssuanceRequestBodyNew{
+			CredentialConfigurationID: "learcredential.employee.w3c.4",
+			Delivery:                  "ui",
+			Email:                     requestData.Email,
+			Payload:                   payload,
 		}
 
-		// Send an email to the internal team informing of the error, including the information that we wanted to issue
-		// They can perform the rest of the registration steps manually, transparently to the user.
+		if _, err := s.Issuer.LEARIssuanceRequestNew(ctx, token, newCredential); err != nil {
+			slog.Error("Error calling issuance service", "error", err)
 
-		if err := s.Mail.SendCheckIssuerErrorEmail(string(buf), err.Error()); err != nil {
-			slog.Error("Error sending issuer error email", "error", err)
+			// Format the information we sent to the Issuer
+			buf, errformat := json.MarshalIndent(newCredential, "", "  ")
+			if errformat != nil {
+				slog.Error("Error marshalling credential data", "error", errformat)
+				buf = []byte("Error marshalling credential data")
+			}
+
+			// Send an email to the internal team informing of the error, including the information that we wanted to issue
+			// They can perform the rest of the registration steps manually, transparently to the user.
+
+			if err := s.Mail.SendCheckIssuerErrorEmail(string(buf), err.Error()); err != nil {
+				slog.Error("Error sending issuer error email", "error", err)
+			}
+
+			return errl.Error(err)
 		}
 
-		return errl.Error(err)
+	} else {
+
+		// Create the struct needed by the Issuer API for a credential for the self-registration
+		oldCredential := &credissuance.LEARIssuanceRequestBody{
+			Schema:        "LEARCredentialEmployee",
+			OperationMode: "S",
+			Format:        "jwt_vc_json",
+			Payload: credissuance.Payload{
+				Mandator: credissuance.Mandator{
+					OrganizationIdentifier: organizationIdentifier,
+					Organization:           requestData.CompanyName,
+					Country:                requestData.Country,
+					CommonName:             requestData.FirstName + " " + requestData.LastName,
+					Email:                  requestData.Email,
+				},
+				Mandatee: credissuance.Mandatee{
+					FirstName: requestData.FirstName,
+					LastName:  requestData.LastName,
+					// Nationality: requestData.Country,
+					Email: requestData.Email,
+				},
+				Power: []credissuance.Power{
+					{
+						Type:     "domain",
+						Domain:   "DOME",
+						Function: "Onboarding",
+						Action:   credissuance.Strings{"Execute"},
+					},
+					{
+						Type:     "domain",
+						Domain:   "DOME",
+						Function: "ProductOffering",
+						Action:   credissuance.Strings{"Create", "Update", "Delete"},
+					},
+				},
+			},
+		}
+
+		if _, err := s.Issuer.LEARIssuanceRequest(ctx, token, oldCredential); err != nil {
+			slog.Error("Error calling issuance service", "error", err)
+
+			// Format the information we sent to the Issuer
+			buf, errformat := json.MarshalIndent(oldCredential, "", "  ")
+			if errformat != nil {
+				slog.Error("Error marshalling credential data", "error", errformat)
+				buf = []byte("Error marshalling credential data")
+			}
+
+			// Send an email to the internal team informing of the error, including the information that we wanted to issue
+			// They can perform the rest of the registration steps manually, transparently to the user.
+
+			if err := s.Mail.SendCheckIssuerErrorEmail(string(buf), err.Error()); err != nil {
+				slog.Error("Error sending issuer error email", "error", err)
+			}
+
+			return errl.Error(err)
+		}
+
 	}
 
 	slog.Info("Self-Diagnostics Issuer: successfully issued a test credential")
