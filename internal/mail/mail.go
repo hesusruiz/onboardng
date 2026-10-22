@@ -118,6 +118,7 @@ func (s *Service) SendFirstPhaseEmail(reg *db.RegistrationRecord) error {
 // The second phase is for the user to complete the onboarding process in the Credential Issuer.
 func (s *Service) SendSecondPhaseEmail(reg *db.RegistrationRecord) error {
 	data := map[string]any{
+		"Reg":              reg,
 		"RegistrationID":   reg.RegistrationID,
 		"Email":            reg.Email,
 		"FirstName":        reg.FirstName,
