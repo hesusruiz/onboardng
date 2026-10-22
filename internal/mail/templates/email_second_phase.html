@@ -15,7 +15,7 @@
     <!-- Main Body -->
     <div>
 
-        <p>Hello, {{.FirstName}} {{.LastName}}!</p>
+        <p>Hello, {{.Reg.FirstName}} {{.Reg.LastName}}!</p>
         <p>Thanks for starting the process to become a Provider in the <strong>DOME Marketplace</strong>.
             Your registration request has been received. Please remember to send the required documents so we can review
             them and complete the registration process.</p>
@@ -45,15 +45,15 @@
             </tr>
             <tr>
                 <td style="border: 1px solid #cccccc; padding: 8px;">Company Name</td>
-                <td style="border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.CompanyName}}</td>
+                <td style="border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.Reg.CompanyName}}</td>
             </tr>
             <tr>
                 <td style="border: 1px solid #cccccc; padding: 8px;">Country</td>
-                <td style="border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.Country}}</td>
+                <td style="border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.Reg.Country}}</td>
             </tr>
             <tr>
                 <td style="border: 1px solid #cccccc; padding: 8px;">VAT ID</td>
-                <td style="border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.VatID}}</td>
+                <td style="border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.Reg.VatID}}</td>
             </tr>
         </table>
 
@@ -62,60 +62,62 @@
             style="width: 100%; border-collapse: collapse; border: 1px solid #cccccc; font-size: 14px; margin-bottom: 24px;">
             <tr>
                 <td style="width: 30%; border: 1px solid #cccccc; padding: 8px;">First Name</td>
-                <td style="width: 70%; border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.LRFirstName}}
+                <td style="width: 70%; border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.Reg.LRFirstName}}
                 </td>
             </tr>
             <tr>
                 <td style="border: 1px solid #cccccc; padding: 8px;">Last Name</td>
-                <td style="width: 70%; border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.LRLastName}}</td>
+                <td style="width: 70%; border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.Reg.LRLastName}}
+                </td>
             </tr>
             <tr>
                 <td style="border: 1px solid #cccccc; padding: 8px;">Email Address</td>
-                <td style="border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.LREmail}}</td>
+                <td style="border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.Reg.LREmail}}</td>
             </tr>
             <tr>
                 <td style="border: 1px solid #cccccc; padding: 8px;">Country</td>
-                <td style="border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.LRCountry}}</td>
+                <td style="border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.Reg.LRCountry}}</td>
             </tr>
             <tr>
                 <td style="border: 1px solid #cccccc; padding: 8px;">ID Card</td>
-                <td style="border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.LRIdCard}}</td>
+                <td style="border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.Reg.LRIdCard}}</td>
             </tr>
         </table>
 
-        <h3 style="margin-top: 24px; font-size: 16px; font-weight: bold; color: #1e3a8a;">Legal Entity Authorized
-            Representative (LEAR)</h3>
+        <h3 style="margin-top: 24px; font-size: 16px; font-weight: bold; color: #1e3a8a;">Account Administrator</h3>
         <table
             style="width: 100%; border-collapse: collapse; border: 1px solid #cccccc; font-size: 14px; margin-bottom: 24px;">
             <tr>
                 <td style="width: 30%; border: 1px solid #cccccc; padding: 8px;">First Name</td>
-                <td style="width: 70%; border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.LEARFirstName}}
+                <td style="width: 70%; border: 1px solid #cccccc; padding: 8px; font-weight: bold;">
+                    {{.Reg.LEARFirstName}}
                 </td>
             </tr>
             <tr>
                 <td style="border: 1px solid #cccccc; padding: 8px;">Last Name</td>
-                <td style="width: 70%; border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.LEARLastName}}
+                <td style="width: 70%; border: 1px solid #cccccc; padding: 8px; font-weight: bold;">
+                    {{.Reg.LEARLastName}}
                 </td>
             </tr>
             <tr>
                 <td style="border: 1px solid #cccccc; padding: 8px;">Email Address</td>
-                <td style="border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.LEAREmail}}</td>
+                <td style="border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.Reg.LEAREmail}}</td>
             </tr>
             <tr>
                 <td style="border: 1px solid #cccccc; padding: 8px;">Country</td>
-                <td style="border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.LEARCountry}}</td>
+                <td style="border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.Reg.LEARCountry}}</td>
             </tr>
             <tr>
                 <td style="border: 1px solid #cccccc; padding: 8px;">Address</td>
-                <td style="border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.LEARAddress}}</td>
+                <td style="border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.Reg.LEARAddress}}</td>
             </tr>
             <tr>
                 <td style="border: 1px solid #cccccc; padding: 8px;">ID Card</td>
-                <td style="border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.LEARIdCard}}</td>
+                <td style="border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.Reg.LEARIdCard}}</td>
             </tr>
             <tr>
                 <td style="border: 1px solid #cccccc; padding: 8px;">Mobile Number</td>
-                <td style="border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.LEARMobileNumber}}</td>
+                <td style="border: 1px solid #cccccc; padding: 8px; font-weight: bold;">{{.Reg.LEARMobileNumber}}</td>
             </tr>
         </table>
 
