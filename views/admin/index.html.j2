@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<!-- Variables passed to this template -->
+<!--
+    Email      string
+    Regs       []db.RegistrationRecord
+    Limit      int
+    Offset     int
+    NumEntries int
+    Total      int
+
+    Where RegistrationRecord is:
+
+type RegistrationRecord struct {
+	// Unique identifier of the registration
+	RegistrationID string `json:"registration_id"`
+
+	// Email of the person/user performing the registration. The email will be verified by sending a verification code
+	// to the email supplied.
+	Email string `json:"email"`
+
+	// Name and surname of the user
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+
+	// Identification of the company that the user is registering
+	// Official name of the company as it appears in the registry of incorporation
+	CompanyName string `json:"company_name"`
+
+	// Country code (two-letter code) of incorporation of the company
+	Country string `json:"country"`
+
+	// VAT ID of the company. Together with the country code, it is the unique identifier of the company
+	VatID string `json:"vat_id"`
+
+	// Street address of the company
+	StreetAddress string `json:"street_address"`
+
+	// City of the company
+	City string `json:"city"`
+
+	// Postal code of the company
+	PostalCode string `json:"postal_code"`
+
+	// Role of the company in DOME (Seller or Buyer)
+	Role string `json:"role"`
+
+	// Timestamps of the registration record
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+
+	// Flags for the sub-steps of the first step of registration
+	// true if an email has been sent to the user to notify him about the registration
+	Notified bool `json:"notified"`
+	// true if the Verifiable credential has been issued to the user
+	Issued bool `json:"issued"`
+	// true if the user has been registered in the TMF
+	TMFRegistered bool `json:"tmf_registered"`
+
+	//
+	// The second step of the registration, when the company formalizes the registration
+	//
+
+	// Identification data about the Legal Representative of the company
+	LRFirstName string `json:"lr_first_name"`
+	LRLastName  string `json:"lr_last_name"`
+	LREmail     string `json:"lr_email"`
+	LRCountry   string `json:"lr_country"`
+	LRIdCard    string `json:"lr_id_card"`
+
+	// Identification data about the Legal Entity Authorized Representative (LEAR) of the company
+	// This is the person who will represent the company in DOME and act as the main contact for the company
+	LEARFirstName    string `json:"lear_first_name"`
+	LEARLastName     string `json:"lear_last_name"`
+	LEAREmail        string `json:"lear_email"`
+	LEARCountry      string `json:"lear_country"`
+	LEARAddress      string `json:"lear_address"`
+	LEARIdCard       string `json:"lear_id_card"`
+	LEARMobileNumber string `json:"lear_mobile_number"`
+
+	// State of the second step of registration
+	// Data about the LR has been successfully registered
+	// TODO: this field is not being used now (and is not useful), perform a migration to detele it
+	LRCompleted bool `json:"lr_completed"`
+	// Data about the LEAR has been successfully registered
+	LEARCompleted bool `json:"lear_completed"`
+	// Files about the company's official registration and the LEAR have been provided, but may be pending its verification
+	FilesUploaded bool `json:"files_uploaded"`
+	// Status of the second step: 0 = pending, 1 = approved, 2 = rejected
+	Approved int `json:"approved"`
+}
+-->
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrations Overview - Operational Dashboard</title>
+
+    <!-- External stylesheet dependencies -->
+    <link rel="stylesheet" href="myassets/w3.css" />
+    <link rel="stylesheet" href="myassets/dome.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="myassets/styles.css" />
+</head>
+
+<body>
+    <!-- Portal Top Header -->
+    <header class="portal-header">
+        <div class="portal-header-left">
+            <img src="https://dome-marketplace.eu/assets/logos/DOME_Logo_White_Name.svg" alt="DOME Logo"
+                class="portal-logo">
+        </div>
+        <div class="portal-header-center">
+            <span class="portal-title">Onboard Admin</span>
+        </div>
+        <div class="portal-header-right">
+            <span class="header-user">{{ Email }}</span>
+            <a href="/passkeys/api/logout" class="portal-btn portal-btn-solid">Logout</a>
+        </div>
+    </header>
+
+    <div class="main-content">
+        <!-- Top Header Navigation -->
+        <header class="dashboard-header">
+            <div class="header-title-wrapper">
+
+                <h1 class="dashboard-title">Registration List</h1>
+            </div>
+            <div class="stats-strip">
+                <div class="stat-badge">
+                    <span>Total</span>
+                    <span class="count">{{ Total }}</span>
+                </div>
+
+                <!-- <div class="stat-badge" style="border-color: var(--warning-border);">
+                    <span style="color: var(--warning-text);">Review</span>
+                    <span class="count" style="background: var(--warning-border);">x</span>
+                </div>
+                <div class="stat-badge" style="border-color: var(--success-border);">
+                    <span style="color: var(--success-text);">Approved</span>
+                    <span class="count" style="background: var(--success-border);">y</span>
+                </div>
+                <div class="stat-badge" style="border-color: var(--danger-border);">
+                    <span style="color: var(--danger-text);">Rejected</span>
+                    <span class="count" style="background: var(--danger-border);">z</span>
+                </div> -->
+
+            </div>
+        </header>
+
+        <div class="w3-container" style="padding: 0;">
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h3><i class="fa fa-list"></i> Active Partner Registrations</h3>
+                    <span class="subtitle">Showing {{ Total }} of {{ NumEntries }} entries</span>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="list-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 60px; text-align: center;">Type</th>
+                                <th>Company Profile</th>
+                                <th>Dates</th>
+                                <th>Person Registering</th>
+                                <th>Stage 1 Status</th>
+                                <th>Legal Representative</th>
+                                <th>Account Admin (LEAR)</th>
+                                <th>Stage 2 Status</th>
+                                <th style="text-align: center; width: 120px;">Global Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reg in Regs %}
+                            <!-- Entry 1: Pending Final Review -->
+                            <tr onclick="window.location='/admin/registration?vat_id={{ reg.VatID }}';">
+                                <td>
+                                    <div class="type-cell">
+                                        {% if reg.Role == "Seller" %}
+                                        <span class="type-icon seller" title="Seller"><i
+                                                class="fa fa-handshake-o"></i></span>
+                                        <span>Seller</span>
+                                        {% else %}
+                                        <span class="type-icon buyer" title="Buyer"><i
+                                                class="fa fa-shopping-cart"></i></span>
+                                        <span>Buyer</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="meta-stack">
+                                        <span class="meta-title">{{ reg.CompanyName }}</span>
+                                        <span class="meta-subtitle">VAT ID: <span class="meta-value">
+                                                {{ reg.VatID }}</span></span>
+                                        <span class="meta-subtitle">Country: <span class="meta-title"
+                                                style="font-size: 11px;">{{ reg.Country }}</span></span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="meta-stack">
+                                        <span class="meta-subtitle">Created</span>
+                                        <span class="date-text">
+                                            {{ reg.CreatedAt|date:"2006-01-02 15:04:05" }}</span>
+                                        <span class="meta-subtitle" style="margin-top: 4px;">Updated</span>
+                                        <span class="date-text">
+                                            {{ reg.UpdatedAt|date:"2006-01-02 15:04:05" }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="meta-stack">
+                                        <span class="meta-title">{{ reg.FirstName }} {{ reg.LastName }}</span>
+                                        <span class="meta-subtitle meta-email"><a href="mailto:{{ reg.Email }}"
+                                                onclick="event.stopPropagation();">
+                                                {{ reg.Email }}</a></span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="badge-list">
+                                        {% if reg.Notified %}
+                                        <span class="badge badge-success"
+                                            title="Welcome email sent successfully to customer">Email Sent</span>
+                                        {% else %}
+                                        <span class="badge badge-danger"
+                                            title="Welcome email to customer pending or failed">Email Not Sent</span>
+                                        {% endif %}
+                                        {% if reg.Issued %}
+                                        <span class="badge badge-success"
+                                            title="Verifiable Credential issued successfully">Issued</span>
+                                        {% else %}
+                                        <span class="badge badge-danger"
+                                            title="Verifiable Credential pending or failed">Not Issued</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+
+                                {% if reg.LEARCompleted %}
+                                <!-- Legal Representative -->
+                                <td>
+                                    <div class="meta-stack">
+                                        <span class="meta-title">{{ reg.LRFirstName }} {{ reg.LRLastName }}</span>
+                                        <span class="meta-subtitle meta-email"><a href="mailto:{{ reg.LREmail }}"
+                                                onclick="event.stopPropagation();">{{ reg.LREmail }}</a></span>
+                                        {% if reg.LRCountry%}
+                                        <span class="meta-subtitle">Nationality: <span>{{ reg.LRCountry }}</span></span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+
+
+                                <!-- Lear -->
+                                <td>
+                                    <div class="meta-stack">
+                                        <span class="meta-title">{{ reg.LEARFirstName }} {{ reg.LEARLastName }}</span>
+                                        <span class="meta-subtitle meta-email"><a href="mailto:{{ reg.LEAREmail }}"
+                                                onclick="event.stopPropagation();">{{ reg.LEAREmail }}</a></span>
+                                        {% if reg.LEARCountry%}
+                                        <span class="meta-subtitle">Nationality: <span>
+                                                {{ reg.LEARCountry }}</span></span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+
+
+                                <!-- Status of second stage -->
+                                <td>
+                                    <div class="badge-list">
+                                        {% if reg.LRCompleted %}
+                                        <span class="badge badge-success">LEAR</span>
+                                        {% else %}
+                                        <span class="badge badge-danger">LEAR</span>
+                                        {% endif %}
+                                        {% if reg.FilesUploaded %}
+                                        <span class="badge badge-success">Uploads</span>
+                                        {% else %}
+                                        <span class="badge badge-danger">Uploads</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+
+                                {% else %}
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                {% endif %}
+
+                                <!-- Global Status -->
+                                <td style="text-align: center; vertical-align: middle;">
+                                    <div class="status-action-container">
+
+                                        {% if reg.LEARCompleted %}
+
+                                        {% if reg.Approved == 0 %}
+                                        <span class="badge badge-warning">
+                                            Pending Review
+                                        </span>
+                                        {% elif reg.Approved == 1 %}
+                                        <span class="badge badge-success">
+                                            Approved
+                                        </span>
+                                        {% elif reg.Approved == 2 %}
+                                        <span class="badge badge-danger">
+                                            Rejected
+                                        </span>
+                                        {% endif %}
+
+                                        {% endif %}
+
+                                        <a href="/admin/registration?vat_id={{ reg.VatID }}" class="action-btn"
+                                            title="Open Registration Details" onclick="event.stopPropagation();">
+                                            <i class="fa fa-folder-open-o"></i> Open
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
