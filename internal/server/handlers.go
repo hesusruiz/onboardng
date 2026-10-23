@@ -384,6 +384,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if s.Features.DirectIssuance {
+		slog.Info("Direct issuance enabled")
 		// Perform the verifiable credential issuance
 		redirectUri, err := performIssuanceNew(r.Context(), token, reg, s, requestData)
 		if err != nil {
@@ -393,6 +394,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		s.SendJSON(w, r, http.StatusOK, true, "Redirecting...", redirectUri)
 
 	} else {
+		slog.Info("Direct issuance not enabled, using email delivery")
 		// Perform the verifiable credential issuance
 		err = performIssuance(r.Context(), token, reg, s, requestData)
 		if err != nil {
