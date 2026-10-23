@@ -8,7 +8,7 @@ require (
 	github.com/go-sprout/sprout v1.1.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
-	github.com/hesusruiz/authgo v1.0.7
+	github.com/hesusruiz/authgo v1.0.8
 	github.com/hesusruiz/utils/errl v0.0.0-20260203155429-e59ff4b6d2e4
 	github.com/lestrrat-go/jwx/v2 v2.1.7
 	github.com/mr-tron/base58 v1.3.0
