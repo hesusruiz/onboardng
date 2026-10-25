@@ -13,7 +13,7 @@ import (
 	"github.com/hesusruiz/onboardng/internal/configuration"
 )
 
-func generate(cfg configuration.Config) error {
+func generate(cfg configuration.EnvConfig) error {
 
 	// Parse all layouts first
 	layoutTmpl, err := template.New("").Funcs(template.FuncMap{

@@ -10,29 +10,29 @@
     </div>
 
     <!-- Test Environment Warning -->
-    {{if not .Runtime.IsProduction}}
+    {%if not Runtime.IsProduction%}
     <div
         style="background-color: #fff7ed; border-bottom: 1px solid #ffedd5; padding: 16px 24px; color: #9a3412; font-size: 14px;">
-        <p style="margin: 0; font-weight: 700;">⚠️ DEVELOPMENT/TEST NOTICE ({{.Runtime}})</p>
+        <p style="margin: 0; font-weight: 700;">⚠️ DEVELOPMENT/TEST NOTICE ({{Runtime}})</p>
         <p style="margin: 4px 0 0 0; line-height: 1.4;">This is a notification in a testing environment. Please fix the
             error.</p>
         <p style="margin: 4px 0 0 0; line-height: 1.4;">In production, this error indicates a critical system failure
             that must be addressed immediately by the team responsible for
             the Credential Issuer.</p>
     </div>
-    {{end}}
+    {%endif%}
 
     <!-- Main Body -->
     <div style="padding: 32px; color: #1e293b; line-height: 1.6;">
         <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 16px; margin-bottom: 24px;">
             <p style="margin: 0; font-weight: 600; color: #991b1b;">A registration error occurred because the Credential
                 Issuer is not responding as expected.</p>
-            <p style="margin: 4px 0 0 0; line-height: 1.4;">Error message: {{.ErrorMsg}}</p>
+            <p style="margin: 4px 0 0 0; line-height: 1.4;">Error message: {{ErrorMsg}}</p>
         </div>
 
         <div style="background-color: #1e293b; border-radius: 8px; padding: 20px; overflow-x: auto;">
             <pre
-                style="margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 13px; color: #34d399; white-space: pre-wrap; word-break: break-all;">{{.Payload}}
+                style="margin: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 13px; color: #34d399; white-space: pre-wrap; word-break: break-all;">{{Payload}}
             </pre>
         </div>
 

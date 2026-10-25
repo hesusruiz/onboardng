@@ -41,38 +41,38 @@ type RegistrationRequest struct {
 	Role          string `json:"role"`
 }
 
-func (s *RegistrationRequest) Validate() error {
-	if s.FirstName == "" {
+func (r *RegistrationRequest) Validate() error {
+	if r.FirstName == "" {
 		return fmt.Errorf("first name is required")
 	}
-	if s.LastName == "" {
+	if r.LastName == "" {
 		return fmt.Errorf("last name is required")
 	}
-	if s.CompanyName == "" {
+	if r.CompanyName == "" {
 		return fmt.Errorf("company name is required")
 	}
-	if s.Country == "" {
+	if r.Country == "" {
 		return fmt.Errorf("country is required")
 	}
-	if s.VatId == "" {
+	if r.VatId == "" {
 		return fmt.Errorf("VAT ID is required")
 	}
-	if s.StreetAddress == "" {
+	if r.StreetAddress == "" {
 		return fmt.Errorf("street address is required")
 	}
-	if s.City == "" {
+	if r.City == "" {
 		return fmt.Errorf("city is required")
 	}
-	if s.PostalCode == "" {
+	if r.PostalCode == "" {
 		return fmt.Errorf("postal code is required")
 	}
-	if s.Email == "" {
+	if r.Email == "" {
 		return fmt.Errorf("email is required")
 	}
-	if !isValidEmailFormat(s.Email) {
+	if !isValidEmailFormat(r.Email) {
 		return fmt.Errorf("invalid email address format")
 	}
-	if s.Code == "" {
+	if r.Code == "" {
 		return fmt.Errorf("verification code is required")
 	}
 	return nil
@@ -432,7 +432,14 @@ func (s *Server) HandleHealth(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	s.SendJSON(w, r, http.StatusOK, true, "OK", nil)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(APIResponse{
+		Success: true,
+		Message: "OK",
+		Data:    nil,
+	})
 }
 
 func (s *Server) HandleOrgStatus(w http.ResponseWriter, r *http.Request) {

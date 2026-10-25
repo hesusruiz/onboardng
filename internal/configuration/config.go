@@ -5,8 +5,22 @@ import (
 	"strings"
 )
 
-// Config holds the configuration for the application for a specific environment.
-type Config struct {
+// // Config holds the configuration for the application for a specific environment.
+// type Config struct {
+// 	// The directory where the generated frontend will be placed.
+// 	DestDir string `yaml:"dest_dir"`
+// 	// The directory where the source code for the frontend is located.
+// 	SrcDir string `yaml:"src_dir"`
+// 	// The name of the application.
+// 	AppName string `yaml:"app_name"`
+
+// 	// Environment configuration
+// 	EnvConfig `yaml:",inline"`
+// }
+
+// EnvConfig holds the configuration for a specific environment.
+type EnvConfig struct {
+
 	// The directory where the generated frontend will be placed.
 	DestDir string `yaml:"dest_dir"`
 	// The directory where the source code for the frontend is located.
@@ -14,12 +28,6 @@ type Config struct {
 	// The name of the application.
 	AppName string `yaml:"app_name"`
 
-	// Environment configuration
-	EnvConfig `yaml:",inline"`
-}
-
-// EnvConfig holds the configuration for a specific environment.
-type EnvConfig struct {
 	// The runtime environment.
 	Runtime RuntimeEnv
 
@@ -43,6 +51,9 @@ type EnvConfig struct {
 	// The path to the machine credential file, which must be placed in a secure place.
 	MachineCredentialFile string `yaml:"machineCredentialFile,omitempty"`
 	MachineCredential     string `yaml:"machineCredential,omitempty"`
+
+	// The Marketplace configuration
+	Marketplace MarketplaceConfig `yaml:"marketplace"`
 
 	// The verifier configuration.
 	Verifier VerifierConfig `yaml:"verifier"`
@@ -101,16 +112,16 @@ func (r RuntimeEnv) IsProduction() bool {
 	return r == Production
 }
 
-func (c *Config) String() string {
-	var b strings.Builder
+// func (c *Config) String() string {
+// 	var b strings.Builder
 
-	fmt.Fprintf(&b, "AppName: %s\n", c.AppName)
-	fmt.Fprintf(&b, "DestDir: %s\n", c.DestDir)
-	fmt.Fprintf(&b, "SrcDir: %s\n", c.SrcDir)
-	b.WriteString(c.EnvConfig.String())
+// 	fmt.Fprintf(&b, "AppName: %s\n", c.AppName)
+// 	fmt.Fprintf(&b, "DestDir: %s\n", c.DestDir)
+// 	fmt.Fprintf(&b, "SrcDir: %s\n", c.SrcDir)
+// 	b.WriteString(c.EnvConfig.String())
 
-	return b.String()
-}
+// 	return b.String()
+// }
 
 func (e *EnvConfig) String() string {
 
@@ -122,6 +133,8 @@ func (e *EnvConfig) String() string {
 	fmt.Fprintf(&b, "MyDidkey: %s\n", e.MyDidkey)
 	fmt.Fprintf(&b, "PrivateKeyFile: %s\n", e.PrivateKeyFile)
 	fmt.Fprintf(&b, "MachineCredentialFile: %s\n", e.MachineCredentialFile)
+	fmt.Fprintf(&b, "Marketplace:\n")
+	fmt.Fprintf(&b, "  URL: %s\n", e.Marketplace.URL)
 	fmt.Fprintf(&b, "Verifier:\n")
 	fmt.Fprintf(&b, "  URL: %s\n", e.Verifier.URL)
 	fmt.Fprintf(&b, "  TokenEndpoint: %s\n", e.Verifier.TokenEndpoint)
@@ -149,6 +162,10 @@ func (e *EnvConfig) String() string {
 	fmt.Fprintf(&b, "  DirectIssuance: %t\n", e.Features.DirectIssuance)
 
 	return b.String()
+}
+
+type MarketplaceConfig struct {
+	URL string `yaml:"url,omitempty"`
 }
 
 type VerifierConfig struct {

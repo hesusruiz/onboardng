@@ -7,60 +7,9 @@ import (
 	"time"
 )
 
-// EveryHour indicates that the task should run every hour at the specified minute.
-const EveryHour = -1
-
-// Schedule defines when a maintenance task should run.
-type Schedule struct {
-	// Weekdays is a list of days when the task should run.
-	// If empty, the task runs every day.
-	Weekdays []time.Weekday
-	// Hour is the hour of the day (0-23), or EveryHour (< 0) to run every hour.
-	Hour int
-	// Minute is the minute of the hour (0-59).
-	Minute int
-}
-
-// Next returns the earliest scheduled time strictly after the given reference time.
-func (s Schedule) Next(from time.Time) time.Time {
-	// Hourly schedule: runs every hour at Minute
-	if s.Hour < 0 {
-		candidate := time.Date(from.Year(), from.Month(), from.Day(), from.Hour(), s.Minute, 0, 0, from.Location())
-		if !candidate.After(from) {
-			candidate = time.Date(candidate.Year(), candidate.Month(), candidate.Day(), candidate.Hour()+1, s.Minute, 0, 0, from.Location())
-		}
-
-		// Ensure it falls on an allowed weekday
-		if len(s.Weekdays) > 0 {
-			for i := 0; i < 7; i++ {
-				if slices.Contains(s.Weekdays, candidate.Weekday()) {
-					break
-				}
-				// Advance to the start of the next day at 00:Minute
-				candidate = time.Date(candidate.Year(), candidate.Month(), candidate.Day()+1, 0, s.Minute, 0, 0, from.Location())
-			}
-		}
-
-		return candidate
-	}
-
-	// Daily schedule: runs at s.Hour:s.Minute
-	candidate := time.Date(from.Year(), from.Month(), from.Day(), s.Hour, s.Minute, 0, 0, from.Location())
-	if !candidate.After(from) {
-		candidate = candidate.AddDate(0, 0, 1)
-	}
-
-	// Advance day by day until we find a matching weekday (at most 7 iterations).
-	if len(s.Weekdays) > 0 {
-		for i := 0; i < 7; i++ {
-			if slices.Contains(s.Weekdays, candidate.Weekday()) {
-				break
-			}
-			candidate = candidate.AddDate(0, 0, 1)
-		}
-	}
-
-	return candidate
+// MaintenanceService manages and executes periodic maintenance tasks.
+type MaintenanceService struct {
+	tasks []*task
 }
 
 // task represents a maintenance task.
@@ -75,11 +24,6 @@ type task struct {
 	lastRun time.Time
 	// The next time the task is scheduled to run.
 	nextRun time.Time
-}
-
-// MaintenanceService manages and executes periodic maintenance tasks.
-type MaintenanceService struct {
-	tasks []*task
 }
 
 // NewMaintenanceService creates a new MaintenanceService.
@@ -141,4 +85,60 @@ func (s *MaintenanceService) shouldRun(t *task, now time.Time) bool {
 		return false
 	}
 	return !now.Before(t.nextRun)
+}
+
+// EveryHour indicates that the task should run every hour at the specified minute.
+const EveryHour = -1
+
+// Schedule defines when a maintenance task should run.
+type Schedule struct {
+	// Weekdays is a list of days when the task should run.
+	// If empty, the task runs every day.
+	Weekdays []time.Weekday
+	// Hour is the hour of the day (0-23), or EveryHour (< 0) to run every hour.
+	Hour int
+	// Minute is the minute of the hour (0-59).
+	Minute int
+}
+
+// Next returns the earliest scheduled time strictly after the given reference time.
+func (s Schedule) Next(from time.Time) time.Time {
+	// Hourly schedule: runs every hour at Minute
+	if s.Hour < 0 {
+		candidate := time.Date(from.Year(), from.Month(), from.Day(), from.Hour(), s.Minute, 0, 0, from.Location())
+		if !candidate.After(from) {
+			candidate = time.Date(candidate.Year(), candidate.Month(), candidate.Day(), candidate.Hour()+1, s.Minute, 0, 0, from.Location())
+		}
+
+		// Ensure it falls on an allowed weekday
+		if len(s.Weekdays) > 0 {
+			for i := 0; i < 7; i++ {
+				if slices.Contains(s.Weekdays, candidate.Weekday()) {
+					break
+				}
+				// Advance to the start of the next day at 00:Minute
+				candidate = time.Date(candidate.Year(), candidate.Month(), candidate.Day()+1, 0, s.Minute, 0, 0, from.Location())
+			}
+		}
+
+		return candidate
+	}
+
+	// Daily schedule: runs at s.Hour:s.Minute
+	candidate := time.Date(from.Year(), from.Month(), from.Day(), s.Hour, s.Minute, 0, 0, from.Location())
+	if !candidate.After(from) {
+		candidate = candidate.AddDate(0, 0, 1)
+	}
+
+	// Advance day by day until we find a matching weekday (at most 7 iterations).
+	if len(s.Weekdays) > 0 {
+		for i := 0; i < 7; i++ {
+			if slices.Contains(s.Weekdays, candidate.Weekday()) {
+				break
+			}
+			candidate = candidate.AddDate(0, 0, 1)
+		}
+	}
+
+	return candidate
 }

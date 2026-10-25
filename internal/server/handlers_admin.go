@@ -59,12 +59,6 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) {
 		panic(err)
 	}
 
-	// // TODO: invite admins for testing purposes
-	// _, err = pk.InviteUserPowers("jesus@alastria.io", []passkeys.OnePower{powersAdminWrite})
-	// if err != nil {
-	// 	panic(err)
-	// }
-
 	fmt.Println("allowedOrigins:", allowedOrigins)
 	fmt.Println("RPID:", urlOrigin.Hostname())
 	slog.Info("RPID", "rpid", urlOrigin.Hostname())
@@ -145,7 +139,7 @@ func (s *Server) PageAdminIndex(w http.ResponseWriter, r *http.Request) {
 		User       *passkeys.User
 		UserWrite  bool
 		Email      string
-		Regs       []db.RegistrationRecord
+		Regs       []*db.RegistrationRecord
 		Limit      int
 		Offset     int
 		NumEntries int
@@ -244,29 +238,6 @@ func (s *Server) PageAdminDetailsByVatID(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// TODO: eliminate the things for testing
-	//
-
-	// registration.LEARCompleted = true
-
-	// // Append a test file entry, to see the template working
-	// files = append(files, db.RegistrationFile{
-	// 	FileID:         "test-file-id",
-	// 	RegistrationID: registration.RegistrationID,
-	// 	Name:           "test-file.pdf",
-	// 	MimeType:       "application/pdf",
-	// 	Size:           1024,
-	// 	Status:         "uploaded",
-	// 	Content:        []byte("test-file-content"),
-	// 	CreatedAt:      time.Now(),
-	// 	UpdatedAt:      time.Now(),
-	// })
-
-	// registration.FilesUploaded = true
-
-	//
-	// TODO: eliminate the things for testing
-
 	userWrite := user.HasRole(powersAdminWrite)
 
 	tplData := struct {
@@ -274,8 +245,8 @@ func (s *Server) PageAdminDetailsByVatID(w http.ResponseWriter, r *http.Request)
 		UserWrite bool
 		Email     string
 		Reg       *db.RegistrationRecord
-		Files     []db.RegistrationFile
-		Logs      []db.RegistrationLog
+		Files     []*db.RegistrationFile
+		Logs      []*db.RegistrationLog
 	}{
 		User:      user,
 		UserWrite: userWrite,

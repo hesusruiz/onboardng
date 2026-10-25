@@ -388,7 +388,7 @@ func (s *Service) AmendRegistration(reg *RegistrationRecord) error {
 	return nil
 }
 
-func (s *Service) GetRegistrations(limit, offset int) ([]RegistrationRecord, int, error) {
+func (s *Service) GetRegistrations(limit, offset int) ([]*RegistrationRecord, int, error) {
 
 	// Get the total number of records in the DB
 	var total int
@@ -418,7 +418,7 @@ func (s *Service) GetRegistrations(limit, offset int) ([]RegistrationRecord, int
 	}
 	defer rows.Close()
 
-	var regs []RegistrationRecord
+	var regs []*RegistrationRecord
 	for rows.Next() {
 		var reg RegistrationRecord
 		err := rows.Scan(
@@ -432,7 +432,7 @@ func (s *Service) GetRegistrations(limit, offset int) ([]RegistrationRecord, int
 		if err != nil {
 			return nil, 0, errl.Errorf("failed to scan registration row: %w", err)
 		}
-		regs = append(regs, reg)
+		regs = append(regs, &reg)
 	}
 
 	if err = rows.Err(); err != nil {
@@ -613,7 +613,7 @@ func (s *Service) SaveRegistrationFile(f *RegistrationFile) error {
 	return nil
 }
 
-func (s *Service) GetRegistrationFilesByVatID(vatID string) ([]RegistrationFile, error) {
+func (s *Service) GetRegistrationFilesByVatID(vatID string) ([]*RegistrationFile, error) {
 	query := `
 	SELECT 
 		file_id, registration_id, vat_id, name, mime_type, size, status, content, created_at, updated_at
@@ -627,7 +627,7 @@ func (s *Service) GetRegistrationFilesByVatID(vatID string) ([]RegistrationFile,
 	}
 	defer rows.Close()
 
-	var files []RegistrationFile
+	var files []*RegistrationFile
 	for rows.Next() {
 		var f RegistrationFile
 		err := rows.Scan(
@@ -636,7 +636,7 @@ func (s *Service) GetRegistrationFilesByVatID(vatID string) ([]RegistrationFile,
 		if err != nil {
 			return nil, errl.Errorf("failed to scan registration file row: %w", err)
 		}
-		files = append(files, f)
+		files = append(files, &f)
 	}
 
 	if err = rows.Err(); err != nil {
@@ -708,7 +708,7 @@ func (s *Service) UpdateRegistrationFileContent(fileID string, content []byte) e
 	return nil
 }
 
-func (s *Service) GetRegistrationLogs(vatID string, limit, offset int) ([]RegistrationLog, error) {
+func (s *Service) GetRegistrationLogs(vatID string, limit, offset int) ([]*RegistrationLog, error) {
 
 	var rows *sql.Rows
 	var err error
@@ -742,7 +742,7 @@ func (s *Service) GetRegistrationLogs(vatID string, limit, offset int) ([]Regist
 	}
 	defer rows.Close()
 
-	var logsList []RegistrationLog
+	var logsList []*RegistrationLog
 	for rows.Next() {
 		var l RegistrationLog
 		err := rows.Scan(
@@ -751,7 +751,7 @@ func (s *Service) GetRegistrationLogs(vatID string, limit, offset int) ([]Regist
 		if err != nil {
 			return nil, errl.Errorf("failed to scan registration log row: %w", err)
 		}
-		logsList = append(logsList, l)
+		logsList = append(logsList, &l)
 	}
 
 	if err = rows.Err(); err != nil {
@@ -761,7 +761,7 @@ func (s *Service) GetRegistrationLogs(vatID string, limit, offset int) ([]Regist
 	return logsList, nil
 }
 
-func (s *Service) GetRegistrationFiles(vatID string, limit, offset int) ([]RegistrationFile, error) {
+func (s *Service) GetRegistrationFiles(vatID string, limit, offset int) ([]*RegistrationFile, error) {
 
 	var rows *sql.Rows
 	var err error
@@ -795,7 +795,7 @@ func (s *Service) GetRegistrationFiles(vatID string, limit, offset int) ([]Regis
 	}
 	defer rows.Close()
 
-	var files []RegistrationFile
+	var files []*RegistrationFile
 	for rows.Next() {
 		var f RegistrationFile
 		err := rows.Scan(
@@ -804,7 +804,7 @@ func (s *Service) GetRegistrationFiles(vatID string, limit, offset int) ([]Regis
 		if err != nil {
 			return nil, errl.Errorf("failed to scan registration file row: %w", err)
 		}
-		files = append(files, f)
+		files = append(files, &f)
 	}
 
 	if err = rows.Err(); err != nil {
