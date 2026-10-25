@@ -188,6 +188,12 @@ func NewHTTPServer(cfg *ServerConfig) (*Server, error) {
 				slog.Warn("Self-Diagnostics: failed to check all, but runtime is not production, so we continue")
 			}
 		}
+	} else {
+		err = s.CheckMail()
+		if err != nil {
+			err = errl.Errorf("Self-Diagnostics: failed to check Mail: %v", err)
+			slog.Error(err.Error())
+		}
 	}
 
 	return s, nil

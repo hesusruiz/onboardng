@@ -10,18 +10,18 @@ import (
 // DBServiceProvider enables easy testing or replacing of the database implementation
 type DBServiceProvider interface {
 	SaveRegistration(reg *db.RegistrationRecord) error
+	GetRegistrationByVatID(vatID string) (*db.RegistrationRecord, error)
+	GetRegistrationByID(registrationID string) (*db.RegistrationRecord, error)
+	GetRegistrationByEmail(email string) (*db.RegistrationRecord, error)
+	GetRegistrationByEmailOrVatID(email string, vatID string) (*db.RegistrationRecord, error)
+	GetRegistrations(limit, offset int) ([]*db.RegistrationRecord, int, error)
 	UpdateRegistrationStatus(reg *db.RegistrationRecord) error
 	UpdateApproval(registrationID string, approved int) error
 	UpdateRepresentativesByVatID(vatID string, rep *db.RegistrationRecord) error
 	SaveRegistrationLog(logEntry *db.RegistrationLog) error
-	GetRegistrationByVatID(vatID string) (*db.RegistrationRecord, error)
-	GetRegistrationByEmail(email string) (*db.RegistrationRecord, error)
-	GetRegistrationByEmailOrVatID(email string, vatID string) (*db.RegistrationRecord, error)
-	GetRegistrations(limit, offset int) ([]db.RegistrationRecord, int, error)
-	GetRegistrationLogs(vatID string, limit, offset int) ([]db.RegistrationLog, error)
-	GetRegistrationFiles(vatID string, limit, offset int) ([]db.RegistrationFile, error)
+	GetRegistrationLogs(vatID string, limit, offset int) ([]*db.RegistrationLog, error)
+	GetRegistrationFiles(vatID string, limit, offset int) ([]*db.RegistrationFile, error)
 	GetRegistrationFile(fileID string) (*db.RegistrationFile, error)
-	GetRegistrationByID(registrationID string) (*db.RegistrationRecord, error)
 }
 
 // MailServiceProvider enables easy testing or replacing of the mail implementation
@@ -32,6 +32,7 @@ type MailServiceProvider interface {
 	SendSecondPhaseEmail(reg *db.RegistrationRecord) error
 	SendIssuerErrorEmail(reg *db.RegistrationRecord, payload string, errorMsg string) error
 	SendCheckIssuerErrorEmail(payload string, errorMsg string) error
+	SendReminderEmail(reg *db.RegistrationRecord) error
 }
 
 // IssuanceServiceProvider enables easy testing or replacing of the issuance implementation

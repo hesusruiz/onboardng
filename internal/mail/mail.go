@@ -1,16 +1,13 @@
 package mail
 
 import (
-	"bytes"
 	"crypto/tls"
 	"embed"
 	"fmt"
-	"html/template"
 	"io"
 	"log/slog"
 	"net/smtp"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"filippo.io/age"
@@ -31,6 +28,7 @@ type Service struct {
 	smtpConfig         configuration.SMTPConfig
 	password           string
 	templateDir        string
+	views              *MailViews
 }
 
 const mimeType = "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
@@ -42,6 +40,16 @@ func NewMailService(runtime configuration.RuntimeEnv, cfg configuration.MailConf
 			smtpConfig:  cfg.SMTP,
 			templateDir: cfg.TemplateDir,
 		}, nil
+	}
+
+	debug := false
+	if runtime.IsDevelopment() {
+		debug = true
+	}
+
+	views, err := NewMailViews(debug)
+	if err != nil {
+		return nil, errl.Errorf("failed to load mail views: %w", err)
 	}
 
 	var password string
@@ -85,23 +93,25 @@ func NewMailService(runtime configuration.RuntimeEnv, cfg configuration.MailConf
 		smtpConfig:         cfg.SMTP,
 		password:           password,
 		templateDir:        cfg.TemplateDir,
+		views:              views,
 	}, nil
+}
+
+// getOnboardTeamEmail returns the primary onboarding team email address,
+// or an empty string if the slice is empty or contains only whitespace.
+func (s *Service) getOnboardTeamEmail() string {
+	for _, email := range s.onboardTeamEmail {
+		trimmed := strings.TrimSpace(email)
+		if trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 // SendFirstPhaseEmail sends the welcome email to the registered user, after completing first phase of Onboarding.
 // It copies the interested internal people.
 func (s *Service) SendFirstPhaseEmail(reg *db.RegistrationRecord) error {
-	data := map[string]any{
-		"RegistrationID":   reg.RegistrationID,
-		"Email":            reg.Email,
-		"FirstName":        reg.FirstName,
-		"LastName":         reg.LastName,
-		"CompanyName":      reg.CompanyName,
-		"Country":          reg.Country,
-		"VatID":            reg.VatID,
-		"Runtime":          s.runtime,
-		"OnboardTeamEmail": s.onboardTeamEmail,
-	}
 
 	subject := "Welcome to DOME Marketplace!"
 
@@ -111,24 +121,17 @@ func (s *Service) SendFirstPhaseEmail(reg *db.RegistrationRecord) error {
 	cc := s.onboardTeamEmail
 	bcc := s.ccTeamEmail
 
-	return s.SendEmail(to, cc, bcc, subject, "email_first_phase.html", data)
+	htmlContent, err := s.views.RenderEmailFirstPhaseView(s.runtime, s.onboardTeamEmail, reg)
+	if err != nil {
+		return errl.Errorf("failed to render first phase email: %w", err)
+	}
+
+	return s.SendEmailNew(to, cc, bcc, subject, htmlContent)
 }
 
 // SendSecondPhaseEmail sends an email to the user to indicate that they need to complete the second phase of the onboarding process.
 // The second phase is for the user to complete the onboarding process in the Credential Issuer.
 func (s *Service) SendSecondPhaseEmail(reg *db.RegistrationRecord) error {
-	data := map[string]any{
-		"Reg":              reg,
-		"RegistrationID":   reg.RegistrationID,
-		"Email":            reg.Email,
-		"FirstName":        reg.FirstName,
-		"LastName":         reg.LastName,
-		"CompanyName":      reg.CompanyName,
-		"Country":          reg.Country,
-		"VatID":            reg.VatID,
-		"Runtime":          s.runtime,
-		"OnboardTeamEmail": s.onboardTeamEmail,
-	}
 
 	subject := "Welcome to DOME Marketplace!"
 	// Send mail to the user who onboarded
@@ -137,22 +140,16 @@ func (s *Service) SendSecondPhaseEmail(reg *db.RegistrationRecord) error {
 	cc := s.onboardTeamEmail
 	bcc := s.ccTeamEmail
 
-	return s.SendEmail(to, cc, bcc, subject, "email_second_phase.html", data)
+	htmlContent, err := s.views.RenderEmailSecondPhaseView(s.runtime, s.onboardTeamEmail, reg)
+	if err != nil {
+		return errl.Errorf("failed to render second phase email: %w", err)
+	}
+
+	return s.SendEmailNew(to, cc, bcc, subject, htmlContent)
 }
 
 // SendReminderEmail sends an email to the user after a period of time to remind them to complete the onboarding process.
 func (s *Service) SendReminderEmail(reg *db.RegistrationRecord) error {
-	data := map[string]any{
-		"RegistrationID":   reg.RegistrationID,
-		"Email":            reg.Email,
-		"FirstName":        reg.FirstName,
-		"LastName":         reg.LastName,
-		"CompanyName":      reg.CompanyName,
-		"Country":          reg.Country,
-		"VatID":            reg.VatID,
-		"Runtime":          s.runtime,
-		"OnboardTeamEmail": s.onboardTeamEmail,
-	}
 
 	subject := "Reminder: Please complete your registration to DOME Marketplace!"
 	// Send mail to the user who onboarded
@@ -161,16 +158,16 @@ func (s *Service) SendReminderEmail(reg *db.RegistrationRecord) error {
 	cc := s.onboardTeamEmail
 	bcc := s.ccTeamEmail
 
-	return s.SendEmail(to, cc, bcc, subject, "email_reminder.html", data)
+	htmlContent, err := s.views.RenderReminderEmailView(s.runtime, s.onboardTeamEmail, reg)
+	if err != nil {
+		return errl.Errorf("failed to render reminder email: %w", err)
+	}
+
+	return s.SendEmailNew(to, cc, bcc, subject, htmlContent)
 }
 
 // SendVerificationCodeEmail sends an email to the user with a verification code, to check that the user controls the email.
 func (s *Service) SendVerificationCodeEmail(email string, code string) error {
-	data := map[string]any{
-		"Code":             code,
-		"Runtime":          s.runtime,
-		"OnboardTeamEmail": s.onboardTeamEmail,
-	}
 
 	subject := "DOME Marketplace Verification Code"
 	// Send mail to the user
@@ -179,20 +176,17 @@ func (s *Service) SendVerificationCodeEmail(email string, code string) error {
 	cc := []string{}
 	bcc := []string{}
 
-	return s.SendEmail(to, cc, bcc, subject, "email_verification.html", data)
+	htmlContent, err := s.views.RenderVerificationCodeEmailView(s.runtime, s.onboardTeamEmail, code)
+	if err != nil {
+		return errl.Errorf("failed to render verification code email: %w", err)
+	}
+
+	return s.SendEmailNew(to, cc, bcc, subject, htmlContent)
 }
 
 // SendIssuerErrorEmail sends an email to the team in charge of the Issuer so they can handle the techinical error.
 // The payload is the payload sent to the issuer.
 func (s *Service) SendIssuerErrorEmail(reg *db.RegistrationRecord, payload string, errorMsg string) error {
-	data := map[string]any{
-		"FirstName":      reg.FirstName,
-		"CompanyName":    reg.CompanyName,
-		"RegistrationID": reg.RegistrationID,
-		"Payload":        payload,
-		"ErrorMsg":       errorMsg,
-		"Runtime":        s.runtime,
-	}
 
 	subject := "DOME: Error in Credential Issuer during customer registration"
 	// Send mail to the team in charge of the Issuer so they can handle the techinical error
@@ -201,93 +195,42 @@ func (s *Service) SendIssuerErrorEmail(reg *db.RegistrationRecord, payload strin
 	cc := []string{}
 	bcc := []string{}
 
-	return s.SendEmail(to, cc, bcc, subject, "issuer_error.html", data)
+	htmlContent, err := s.views.RenderIssuerErrorView(s.runtime, errorMsg, payload, reg)
+	if err != nil {
+		return errl.Errorf("failed to render issuer error email: %w", err)
+	}
+
+	return s.SendEmailNew(to, cc, bcc, subject, htmlContent)
 }
 
 // SendCheckIssuerErrorEmail sends an email to the team in charge of the Issuer if an error was received during
 // the self-checks that the serfer performs at startup and scheduled times.
 func (s *Service) SendCheckIssuerErrorEmail(payload string, errorMsg string) error {
-	data := map[string]any{
-		"Payload":  payload,
-		"ErrorMsg": errorMsg,
-		"Runtime":  s.runtime,
-	}
 
 	subject := "DOME: Error in Credential Issuer during customer self-registration test"
-	return s.SendEmail(s.issuerTeamEmail, []string{s.testRecipientEmail}, []string{}, subject, "check_issuer_error.html", data)
-}
-
-func (s *Service) SendTestEmail() error {
-	data := map[string]any{
-		"Email":            s.testRecipientEmail,
-		"Code":             "123456",
-		"Runtime":          s.runtime,
-		"OnboardTeamEmail": s.onboardTeamEmail,
-	}
-
-	return s.SendEmail([]string{s.testRecipientEmail}, []string{}, []string{}, "DOME Marketplace Test Email", "email_test.html", data)
-}
-
-// getTemplate loads and parses the template by name.
-// First it tries to read the template from disk (for hot-reloading during development),
-// then falls back to the embedded templatesFS.
-func (s *Service) getTemplate(name string) (*template.Template, error) {
-	// Restrict to single filename to prevent path traversal
-	name = filepath.Base(name)
-	if !strings.HasSuffix(name, ".html") {
-		name = name + ".html"
-	}
-
-	var content []byte
-	var err error
-
-	// 1. Try loading from disk if TemplateDir is configured or in Development mode
-	templateDir := s.templateDir
-	if templateDir == "" && s.runtime.IsDevelopment() {
-		templateDir = "internal/mail/templates"
-	}
-
-	if templateDir != "" {
-		filePath := filepath.Join(templateDir, name)
-		content, err = os.ReadFile(filePath)
-		if err == nil {
-			slog.Debug("Loaded email template from disk", "path", filePath)
-		}
-	}
-
-	// 2. Fall back to embedded FS if not loaded from disk
-	if content == nil {
-		embedPath := "templates/" + name
-		content, err = templatesFS.ReadFile(embedPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read template %q from embed: %w", name, err)
-		}
-		slog.Debug("Loaded email template from embed", "path", embedPath)
-	}
-
-	// 3. Parse the template individually (so "content" definitions don't conflict)
-	tmpl, err := template.New(name).Parse(string(content))
+	htmlContent, err := s.views.RenderCheckIssuerErrorView(s.runtime, errorMsg, payload)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse template %q: %w", name, err)
+		return errl.Errorf("failed to render check issuer error email: %w", err)
 	}
 
-	return tmpl, nil
+	return s.SendEmailNew(s.issuerTeamEmail, []string{s.testRecipientEmail}, []string{}, subject, htmlContent)
+}
+
+// SendTestEmail sends an email to the test recipient to verify that the mail service is working.
+func (s *Service) SendTestEmail() error {
+
+	htmlContent, err := s.views.RenderTestEmailView(s.runtime, s.onboardTeamEmail, "123456")
+	if err != nil {
+		return errl.Errorf("failed to render test email: %w", err)
+	}
+
+	return s.SendEmailNew([]string{s.testRecipientEmail}, []string{}, []string{}, "DOME Marketplace Test Email", htmlContent)
 }
 
 // SendEmail compiles and sends the email using a specified template.
-func (s *Service) SendEmail(to, cc, bcc []string, subject string, templateName string, data any) error {
+func (s *Service) SendEmailNew(to, cc, bcc []string, subject string, htmlContent string) error {
 	if !s.smtpConfig.Enabled {
 		return nil
-	}
-
-	tmpl, err := s.getTemplate(templateName)
-	if err != nil {
-		return err
-	}
-
-	var body bytes.Buffer
-	if err := tmpl.Execute(&body, data); err != nil {
-		return fmt.Errorf("failed to execute email template: %w", err)
 	}
 
 	// The email is sent from the same email as used to authenticate to the email server
@@ -303,7 +246,7 @@ func (s *Service) SendEmail(to, cc, bcc []string, subject string, templateName s
 		"To: " + strings.Join(to, ", ") + "\n" +
 		"Cc: " + strings.Join(cc, ", ") + "\n" +
 		"Subject: " + subject + "\n" +
-		mimeType + body.String())
+		mimeType + htmlContent)
 
 	return s.send(from, allRecipients, msg)
 }
