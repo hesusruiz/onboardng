@@ -47,7 +47,7 @@ func main() {
 	cfg.Runtime = runtimeEnv
 
 	// Configuration for the Issuer service
-	issuerCfg := cfg.EnvConfig
+	issuerCfg := cfg
 
 	// Create the Issuer service (acting as client of the Issuer server)
 	issuanceService, err := credissuance.NewLEARIssuance(issuerCfg)

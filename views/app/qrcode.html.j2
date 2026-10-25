@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>{{ AppName }}</title>
+    <link rel="stylesheet" href="myassets/w3.css" />
+    <link rel="stylesheet" href="myassets/dome.css" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Blinker:wght@100;200;300;400;600;700;800;900&family=Caladea:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=check_circle,counter_1,counter_2,counter_3" />
+
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+
+<body>
+    <header>
+        <div class="dome-header">
+            <div class="dome-content">
+                <div class="w3-bar">
+                    <div class="w3-bar-item padding-right-0">
+                        <a href="#">
+                            <img src="myassets/logos/DOME_Icon_White.svg" alt="DOME Icon"
+                                style="width:100%;max-height:32px">
+                        </a>
+                    </div>
+                    <div class="w3-bar-item">
+                        <span class="blinker-semibold w3-xlarge nowrap">DOME Marketplace</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main style="background-color: #EDF2FA; min-height: 100vh;">
+        <div class="w3-center w3-padding-32 dome-content">
+            <h1>Welcome to DOME Marketplace!</h1>
+            <h4>The next step is to use the DOME Wallet to logon to the marketplace</h4>
+            <h3>Scan the QR code with your mobile to load the wallet and your identity credential</h3>
+            <div id="qrcode" style="margin:auto;width: 180px; height: 180px;"></div>
+            <div class="w3-panel w3-light-blue">
+                <h3>After you have loaded the wallet, click the link below to go to the marketplace</h3>
+                <h3><a href="{{DOMEURL}}">Go to DOME Marketplace</a></h3>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        window.addEventListener('load', () => {
+            const qrContainer = document.getElementById('qrcode');
+
+            qrCodeInstance = new QRCode(qrContainer, {
+                text: "{{ CredentialOfferUri }}",
+                width: 180,
+                height: 180,
+                colorDark: "#070f24",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        });
+    </script>
+
+</body>
+
+</html>

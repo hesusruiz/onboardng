@@ -10,9 +10,9 @@ import (
 
 func TestLoadEnvironmentConfigs(t *testing.T) {
 	configs := []struct {
-		envName  string
-		filePath string
-		expectedHost string
+		envName          string
+		filePath         string
+		expectedHost     string
 		expectedFeatures bool
 	}{
 		{
@@ -42,7 +42,7 @@ func TestLoadEnvironmentConfigs(t *testing.T) {
 				t.Fatalf("Failed to read %s: %v", tc.filePath, err)
 			}
 
-			var cfg configuration.Config
+			var cfg configuration.EnvConfig
 			if err := yaml.Unmarshal(data, &cfg); err != nil {
 				t.Fatalf("Failed to parse YAML for %s: %v", tc.filePath, err)
 			}
@@ -77,10 +77,10 @@ func TestLoadEnvironmentConfigs(t *testing.T) {
 
 func TestRuntimeEnvMethods(t *testing.T) {
 	tests := []struct {
-		env          configuration.RuntimeEnv
-		isDev        bool
-		isPre        bool
-		isPro        bool
+		env           configuration.RuntimeEnv
+		isDev         bool
+		isPre         bool
+		isPro         bool
 		displayString string
 	}{
 		{configuration.Development, true, false, false, "SBX"},
@@ -106,4 +106,3 @@ func TestRuntimeEnvMethods(t *testing.T) {
 		})
 	}
 }
-

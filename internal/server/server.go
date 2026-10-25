@@ -1,14 +1,18 @@
 package server
 
 import (
+	"fmt"
+	"log"
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"sync"
 
 	"golang.org/x/time/rate"
 
 	"github.com/hesusruiz/onboardng/internal/configuration"
+	"github.com/hesusruiz/onboardng/views"
 	"github.com/hesusruiz/utils/errl"
 )
 
@@ -106,6 +110,11 @@ func NewHTTPServer(cfg *ServerConfig) (*Server, error) {
 
 	mux.Handle("/myassets/", http.StripPrefix("/myassets/", http.FileServer(http.Dir("src/assets"))))
 
+	appViews, err := views.NewAppViews(true)
+	if err != nil {
+		log.Fatalf("Failed to create views: %v", err)
+	}
+
 	// Middleware to wrap the Admin routes
 	nonAdminChain := func(next http.HandlerFunc) http.Handler {
 		return s.LogRequest(s.EnableCORS(s.RateLimitIP(next)))
@@ -117,8 +126,40 @@ func NewHTTPServer(cfg *ServerConfig) (*Server, error) {
 	mux.Handle("/api/register", nonAdminChain(s.HandleRegister))
 	mux.Handle("/api/representatives", nonAdminChain(s.HandleUpdateRepresentatives))
 	mux.Handle("/api/orgstatus", nonAdminChain(s.HandleOrgStatus))
-	mux.Handle("/qr", nonAdminChain(s.QRCodeHandler))
+	mux.Handle("/qrold", nonAdminChain(s.QRCodeHandler))
 	mux.Handle("/health", s.EnableCORS(s.RateLimitIP(http.HandlerFunc(s.HandleHealth))))
+
+	mux.HandleFunc("/qr", func(w http.ResponseWriter, r *http.Request) {
+
+		// Get the credential_offer_uri from the parameter in the request URL
+		credentialOfferURI := r.URL.Query().Get("credential_offer_uri")
+
+		// Return error if credentialOfferURI is not provided
+		if credentialOfferURI == "" {
+			http.Error(w, "credential_offer_uri is required", http.StatusBadRequest)
+			return
+		}
+
+		fmt.Printf("credentialOfferURI: %s\n", credentialOfferURI)
+
+		//URLEncode the credentialOfferURI
+		credentialOfferURI = url.QueryEscape(credentialOfferURI)
+
+		// Add the prefix for the wallet credential issuance callback URL
+		credentialOfferURI = s.WalletURL + "?credential_offer_uri=" + credentialOfferURI
+
+		fmt.Printf("Displaying credentialOfferURI: %s\n", credentialOfferURI)
+
+		html, err := appViews.RenderQRCodeView(credentialOfferURI, "https://dome-marketplace-sbx.org")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(html))
+	})
 
 	// Admin routes
 	s.registerAdminRoutes(mux)
@@ -146,6 +187,12 @@ func NewHTTPServer(cfg *ServerConfig) (*Server, error) {
 			} else {
 				slog.Warn("Self-Diagnostics: failed to check all, but runtime is not production, so we continue")
 			}
+		}
+	} else {
+		err = s.CheckMail()
+		if err != nil {
+			err = errl.Errorf("Self-Diagnostics: failed to check Mail: %v", err)
+			slog.Error(err.Error())
 		}
 	}
 

@@ -15,9 +15,9 @@ type MockDB struct {
 	GetRegistrationByVatIDFunc        func(vatID string) (*db.RegistrationRecord, error)
 	GetRegistrationByEmailFunc        func(email string) (*db.RegistrationRecord, error)
 	GetRegistrationByEmailOrVatIDFunc func(email, vatID string) (*db.RegistrationRecord, error)
-	GetRegistrationsFunc              func(limit, offset int) ([]db.RegistrationRecord, int, error)
-	GetRegistrationLogsFunc           func(vatID string, limit, offset int) ([]db.RegistrationLog, error)
-	GetRegistrationFilesFunc          func(vatID string, limit, offset int) ([]db.RegistrationFile, error)
+	GetRegistrationsFunc              func(limit, offset int) ([]*db.RegistrationRecord, int, error)
+	GetRegistrationLogsFunc           func(vatID string, limit, offset int) ([]*db.RegistrationLog, error)
+	GetRegistrationFilesFunc          func(vatID string, limit, offset int) ([]*db.RegistrationFile, error)
 	GetRegistrationFileFunc           func(fileID string) (*db.RegistrationFile, error)
 	GetRegistrationByIDFunc           func(registrationID string) (*db.RegistrationRecord, error)
 	UpdateRepresentativesByVatIDFunc  func(vatID string, rep *db.RegistrationRecord) error
@@ -44,13 +44,13 @@ func (m *MockDB) GetRegistrationByEmail(email string) (*db.RegistrationRecord, e
 func (m *MockDB) GetRegistrationByEmailOrVatID(email, vatID string) (*db.RegistrationRecord, error) {
 	return m.GetRegistrationByEmailOrVatIDFunc(email, vatID)
 }
-func (m *MockDB) GetRegistrations(limit, offset int) ([]db.RegistrationRecord, int, error) {
+func (m *MockDB) GetRegistrations(limit, offset int) ([]*db.RegistrationRecord, int, error) {
 	return m.GetRegistrationsFunc(limit, offset)
 }
-func (m *MockDB) GetRegistrationLogs(vatID string, limit, offset int) ([]db.RegistrationLog, error) {
+func (m *MockDB) GetRegistrationLogs(vatID string, limit, offset int) ([]*db.RegistrationLog, error) {
 	return m.GetRegistrationLogsFunc(vatID, limit, offset)
 }
-func (m *MockDB) GetRegistrationFiles(vatID string, limit, offset int) ([]db.RegistrationFile, error) {
+func (m *MockDB) GetRegistrationFiles(vatID string, limit, offset int) ([]*db.RegistrationFile, error) {
 	return m.GetRegistrationFilesFunc(vatID, limit, offset)
 }
 func (m *MockDB) GetRegistrationFile(fileID string) (*db.RegistrationFile, error) {
@@ -71,6 +71,7 @@ type MockMail struct {
 	SendIssuerErrorFunc      func(reg *db.RegistrationRecord, payload string, errorMsg string) error
 	SendCheckIssuerErrorFunc func(payload string, errorMsg string) error
 	SendEmailFunc            func(to, cc, bcc []string, subject string, templateName string, data any) error
+	SendReminderEmailFunc    func(reg *db.RegistrationRecord) error
 }
 
 func (m *MockMail) SendVerificationCodeEmail(email string, code string) error {
@@ -94,6 +95,12 @@ func (m *MockMail) SendCheckIssuerErrorEmail(payload string, errorMsg string) er
 func (m *MockMail) SendEmail(to, cc, bcc []string, subject string, templateName string, data any) error {
 	if m.SendEmailFunc != nil {
 		return m.SendEmailFunc(to, cc, bcc, subject, templateName, data)
+	}
+	return nil
+}
+func (m *MockMail) SendReminderEmail(reg *db.RegistrationRecord) error {
+	if m.SendReminderEmailFunc != nil {
+		return m.SendReminderEmailFunc(reg)
 	}
 	return nil
 }

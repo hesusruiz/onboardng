@@ -214,7 +214,7 @@ func resolveConfigPath(configPath string, env string) string {
 	return envYaml
 }
 
-func serve(cfg configuration.Config, envFlag string, port string, watchFlag bool, secretKey string) error {
+func serve(cfg configuration.EnvConfig, envFlag string, port string, watchFlag bool, secretKey string) error {
 
 	slog.Info("Starting server", "env", envFlag, "port", port, "watch", watchFlag)
 
@@ -232,7 +232,7 @@ func serve(cfg configuration.Config, envFlag string, port string, watchFlag bool
 	fmt.Println(cfg.String())
 
 	// Setup issuer
-	issuanceService, err := credissuance.NewLEARIssuance(cfg.EnvConfig)
+	issuanceService, err := credissuance.NewLEARIssuance(cfg)
 	if err != nil {
 		slog.Error("Error creating issuance service", "error", errl.Error(err))
 		os.Exit(1)
@@ -252,15 +252,6 @@ func serve(cfg configuration.Config, envFlag string, port string, watchFlag bool
 		slog.Error("Error initializing mail service", "error", errl.Error(err))
 		return err
 	}
-
-	// Initialize and start automated Maintenance service
-	maintenanceService := maintenance.NewMaintenanceService()
-	// Schedule database maintenance everyday at 03:00
-	maintenanceService.AddTask("Database Maintenance", maintenance.Schedule{Hour: 3, Minute: 0}, dbService.RunMaintenance)
-	maintenanceService.Start()
-
-	// Run the database maintenance once at startup
-	dbService.RunMaintenance(context.Background())
 
 	adminUser := os.Getenv("ADMIN_USER")
 	if adminUser == "" {
@@ -297,6 +288,21 @@ func serve(cfg configuration.Config, envFlag string, port string, watchFlag bool
 		log.Fatalf("Error: Could not create server: %v", err)
 	}
 
+	// Initialize and start automated Maintenance service
+	maintenanceService := maintenance.NewMaintenanceService()
+
+	// Schedule database maintenance everyday at 03:00
+	maintenanceService.AddTask("Database Maintenance", maintenance.Schedule{Hour: 3, Minute: 0}, dbService.RunMaintenance)
+
+	// Run the database maintenance once at startup
+	dbService.RunMaintenance(context.Background())
+
+	// Schedule reminders for Sellers that do not complete the second step of the onboarding process
+	maintenanceService.AddTask("Send Reminder Emails", maintenance.Schedule{Hour: 10, Minute: 0}, srv.RemindSellers)
+
+	// Start the maintenance service and run the scheduled tasks in the background
+	maintenanceService.Start()
+
 	// Start Watcher if requested
 	if watchFlag {
 		go startWatcher(cfg)
@@ -313,7 +319,7 @@ func serve(cfg configuration.Config, envFlag string, port string, watchFlag bool
 	return nil
 }
 
-func LoadEncryptedConfig(path string, secretKey string) configuration.Config {
+func LoadEncryptedConfig(path string, secretKey string) configuration.EnvConfig {
 	var source io.ReadCloser
 
 	// Handle both remote and local files
@@ -370,7 +376,7 @@ func LoadEncryptedConfig(path string, secretKey string) configuration.Config {
 	}
 
 	// Parse YAML
-	var cfg configuration.Config
+	var cfg configuration.EnvConfig
 	if err := yaml.NewDecoder(reader).Decode(&cfg); err != nil {
 		log.Fatalf("Error: Failed to parse YAML: %v", err)
 	}
@@ -438,7 +444,7 @@ func sealConfig(inputPath, outputPath string, newKey bool) error {
 	}
 
 	// Parse YAML
-	var cfg configuration.Config
+	var cfg configuration.EnvConfig
 	if err := yaml.NewDecoder(bytes.NewReader(plainBytes)).Decode(&cfg); err != nil {
 		return err
 	}
@@ -585,7 +591,7 @@ func sealFile(inputPath string, publicKey age.Recipient) ([]byte, error) {
 
 // startWatcher is a development/debugging feature that rebuilds the frontend when the frontend source code changes.
 // It should not be used in production
-func startWatcher(cfg configuration.Config) {
+func startWatcher(cfg configuration.EnvConfig) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		slog.Error("❌ Watcher Error", "error", err)
