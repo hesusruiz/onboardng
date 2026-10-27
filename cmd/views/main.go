@@ -81,21 +81,35 @@ func main() {
 
 	http.HandleFunc("/views/", func(w http.ResponseWriter, r *http.Request) {
 		html := `
-	<p><a href="/views/qrcode">qrcode</a></p>
-	<p><a href="/views/index">index</a></p>
-	<p><a href="/mail/first_phase">mail first phase</a></p>
-	<p><a href="/mail/second_phase">mail second phase</a></p>
-	<p><a href="/mail/reminder">mail reminder</a></p>
-	<p><a href="/mail/verification">mail verification</a></p>
-	<p><a href="/mail/check_issuer_error">mail check_issuer_error</a></p>
-	<p><a href="/mail/issuer_error">mail issuer_error</a></p>
-	<p><a href="/mail/test">mail test</a></p>
+		<p><a href="/views/dashboard">dashboard</a></p>
+		<p><a href="/views/qrcode">qrcode</a></p>
+		<p><a href="/mail/first_phase">mail first phase</a></p>
+		<p><a href="/views/index">index</a></p>
+		<p><a href="/mail/reminder">mail reminder</a></p>
+		<p><a href="/mail/second_phase">mail second phase</a></p>
+		<p><a href="/mail/check_issuer_error">mail check_issuer_error</a></p>
+		<p><a href="/mail/verification">mail verification</a></p>
+		<p><a href="/mail/test">mail test</a></p>
+		<p><a href="/mail/issuer_error">mail issuer_error</a></p>
 		`
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(html))
 
+	})
+
+	http.HandleFunc("/views/dashboard", func(w http.ResponseWriter, r *http.Request) {
+
+		html, err := adminViews.RenderDashboardView()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(html))
 	})
 
 	http.HandleFunc("/views/qrcode", func(w http.ResponseWriter, r *http.Request) {

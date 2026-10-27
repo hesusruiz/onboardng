@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"filippo.io/age"
 	"github.com/fsnotify/fsnotify"
@@ -298,7 +299,7 @@ func serve(cfg configuration.EnvConfig, envFlag string, port string, watchFlag b
 	dbService.RunMaintenance(context.Background())
 
 	// Schedule reminders for Sellers that do not complete the second step of the onboarding process
-	maintenanceService.AddTask("Send Reminder Emails", maintenance.Schedule{Hour: 10, Minute: 0}, srv.RemindSellers)
+	maintenanceService.AddTask("Send Reminder Emails", maintenance.Schedule{Weekdays: []time.Weekday{time.Monday}, Hour: 8, Minute: 0}, srv.RemindSellers)
 
 	// Start the maintenance service and run the scheduled tasks in the background
 	maintenanceService.Start()
