@@ -77,6 +77,7 @@ func TestHandleValidateEmail(t *testing.T) {
 		// Map should contain the code
 		dataMap := resp.Data.(map[string]any)
 		code := dataMap["code"].(string)
+		assert.Equal(t, false, dataMap["alreadyVerified"])
 
 		// Verify code is stored in server
 		s.CodesMu.RLock()
@@ -84,6 +85,97 @@ func TestHandleValidateEmail(t *testing.T) {
 		s.CodesMu.RUnlock()
 		assert.True(t, exists)
 		assert.Equal(t, code, storedCode.Code)
+		assert.False(t, storedCode.Verified)
+	})
+
+	t.Run("Reuse Verified Code Without Sending Email Or Rate Limiting", func(t *testing.T) {
+		email := "verified@example.com"
+		emailsSent := 0
+		var lastSentCode string
+
+		mockMail.SendVerificationCodeFunc = func(e string, code string) error {
+			emailsSent++
+			lastSentCode = code
+			return nil
+		}
+
+		// Exhaust all 3 allowed email attempts in the 3-minute window
+		for i := 0; i < 3; i++ {
+			body, _ := json.Marshal(map[string]any{"email": email})
+			req := httptest.NewRequest(http.MethodPost, "/api/validate-email", bytes.NewBuffer(body))
+			req.Header.Set("X-Requested-With", "XMLHttpRequest")
+			w := httptest.NewRecorder()
+			s.HandleSendEmailValidationCode(w, req)
+			assert.Equal(t, http.StatusOK, w.Code)
+		}
+		assert.Equal(t, 3, emailsSent)
+
+		// 4th attempt before verification should hit 429 rate limit
+		body4, _ := json.Marshal(map[string]any{"email": email})
+		req4 := httptest.NewRequest(http.MethodPost, "/api/validate-email", bytes.NewBuffer(body4))
+		req4.Header.Set("X-Requested-With", "XMLHttpRequest")
+		w4 := httptest.NewRecorder()
+		s.HandleSendEmailValidationCode(w4, req4)
+		assert.Equal(t, http.StatusTooManyRequests, w4.Code)
+
+		// Now verify the code
+		assert.True(t, s.VerifyCode(email, lastSentCode))
+
+		// Returning user submits email again: should succeed, reuse the code, not send email, and not be blocked by rate limiter
+		bodyReturn, _ := json.Marshal(map[string]any{"email": email})
+		reqReturn := httptest.NewRequest(http.MethodPost, "/api/validate-email", bytes.NewBuffer(bodyReturn))
+		reqReturn.Header.Set("X-Requested-With", "XMLHttpRequest")
+		wReturn := httptest.NewRecorder()
+		s.HandleSendEmailValidationCode(wReturn, reqReturn)
+		assert.Equal(t, http.StatusOK, wReturn.Code)
+		assert.Equal(t, 3, emailsSent) // No additional email sent
+
+		var resp APIResponse
+		json.NewDecoder(wReturn.Body).Decode(&resp)
+		assert.True(t, resp.Success)
+		dataMap := resp.Data.(map[string]any)
+		assert.Equal(t, lastSentCode, dataMap["code"])
+		assert.Equal(t, true, dataMap["alreadyVerified"])
+	})
+
+	t.Run("Explicit Resend Sends New Code And Respects Rate Limiter", func(t *testing.T) {
+		email := "resend@example.com"
+		emailsSent := 0
+		var firstCode string
+
+		mockMail.SendVerificationCodeFunc = func(e string, code string) error {
+			emailsSent++
+			if emailsSent == 1 {
+				firstCode = code
+			}
+			return nil
+		}
+
+		// 1st request
+		body1, _ := json.Marshal(map[string]any{"email": email})
+		req1 := httptest.NewRequest(http.MethodPost, "/api/validate-email", bytes.NewBuffer(body1))
+		req1.Header.Set("X-Requested-With", "XMLHttpRequest")
+		w1 := httptest.NewRecorder()
+		s.HandleSendEmailValidationCode(w1, req1)
+		assert.Equal(t, http.StatusOK, w1.Code)
+		assert.Equal(t, 1, emailsSent)
+
+		// Verify the first code
+		assert.True(t, s.VerifyCode(email, firstCode))
+
+		// Explicit resend (resend: true) should still send a new email and mark Verified = false
+		bodyResend, _ := json.Marshal(map[string]any{"email": email, "resend": true})
+		reqResend := httptest.NewRequest(http.MethodPost, "/api/validate-email", bytes.NewBuffer(bodyResend))
+		reqResend.Header.Set("X-Requested-With", "XMLHttpRequest")
+		wResend := httptest.NewRecorder()
+		s.HandleSendEmailValidationCode(wResend, reqResend)
+		assert.Equal(t, http.StatusOK, wResend.Code)
+		assert.Equal(t, 2, emailsSent)
+
+		var resp APIResponse
+		json.NewDecoder(wResend.Body).Decode(&resp)
+		dataMap := resp.Data.(map[string]any)
+		assert.Equal(t, false, dataMap["alreadyVerified"])
 	})
 }
 
