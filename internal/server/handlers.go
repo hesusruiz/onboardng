@@ -178,7 +178,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := requestData.Validate(); err != nil {
+	if err := requestData.Validate(s.Runtime); err != nil {
 		s.SendJSON(w, r, http.StatusBadRequest, false, err.Error(), nil)
 		return
 	}
@@ -835,7 +835,7 @@ type RegistrationRequest struct {
 	Role          string `json:"role"`
 }
 
-func (r *RegistrationRequest) Validate() error {
+func (r *RegistrationRequest) Validate(runtime configuration.RuntimeEnv) error {
 	if r.FirstName == "" {
 		return fmt.Errorf("first name is required")
 	}
@@ -905,13 +905,18 @@ func (r *RegistrationRequest) Validate() error {
 			r.VatId = expectedPrefix + strings.TrimPrefix(r.VatId, "VAT")
 		}
 
-		// Check in the VIES database if the VAT ID is valid for the country provided
-		viesResp, err := vies.CheckVAT(context.Background(), nil, r.Country, strings.TrimPrefix(r.VatId, expectedPrefix))
-		if err != nil {
-			return fmt.Errorf("error checking VAT ID with VIES API: %w", err)
-		}
-		if !viesResp.Valid {
-			return fmt.Errorf("invalid VAT ID for country %s", r.Country)
+		// Do not perform VIES validation in development
+		if runtime != configuration.Development {
+
+			// Check in the VIES database if the VAT ID is valid for the country provided
+			viesResp, err := vies.CheckVAT(context.Background(), nil, r.Country, strings.TrimPrefix(r.VatId, expectedPrefix))
+			if err != nil {
+				return fmt.Errorf("error checking VAT ID with VIES API: %w", err)
+			}
+			if !viesResp.Valid {
+				return fmt.Errorf("invalid VAT ID for country %s", r.Country)
+			}
+
 		}
 
 	}
