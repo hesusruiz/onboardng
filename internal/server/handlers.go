@@ -13,121 +13,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hesusruiz/onboardng/common"
 	"github.com/hesusruiz/onboardng/credissuance"
 	"github.com/hesusruiz/onboardng/internal/configuration"
 	"github.com/hesusruiz/onboardng/internal/db"
+	"github.com/hesusruiz/onboardng/internal/vies"
 	"github.com/hesusruiz/utils/errl"
 )
-
-// APIResponse is the reply to the API calls
-type APIResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Data    any    `json:"data,omitempty"`
-}
-
-type RegistrationRequest struct {
-	FirstName     string `json:"firstName"`
-	LastName      string `json:"lastName"`
-	CompanyName   string `json:"companyName"`
-	Country       string `json:"country"`
-	VatId         string `json:"vatId"`
-	StreetAddress string `json:"streetAddress"`
-	City          string `json:"city"`
-	PostalCode    string `json:"postalCode"`
-	Email         string `json:"email"`
-	Code          string `json:"code"`
-	Website       string `json:"website"`
-	Role          string `json:"role"`
-}
-
-func (r *RegistrationRequest) Validate() error {
-	if r.FirstName == "" {
-		return fmt.Errorf("first name is required")
-	}
-	if r.LastName == "" {
-		return fmt.Errorf("last name is required")
-	}
-	if r.CompanyName == "" {
-		return fmt.Errorf("company name is required")
-	}
-	if r.Country == "" {
-		return fmt.Errorf("country is required")
-	}
-	if r.VatId == "" {
-		return fmt.Errorf("VAT ID is required")
-	}
-	if r.StreetAddress == "" {
-		return fmt.Errorf("street address is required")
-	}
-	if r.City == "" {
-		return fmt.Errorf("city is required")
-	}
-	if r.PostalCode == "" {
-		return fmt.Errorf("postal code is required")
-	}
-	if r.Email == "" {
-		return fmt.Errorf("email is required")
-	}
-	if !isValidEmailFormat(r.Email) {
-		return fmt.Errorf("invalid email address format")
-	}
-	if r.Code == "" {
-		return fmt.Errorf("verification code is required")
-	}
-	return nil
-}
-
-// SendJSON utility helper
-func (s *Server) SendJSON(w http.ResponseWriter, r *http.Request, status int, success bool, message string, data any) {
-	slog.Info("Exit", "method", r.Method, "url", r.URL.Path, "status", status)
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(APIResponse{
-		Success: success,
-		Message: message,
-		Data:    data,
-	})
-}
-
-// EnableCORS middleware to allow all origins
-func (s *Server) EnableCORS(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Requested-With, Authorization")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-// validateCSRF checks the X-Requested-With header
-func validateCSRF(r *http.Request) bool {
-	return r.Header.Get("X-Requested-With") != ""
-}
-
-func generateCode() string {
-	n, _ := rand.Int(rand.Reader, big.NewInt(1000000))
-	return fmt.Sprintf("%06d", n)
-}
-
-// isValidEmailFormat checks if the email address provided has a valid format
-func isValidEmailFormat(email string) bool {
-	re := regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$`)
-	return re.MatchString(strings.ToLower(email))
-}
-
-// generateRegistrationID creates a human-readable but unguessable ID in the format YYYYMMDD-{8-digit}
-func generateRegistrationID() string {
-	dateStr := time.Now().Format("20060102")
-	n, _ := rand.Int(rand.Reader, big.NewInt(100000000)) // 8 digits
-	return fmt.Sprintf("%s-%08d", dateStr, n)
-}
 
 // HandleSendEmailValidationCode is the first step in the registration process.
 // It receives an email address in the body of the request and sends a verification code
@@ -147,7 +39,8 @@ func (s *Server) HandleSendEmailValidationCode(w http.ResponseWriter, r *http.Re
 	}
 
 	var req struct {
-		Email string `json:"email"`
+		Email  string `json:"email"`
+		Resend bool   `json:"resend"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		s.SendJSON(w, r, http.StatusBadRequest, false, "Invalid request body", nil)
@@ -157,6 +50,17 @@ func (s *Server) HandleSendEmailValidationCode(w http.ResponseWriter, r *http.Re
 	if req.Email == "" || !isValidEmailFormat(req.Email) {
 		s.SendJSON(w, r, http.StatusBadRequest, false, "A valid email is required", nil)
 		return
+	}
+
+	// If not an explicit resend request, reuse the code in memory if the email was already verified
+	if !req.Resend {
+		if code, ok := s.GetVerifiedCode(req.Email); ok {
+			s.SendJSON(w, r, http.StatusOK, true, "Email already verified", map[string]any{
+				"code":            code,
+				"alreadyVerified": true,
+			})
+			return
+		}
 	}
 
 	// Rate limiting
@@ -169,14 +73,17 @@ func (s *Server) HandleSendEmailValidationCode(w http.ResponseWriter, r *http.Re
 	code := generateCode()
 	s.StoreVerificationCode(req.Email, code)
 
-	// Send the code to the user in a separate goroutine
-	go func() {
-		if err := s.Mail.SendVerificationCodeEmail(req.Email, code); err != nil {
-			slog.Error("Error sending verification code", "error", err)
-		}
-	}()
+	// Send the code to the user via email
+	if err := s.Mail.SendVerificationCodeEmail(req.Email, code); err != nil {
+		slog.Error("Error sending verification code", "error", err)
+		s.SendJSON(w, r, http.StatusInternalServerError, false, "Error sending verification code", err.Error())
+		return
+	}
 
-	s.SendJSON(w, r, http.StatusOK, true, "Validation code sent to your email", map[string]string{"code": code})
+	s.SendJSON(w, r, http.StatusOK, true, "Validation code sent to your email", map[string]any{
+		"code":            code,
+		"alreadyVerified": false,
+	})
 }
 
 // HandleValidateEmailCode is the second step in the registration process.
@@ -210,13 +117,17 @@ func (s *Server) HandleValidateEmailCode(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Check if there is a registratrion for this email
+	// Check if there is a registration for this email
 	regRecord, err := s.DB.GetRegistrationByEmail(req.Email)
 	if err != nil {
 		// Just send a successful response to avoid leaking information
 		s.SendJSON(w, r, http.StatusOK, true, "Email verified successfully", nil)
 		return
 	}
+
+	// Strip the prefix "VATxx-" from the VAT ID if it exists, to return a clean VAT ID to the user
+	vatPrefix := "VAT" + regRecord.Country + "-"
+	vatID := strings.TrimPrefix(regRecord.VatID, vatPrefix)
 
 	// Send back a successful message including the registration data
 	// Convert the registration record to a registratrion request
@@ -225,7 +136,7 @@ func (s *Server) HandleValidateEmailCode(w http.ResponseWriter, r *http.Request)
 		LastName:      regRecord.LastName,
 		CompanyName:   regRecord.CompanyName,
 		Country:       regRecord.Country,
-		VatId:         regRecord.VatID,
+		VatId:         vatID,
 		StreetAddress: regRecord.StreetAddress,
 		City:          regRecord.City,
 		PostalCode:    regRecord.PostalCode,
@@ -267,14 +178,8 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := requestData.Validate(); err != nil {
+	if err := requestData.Validate(s.Runtime); err != nil {
 		s.SendJSON(w, r, http.StatusBadRequest, false, err.Error(), nil)
-		return
-	}
-
-	// Check that Role is either "Buyer" or "Seller"
-	if requestData.Role != "Buyer" && requestData.Role != "Seller" {
-		s.SendJSON(w, r, http.StatusBadRequest, false, "Invalid role", nil)
 		return
 	}
 
@@ -906,4 +811,166 @@ func (s *Server) HandleUpdateRepresentatives(w http.ResponseWriter, r *http.Requ
 	}
 
 	s.SendJSON(w, r, http.StatusOK, true, "Representatives updated successfully", nil)
+}
+
+// APIResponse is the reply to the API calls
+type APIResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+	Data    any    `json:"data,omitempty"`
+}
+
+type RegistrationRequest struct {
+	FirstName     string `json:"firstName"`
+	LastName      string `json:"lastName"`
+	CompanyName   string `json:"companyName"`
+	Country       string `json:"country"`
+	VatId         string `json:"vatId"`
+	StreetAddress string `json:"streetAddress"`
+	City          string `json:"city"`
+	PostalCode    string `json:"postalCode"`
+	Email         string `json:"email"`
+	Code          string `json:"code"`
+	Website       string `json:"website"`
+	Role          string `json:"role"`
+}
+
+func (r *RegistrationRequest) Validate(runtime configuration.RuntimeEnv) error {
+	if r.FirstName == "" {
+		return fmt.Errorf("first name is required")
+	}
+	if r.LastName == "" {
+		return fmt.Errorf("last name is required")
+	}
+	if r.CompanyName == "" {
+		return fmt.Errorf("company name is required")
+	}
+
+	// Check that Role is either "Buyer" or "Seller"
+	if r.Role != "Buyer" && r.Role != "Seller" {
+		return fmt.Errorf("invalid role")
+	}
+
+	if r.Country == "" {
+		return fmt.Errorf("country is required")
+	}
+
+	// Convert to uppercase to avoid case sensitivity issues
+	r.Country = strings.ToUpper(r.Country)
+
+	if r.StreetAddress == "" {
+		return fmt.Errorf("street address is required")
+	}
+	if r.City == "" {
+		return fmt.Errorf("city is required")
+	}
+	if r.PostalCode == "" {
+		return fmt.Errorf("postal code is required")
+	}
+	if r.Email == "" {
+		return fmt.Errorf("email is required")
+	}
+	if !isValidEmailFormat(r.Email) {
+		return fmt.Errorf("invalid email address format")
+	}
+	if r.Code == "" {
+		return fmt.Errorf("verification code is required")
+	}
+
+	if r.VatId == "" {
+		return fmt.Errorf("VAT ID is required")
+	}
+
+	// Convert to uppercase to avoid case sensitivity issues
+	r.VatId = strings.ToUpper(r.VatId)
+
+	// If country is an EU country, then the VAT ID must comply with the ETSI EN 319 412-1 format for organizationIdentifier
+	// That is, it must start with "VAT" followed by the country code and a dash, e.g. "VATES-12345678"
+	if common.IsValidEUCountry(r.Country) {
+
+		// The prefix must be "VAT" followed by the country code and a dash
+		expectedPrefix := "VAT" + r.Country + "-"
+
+		// The user may have provided the VAT ID with or without the prefix, so we check if it starts with the expected prefix
+		// If it does not have the prefix, we add it to the VAT ID and check if the rest of the string is a valid VAT number for the country provided
+
+		if !strings.HasPrefix(r.VatId, expectedPrefix) {
+
+			// It the provided VAT includes only the "VAT" prefix, it is an error
+			if strings.HasPrefix(r.VatId, "VAT") {
+				return fmt.Errorf("invalid VAT ID format for country %s", r.Country)
+			}
+
+			// Add the expected prefix to the VAT ID and check if it's valid
+			r.VatId = expectedPrefix + strings.TrimPrefix(r.VatId, "VAT")
+		}
+
+		// Do not perform VIES validation in development
+		if runtime != configuration.Development {
+
+			// Check in the VIES database if the VAT ID is valid for the country provided
+			viesResp, err := vies.CheckVAT(context.Background(), nil, r.Country, strings.TrimPrefix(r.VatId, expectedPrefix))
+			if err != nil {
+				return fmt.Errorf("error checking VAT ID with VIES API: %w", err)
+			}
+			if !viesResp.Valid {
+				return fmt.Errorf("invalid VAT ID for country %s", r.Country)
+			}
+
+		}
+
+	}
+
+	return nil
+}
+
+// SendJSON utility helper
+func (s *Server) SendJSON(w http.ResponseWriter, r *http.Request, status int, success bool, message string, data any) {
+	slog.Info("Exit", "method", r.Method, "url", r.URL.Path, "status", status)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(APIResponse{
+		Success: success,
+		Message: message,
+		Data:    data,
+	})
+}
+
+// EnableCORS middleware to allow all origins
+func (s *Server) EnableCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Requested-With, Authorization")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+// validateCSRF checks the X-Requested-With header
+func validateCSRF(r *http.Request) bool {
+	return r.Header.Get("X-Requested-With") != ""
+}
+
+func generateCode() string {
+	n, _ := rand.Int(rand.Reader, big.NewInt(1000000))
+	return fmt.Sprintf("%06d", n)
+}
+
+// isValidEmailFormat checks if the email address provided has a valid format
+func isValidEmailFormat(email string) bool {
+	re := regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$`)
+	return re.MatchString(strings.ToLower(email))
+}
+
+// generateRegistrationID creates a human-readable but unguessable ID in the format YYYYMMDD-{8-digit}
+func generateRegistrationID() string {
+	dateStr := time.Now().Format("20060102")
+	n, _ := rand.Int(rand.Reader, big.NewInt(100000000)) // 8 digits
+	return fmt.Sprintf("%s-%08d", dateStr, n)
 }
