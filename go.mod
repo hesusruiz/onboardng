@@ -7,6 +7,8 @@ require (
 	github.com/flosch/pongo2/v7 v7.0.0-alpha.1
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/go-sprout/sprout v1.1.2
+	github.com/goccy/go-json v0.11.2
+	github.com/goccy/go-yaml v1.19.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/hesusruiz/authgo v1.0.8
@@ -31,8 +33,6 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/go-webauthn/webauthn v0.18.2 // indirect
 	github.com/go-webauthn/x v0.3.1 // indirect
-	github.com/goccy/go-json v0.11.2 // indirect
-	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/go-tpm v0.9.8 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.4 // indirect

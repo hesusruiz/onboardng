@@ -111,9 +111,9 @@ func main() {
 
 	})
 
-	http.HandleFunc("/views/organizations", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/admin/organizations", func(w http.ResponseWriter, r *http.Request) {
 
-		html, err := adminViews.RenderOrganizationsView("/views/organizationsjson")
+		html, err := adminViews.RenderOrganizationsView("/admin/organizationsjson")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -124,9 +124,9 @@ func main() {
 		w.Write([]byte(html))
 	})
 
-	http.HandleFunc("/views/registrations", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/admin/registrations", func(w http.ResponseWriter, r *http.Request) {
 
-		html, err := adminViews.RenderRegistrationsView()
+		html, err := adminViews.RenderRegistrationsView("/admin/registrationsjson")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
