@@ -272,7 +272,12 @@
                 if (data) {
                     // Just for testing
                     this.codeValue = data.data.code;
-                    this.step = 'code';
+                    if (data.data.alreadyVerified) {
+                        this.code = data.data.code;
+                        await this.verifyCode();
+                    } else {
+                        this.step = 'code';
+                    }
                 }
             },
 

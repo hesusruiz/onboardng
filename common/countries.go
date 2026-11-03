@@ -111,8 +111,47 @@ func GetCountryName(code string) string {
 	return ""
 }
 
-func IsValidCountry(code string) bool {
+func IsValidEFTACountry(code string) bool {
 	for _, c := range EUEFTACountries {
+		if c.Code == code {
+			return true
+		}
+	}
+	return false
+}
+
+var EUCountries = []Country{
+	{Code: "AT", Name: "Austria"},
+	{Code: "BE", Name: "Belgium"},
+	{Code: "BG", Name: "Bulgaria"},
+	{Code: "CY", Name: "Cyprus"},
+	{Code: "CZ", Name: "Czech Republic"},
+	{Code: "DE", Name: "Germany"},
+	{Code: "DK", Name: "Denmark"},
+	{Code: "EE", Name: "Estonia"},
+	{Code: "EL", Name: "Greece"},
+	{Code: "ES", Name: "Spain"},
+	{Code: "FI", Name: "Finland"},
+	{Code: "FR", Name: "France"},
+	{Code: "HR", Name: "Croatia"},
+	{Code: "HU", Name: "Hungary"},
+	{Code: "IE", Name: "Ireland"},
+	{Code: "IT", Name: "Italy"},
+	{Code: "LT", Name: "Lithuania"},
+	{Code: "LU", Name: "Luxembourg"},
+	{Code: "LV", Name: "Latvia"},
+	{Code: "MT", Name: "Malta"},
+	{Code: "NL", Name: "Netherlands"},
+	{Code: "PL", Name: "Poland"},
+	{Code: "PT", Name: "Portugal"},
+	{Code: "RO", Name: "Romania"},
+	{Code: "SE", Name: "Sweden"},
+	{Code: "SI", Name: "Slovenia"},
+	{Code: "SK", Name: "Slovakia"},
+}
+
+func IsValidEUCountry(code string) bool {
+	for _, c := range EUCountries {
 		if c.Code == code {
 			return true
 		}

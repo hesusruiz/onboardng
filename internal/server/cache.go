@@ -13,6 +13,7 @@ type VerificationCodeEntry struct {
 	Code      string
 	CreatedAt time.Time
 	Attempts  int
+	Verified  bool
 }
 
 // RegisterEmailAttempt checks if an email is allowed to receive a code and updates the rate limiter.
@@ -51,12 +52,33 @@ func (s *Server) StoreVerificationCode(email, code string) {
 	s.VerificationCodes[email] = &VerificationCodeEntry{
 		Code:      code,
 		CreatedAt: time.Now(),
+		Attempts:  0,
+		Verified:  false,
 	}
+}
+
+// GetVerifiedCode returns the cached verification code for the email if it exists, is not expired, and has already been verified.
+func (s *Server) GetVerifiedCode(email string) (string, bool) {
+	// Cleanup expired entries
+	s.cleanupExpired()
+
+	s.CodesMu.RLock()
+	defer s.CodesMu.RUnlock()
+
+	entry, exists := s.VerificationCodes[email]
+	if !exists || !entry.Verified {
+		return "", false
+	}
+
+	return entry.Code, true
 }
 
 // VerifyCode checks if the provided code is correct for the given email.
 // It tracks failed attempts and deletes the code if a limit is reached to prevent brute force.
 func (s *Server) VerifyCode(email, code string) bool {
+	// Cleanup expired entries
+	s.cleanupExpired()
+
 	s.CodesMu.Lock()
 	defer s.CodesMu.Unlock()
 
@@ -73,6 +95,8 @@ func (s *Server) VerifyCode(email, code string) bool {
 		return false
 	}
 
+	entry.Verified = true
+	entry.Attempts = 0
 	return true
 }
 

@@ -27,6 +27,8 @@ type Server struct {
 	// The database service provider, can be replaced if a different storage mechanism is needed
 	DB DBServiceProvider
 
+	Marketplace string
+
 	// The Verifiable Credential Issuer service provider
 	Issuer IssuanceServiceProvider
 
@@ -59,6 +61,7 @@ type ServerConfig struct {
 	Runtime        configuration.RuntimeEnv
 	AppURL         string
 	DB             DBServiceProvider
+	Marketplace    string
 	Issuer         IssuanceServiceProvider
 	WalletURL      string
 	Mail           MailServiceProvider
@@ -82,6 +85,7 @@ func NewHTTPServer(cfg *ServerConfig) (*Server, error) {
 		IPLimiters:        make(map[string]*rate.Limiter),
 		AdminUser:         cfg.AdminUser,
 		AdminPassword:     cfg.AdminPassword,
+		Marketplace:       cfg.Marketplace,
 		Features:          cfg.Features,
 	}
 

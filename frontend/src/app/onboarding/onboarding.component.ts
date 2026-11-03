@@ -115,7 +115,11 @@ export class OnboardingComponent {
         next: (res: any) => {
           this.isValidatingEmail = false;
           if (res && res.success === true) {
-            this.showVerificationModal = true;
+            if (res.data?.alreadyVerified && res.data?.code) {
+              this.onVerify(res.data.code);
+            } else {
+              this.showVerificationModal = true;
+            }
           } else {
             this.emailError = res?.message || 'Failed to validate email. Please try again.';
           }
@@ -185,7 +189,7 @@ export class OnboardingComponent {
       'X-Requested-With': 'XMLHttpRequest'
     });
 
-    this.http.post<any>('/api/validate-email', { email }, { headers })
+    this.http.post<any>('/api/validate-email', { email, resend: true }, { headers })
       .subscribe({
         next: () => this.cdr.detectChanges(),
         error: (err: any) => {

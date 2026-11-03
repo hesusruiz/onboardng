@@ -2,7 +2,7 @@
 <html lang="en">
 
 <head>
-    <title>Dashboard</title>
+    <title>Organizations</title>
     <!-- AdminLTE 4 + Bootstrap 5.3 (CSS) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" />
     <link rel="stylesheet"
@@ -40,22 +40,22 @@
         <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
             <div class="sidebar-brand">
                 <a href="#" class="brand-link">
-                    <span class="brand-text fw-light">My Dashboard</span>
+                    <span class="brand-text fw-light">Onboarding</span>
                 </a>
             </div>
             <div class="sidebar-wrapper">
                 <nav class="mt-2">
                     <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" role="menu">
                         <li class="nav-item">
-                            <a href="#" class="nav-link active">
+                            <a href="/views/registrations" class="nav-link">
                                 <i class="nav-icon bi bi-speedometer"></i>
-                                <p>Dashboard</p>
+                                <p>Registrations</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="#" class="nav-link">
+                            <a href="/views/organizations" class="nav-link active">
                                 <i class="nav-icon bi bi-bar-chart"></i>
-                                <p>Reports</p>
+                                <p>TMF Orgs</p>
                             </a>
                         </li>
                     </ul>
@@ -67,7 +67,7 @@
         <main class="app-main">
             <div class="app-content-header">
                 <div class="container-fluid">
-                    <h3 class="mb-0">Hello, AdminLTE</h3>
+                    <h3 class="mb-0"><span id="org-count"></span> (Organizations)</span></h3>
                 </div>
             </div>
             <div class="app-content">
@@ -82,19 +82,26 @@
     <script>
         // Initialize Tabulator
         var table = new Tabulator("#tmf-table", {
-            layout: "fitColumns",
-            responsiveLayout: "hide",
+            pagination: true,
+            paginationSize: 100,
+            paginationCounter: "rows",
+            paginationCounterElement: "#org-count",
+            layout: "fitDataFill",
             columns: [
-                { title: "ID", field: "id" },
-                { title: "Name", field: "name" },
-                { title: "Trading Name", field: "trading_name" },
-                { title: "Status", field: "status" }
+                { title: "VAT ID", field: "vatId" },
+                {
+                    title: "VIES Status", field: "viesError", variableHeight: true, formatter: "html"
+                },
+                { title: "Trading Name", field: "tradingName" },
+                { title: "Email", field: "emailAddress" },
+                {
+                    title: "Link", field: "href", formatter: "link", formatterParams: {
+                        labelField: "href",
+                        target: "_blank",
+                    }
+                }
             ],
-            data: [
-                {% for org in Organizations %}
-                { id: {{ org.ID }}, name: "{{ org.Name }}", trading_name: "{{ org.TradingName }}", status: "{{ org.Status }}" },
-        {% endfor %}
-            ]
+            ajaxURL: "{{ APIJson | safe }}",
         });
     </script>
 </body>
