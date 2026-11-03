@@ -275,6 +275,7 @@ func serve(cfg configuration.EnvConfig, envFlag string, port string, watchFlag b
 		Runtime:        cfg.Runtime,
 		AppURL:         cfg.AppURL,
 		DB:             dbService,
+		Marketplace:    cfg.Marketplace.URL,
 		Issuer:         issuanceService,
 		WalletURL:      cfg.Wallet.CredentialIssuanceCallback,
 		Mail:           mailService,

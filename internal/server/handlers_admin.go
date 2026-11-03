@@ -5,6 +5,7 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
+	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/hesusruiz/onboardng/internal/db"
 	"github.com/hesusruiz/onboardng/internal/x509util"
+	"github.com/hesusruiz/onboardng/views"
 	"github.com/hesusruiz/utils/errl"
 
 	"github.com/go-sprout/sprout"
@@ -33,8 +35,15 @@ const kubeCertHeader = "X-Amzn-Mtls-Clientcert"
 
 func (s *Server) registerAdminRoutes(mux *http.ServeMux) {
 
+	tmfUrl := s.Marketplace + "/party/organization"
+
+	adminViews, err := views.NewAdminViews(true, tmfUrl)
+	if err != nil {
+		log.Fatalf("Failed to create views: %v", err)
+	}
+
 	// Load templates at startup just to check that they compile
-	_, _, err := loadTemplates("templates")
+	_, _, err = loadTemplates("templates")
 	if err != nil {
 		panic(err)
 	}
@@ -78,6 +87,32 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) {
 	mux.Handle("/admin/api/registration-logs", adminChain(s.APIAdminGetRegistrationLogs))
 	mux.Handle("/admin/api/registration-files", adminChain(s.APIAdminGetRegistrationFiles))
 	mux.Handle("/admin/api/file/{file_id}", adminChain(s.APIAdminGetFile))
+
+	mux.HandleFunc("/admin/organizations", func(w http.ResponseWriter, r *http.Request) {
+
+		html, err := adminViews.RenderOrganizationsView("/admin/organizationsjson")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(html))
+	})
+
+	mux.HandleFunc("/admin/organizationsjson", func(w http.ResponseWriter, r *http.Request) {
+
+		json, err := adminViews.RenderOrganizationsJSON()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write(json)
+	})
 
 	// Public route to serve styles for admin dashboard
 	mux.HandleFunc("/admin/styles.css", func(w http.ResponseWriter, r *http.Request) {

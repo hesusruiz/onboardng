@@ -17,6 +17,7 @@ import (
 	"github.com/hesusruiz/onboardng/credissuance"
 	"github.com/hesusruiz/onboardng/internal/configuration"
 	"github.com/hesusruiz/onboardng/internal/db"
+	"github.com/hesusruiz/onboardng/internal/vies"
 	"github.com/hesusruiz/utils/errl"
 )
 
@@ -124,6 +125,10 @@ func (s *Server) HandleValidateEmailCode(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// Strip the prefix "VATxx-" from the VAT ID if it exists, to return a clean VAT ID to the user
+	vatPrefix := "VAT" + regRecord.Country + "-"
+	vatID := strings.TrimPrefix(regRecord.VatID, vatPrefix)
+
 	// Send back a successful message including the registration data
 	// Convert the registration record to a registratrion request
 	regRequest := RegistrationRequest{
@@ -131,7 +136,7 @@ func (s *Server) HandleValidateEmailCode(w http.ResponseWriter, r *http.Request)
 		LastName:      regRecord.LastName,
 		CompanyName:   regRecord.CompanyName,
 		Country:       regRecord.Country,
-		VatId:         regRecord.VatID,
+		VatId:         vatID,
 		StreetAddress: regRecord.StreetAddress,
 		City:          regRecord.City,
 		PostalCode:    regRecord.PostalCode,
@@ -879,20 +884,34 @@ func (r *RegistrationRequest) Validate() error {
 	// Convert to uppercase to avoid case sensitivity issues
 	r.VatId = strings.ToUpper(r.VatId)
 
-	// Check that if role is "Seller", then the VAT ID must comply with the ETSI EN 319 412-1 format for organizationIdentifier
+	// If country is an EU country, then the VAT ID must comply with the ETSI EN 319 412-1 format for organizationIdentifier
 	// That is, it must start with "VAT" followed by the country code and a dash, e.g. "VATES-12345678"
-	if r.Role == "Seller" {
+	if common.IsValidEUCountry(r.Country) {
 
 		// The prefix must be "VAT" followed by the country code and a dash
 		expectedPrefix := "VAT" + r.Country + "-"
 
+		// The user may have provided the VAT ID with or without the prefix, so we check if it starts with the expected prefix
+		// If it does not have the prefix, we add it to the VAT ID and check if the rest of the string is a valid VAT number for the country provided
+
 		if !strings.HasPrefix(r.VatId, expectedPrefix) {
-			return fmt.Errorf("invalid VAT ID format for seller")
+
+			// It the provided VAT includes only the "VAT" prefix, it is an error
+			if strings.HasPrefix(r.VatId, "VAT") {
+				return fmt.Errorf("invalid VAT ID format for country %s", r.Country)
+			}
+
+			// Add the expected prefix to the VAT ID and check if it's valid
+			r.VatId = expectedPrefix + strings.TrimPrefix(r.VatId, "VAT")
 		}
 
-		// Check with the VIES API if the VAT ID is valid for the country provided
-		if common.IsValidEUCountry(r.Country) {
-			// TODO: call the VIES API to check if the VAT ID is valid for the country provided
+		// Check in the VIES database if the VAT ID is valid for the country provided
+		viesResp, err := vies.CheckVAT(context.Background(), nil, r.Country, strings.TrimPrefix(r.VatId, expectedPrefix))
+		if err != nil {
+			return fmt.Errorf("error checking VAT ID with VIES API: %w", err)
+		}
+		if !viesResp.Valid {
+			return fmt.Errorf("invalid VAT ID for country %s", r.Country)
 		}
 
 	}

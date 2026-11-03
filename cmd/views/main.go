@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/hesusruiz/onboardng/internal/db"
 	"github.com/hesusruiz/onboardng/internal/mail"
 	"github.com/hesusruiz/onboardng/views"
+	"github.com/hesusruiz/utils/errl"
 )
 
 const domeTestUrl = "https://dome-marketplace-sbx.org/"
@@ -17,6 +19,7 @@ const domeTestUrl = "https://dome-marketplace-sbx.org/"
 var regs = []db.RegistrationRecord{
 	{
 		RegistrationID:   "12345678",
+		Role:             "Seller",
 		VatID:            "vat1",
 		CompanyName:      "Company 1",
 		Country:          "ES",
@@ -42,6 +45,7 @@ var regs = []db.RegistrationRecord{
 		LEARCompleted:    true,
 	},
 	{
+		Role:        "Buyer",
 		VatID:       "vat2",
 		CompanyName: "Company 2",
 		Email:       "[EMAIL_ADDRESS]",
@@ -49,6 +53,7 @@ var regs = []db.RegistrationRecord{
 		LastName:    "Doe",
 	},
 	{
+		Role:        "Seller",
 		VatID:       "vat3",
 		CompanyName: "Company 3",
 		Email:       "[EMAIL_ADDRESS]",
@@ -58,11 +63,18 @@ var regs = []db.RegistrationRecord{
 }
 
 func main() {
+
+	dbService, err := db.NewDBService(configuration.Preproduction, "data/onboarding.db")
+	if err != nil {
+		slog.Error("Error initializing database service", "error", errl.Error(err))
+		panic(err)
+	}
+
 	appViews, err := views.NewAppViews(true)
 	if err != nil {
 		log.Fatalf("Failed to create views: %v", err)
 	}
-	adminViews, err := views.NewAdminViews(true)
+	adminViews, err := views.NewAdminViews(true, "https://dome-marketplace.eu/party/organization")
 	if err != nil {
 		log.Fatalf("Failed to create views: %v", err)
 	}
@@ -81,7 +93,7 @@ func main() {
 
 	http.HandleFunc("/views/", func(w http.ResponseWriter, r *http.Request) {
 		html := `
-		<p><a href="/views/dashboard">dashboard</a></p>
+		<p><a href="/views/organizations">organizations</a></p>
 		<p><a href="/views/qrcode">qrcode</a></p>
 		<p><a href="/mail/first_phase">mail first phase</a></p>
 		<p><a href="/views/index">index</a></p>
@@ -99,9 +111,9 @@ func main() {
 
 	})
 
-	http.HandleFunc("/views/dashboard", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/views/organizations", func(w http.ResponseWriter, r *http.Request) {
 
-		html, err := adminViews.RenderDashboardView()
+		html, err := adminViews.RenderOrganizationsView("/views/organizationsjson")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -110,6 +122,51 @@ func main() {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(html))
+	})
+
+	http.HandleFunc("/views/registrations", func(w http.ResponseWriter, r *http.Request) {
+
+		html, err := adminViews.RenderRegistrationsView()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(html))
+	})
+
+	http.HandleFunc("/views/registrationsjson", func(w http.ResponseWriter, r *http.Request) {
+
+		regs, _, err := dbService.GetRegistrations(1000, 0)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		json, err := adminViews.RenderRegistrationsJSON(regs)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write(json)
+	})
+
+	http.HandleFunc("/views/organizationsjson", func(w http.ResponseWriter, r *http.Request) {
+
+		json, err := adminViews.RenderOrganizationsJSON()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write(json)
 	})
 
 	http.HandleFunc("/views/qrcode", func(w http.ResponseWriter, r *http.Request) {

@@ -264,47 +264,51 @@ func (s *Service) send(from string, to []string, msg []byte) error {
 
 		conn, err := tls.Dial("tcp", addr, tlsConfig)
 		if err != nil {
-			return fmt.Errorf("failed to dial TLS: %w", err)
+			return errl.Errorf("failed to dial TLS: %w", err)
 		}
 		defer conn.Close()
 
 		c, err := smtp.NewClient(conn, s.smtpConfig.Host)
 		if err != nil {
-			return fmt.Errorf("failed to create SMTP client: %w", err)
+			return errl.Errorf("failed to create SMTP client: %w", err)
 		}
 		defer c.Quit()
 
 		if err = c.Auth(auth); err != nil {
-			return fmt.Errorf("failed to authenticate: %w", err)
+			return errl.Errorf("failed to authenticate: %w", err)
 		}
 
 		if err = c.Mail(from); err != nil {
-			return fmt.Errorf("failed to set sender: %w", err)
+			return errl.Errorf("failed to set sender (%s): %w", from, err)
 		}
 
 		for _, addr := range to {
 			if err = c.Rcpt(addr); err != nil {
-				return fmt.Errorf("failed to add recipient: %w", err)
+				return errl.Errorf("failed to add recipient: %w", err)
 			}
 		}
 
 		w, err := c.Data()
 		if err != nil {
-			return fmt.Errorf("failed to open data writer: %w", err)
+			return errl.Errorf("failed to open data writer: %w", err)
 		}
 
 		_, err = w.Write(msg)
 		if err != nil {
-			return fmt.Errorf("failed to write message: %w", err)
+			return errl.Errorf("failed to write message: %w", err)
 		}
 
 		err = w.Close()
 		if err != nil {
-			return fmt.Errorf("failed to close data writer: %w", err)
+			return errl.Errorf("failed to close data writer: %w", err)
 		}
 
 		return nil
 	}
 
-	return smtp.SendMail(addr, auth, from, to, msg)
+	err := smtp.SendMail(addr, auth, from, to, msg)
+	if err != nil {
+		return errl.Errorf("failed to send email: %w", err)
+	}
+	return nil
 }
