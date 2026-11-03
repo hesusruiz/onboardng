@@ -114,6 +114,38 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) {
 		w.Write(json)
 	})
 
+	mux.HandleFunc("/admin/registrations", func(w http.ResponseWriter, r *http.Request) {
+
+		html, err := adminViews.RenderRegistrationsView("/admin/registrationsjson")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(html))
+	})
+
+	mux.HandleFunc("/admin/registrationsjson", func(w http.ResponseWriter, r *http.Request) {
+
+		regs, _, err := s.DB.GetRegistrations(1000, 0)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		json, err := adminViews.RenderRegistrationsJSON(regs)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write(json)
+	})
+
 	// Public route to serve styles for admin dashboard
 	mux.HandleFunc("/admin/styles.css", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/css")

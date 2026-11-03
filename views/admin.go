@@ -47,9 +47,9 @@ func (v *AdminViews) RenderIndexView(email string, regs []db.RegistrationRecord,
 	return executeTemplate(v.Set, "index.html.j2", ctx)
 }
 
-func (v *AdminViews) RenderRegistrationsView() (string, error) {
+func (v *AdminViews) RenderRegistrationsView(tmfUrl string) (string, error) {
 
-	return executeTemplate(v.Set, "registrations.html.j2", pongo2.Context{})
+	return executeTemplate(v.Set, "registrations.html.j2", pongo2.Context{"APIJson": tmfUrl})
 }
 
 func (v *AdminViews) RenderRegistrationsJSON(regs []*db.RegistrationRecord) ([]byte, error) {
