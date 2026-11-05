@@ -12,12 +12,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hesusruiz/utils/errl"
 	_ "modernc.org/sqlite"
 )
 
 const (
 	endpoint      = "https://ec.europa.eu/taxation_customs/vies/rest-api/check-vat-number"
-	DefaultDBPath = "vies_cache.db"
+	DefaultDBPath = "data/vies_cache.db"
 )
 
 type CheckVATRequest struct {
@@ -128,13 +129,13 @@ func (s *Service) CheckVAT(ctx context.Context, countryCode, vatNumber string) (
 			return &cached, nil
 		}
 	} else if !errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("failed to query VIES cache: %w", err)
+		return nil, errl.Errorf("failed to query VIES cache for %s and %s: %w", countryCode, vatNumber, err)
 	}
 
 	// 2. Cache miss or expired: call external VIES API
 	result, err := fetchVIES(ctx, s.client, countryCode, vatNumber)
 	if err != nil {
-		return nil, err
+		return nil, errl.Errorf("failed to fetch VIES validation for %s and %s: %w", countryCode, vatNumber, err)
 	}
 
 	if result.CountryCode == "" {
@@ -158,7 +159,7 @@ func (s *Service) CheckVAT(ctx context.Context, countryCode, vatNumber string) (
 		countryCode, vatNumber, result.RequestDate, result.Valid,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to store VIES validation in cache: %w", err)
+		return nil, errl.Errorf("failed to store VIES validation for %s and %s in cache: %w", countryCode, vatNumber, err)
 	}
 
 	return result, nil
@@ -167,7 +168,7 @@ func (s *Service) CheckVAT(ctx context.Context, countryCode, vatNumber string) (
 func fetchVIES(ctx context.Context, client *http.Client, countryCode, vatNumber string) (*CheckVATResponse, error) {
 	if client == nil {
 		client = &http.Client{
-			Timeout: 15 * time.Second,
+			Timeout: 60 * time.Second,
 		}
 	}
 
@@ -196,17 +197,17 @@ func fetchVIES(ctx context.Context, client *http.Client, countryCode, vatNumber 
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, errl.Errorf("failed to call VIES API for %s and %s: %w", countryCode, vatNumber, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected HTTP status: %s", resp.Status)
+		return nil, errl.Errorf("unexpected HTTP status for %s and %s: %s", countryCode, vatNumber, resp.Status)
 	}
 
 	var result CheckVATResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
+		return nil, errl.Errorf("failed to decode VIES API response for %s and %s: %w", countryCode, vatNumber, err)
 	}
 
 	return &result, nil
@@ -224,7 +225,7 @@ func CheckVAT(ctx context.Context, client *http.Client, countryCode, vatNumber s
 		defaultService, defaultInitErr = NewService(DefaultDBPath, client)
 	})
 	if defaultInitErr != nil {
-		return nil, defaultInitErr
+		return nil, errl.Errorf("failed to initialize VIES service: %w", defaultInitErr)
 	}
 	if client != nil {
 		svc := &Service{

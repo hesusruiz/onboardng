@@ -1,4 +1,4 @@
-package views
+package server
 
 import (
 	"embed"
@@ -7,7 +7,7 @@ import (
 	"github.com/flosch/pongo2/v7"
 )
 
-//go:embed app/*
+//go:embed apptpl/*
 var appFS embed.FS
 
 // Use pongo2 V7 (https://pkg.go.dev/github.com/flosch/pongo2/v7@v7.0.0-alpha.1)
@@ -18,7 +18,7 @@ type AppViews struct {
 }
 
 func NewAppViews(debug bool) (*AppViews, error) {
-	set, err := loadSet("app", appFS, debug)
+	set, err := loadSet("apptpl", appFS, debug)
 	if err != nil {
 		return nil, err
 	}

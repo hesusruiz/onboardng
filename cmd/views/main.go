@@ -10,7 +10,8 @@ import (
 	"github.com/hesusruiz/onboardng/internal/configuration"
 	"github.com/hesusruiz/onboardng/internal/db"
 	"github.com/hesusruiz/onboardng/internal/mail"
-	"github.com/hesusruiz/onboardng/views"
+	"github.com/hesusruiz/onboardng/internal/server"
+
 	"github.com/hesusruiz/utils/errl"
 )
 
@@ -70,11 +71,11 @@ func main() {
 		panic(err)
 	}
 
-	appViews, err := views.NewAppViews(true)
+	appViews, err := server.NewAppViews(true)
 	if err != nil {
 		log.Fatalf("Failed to create views: %v", err)
 	}
-	adminViews, err := views.NewAdminViews(true, "https://dome-marketplace.eu/party/organization")
+	adminViews, err := server.NewAdminViews(true, "https://dome-marketplace.eu/party/organization")
 	if err != nil {
 		log.Fatalf("Failed to create views: %v", err)
 	}
@@ -85,15 +86,15 @@ func main() {
 	}
 
 	// Serve static assets if present so styles and images load in the browser
-	if _, err := os.Stat("views/assets"); err == nil {
-		fileServer := http.FileServer(http.Dir("views/assets"))
+	if _, err := os.Stat("src/assets"); err == nil {
+		fileServer := http.FileServer(http.Dir("src/assets"))
 		http.Handle("/myassets/", http.StripPrefix("/myassets/", fileServer))
 		http.Handle("/views/myassets/", http.StripPrefix("/views/myassets/", fileServer))
 	}
 
 	http.HandleFunc("/views/", func(w http.ResponseWriter, r *http.Request) {
 		html := `
-		<p><a href="/views/organizations">organizations</a></p>
+		<p><a href="/admin/organizations">organizations</a></p>
 		<p><a href="/views/qrcode">qrcode</a></p>
 		<p><a href="/mail/first_phase">mail first phase</a></p>
 		<p><a href="/views/index">index</a></p>
@@ -124,6 +125,19 @@ func main() {
 		w.Write([]byte(html))
 	})
 
+	http.HandleFunc("/admin/organizationsjson", func(w http.ResponseWriter, r *http.Request) {
+
+		json, err := adminViews.RenderOrganizationsJSON()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write(json)
+	})
+
 	http.HandleFunc("/admin/registrations", func(w http.ResponseWriter, r *http.Request) {
 
 		html, err := adminViews.RenderRegistrationsView("/admin/registrationsjson")
@@ -137,7 +151,7 @@ func main() {
 		w.Write([]byte(html))
 	})
 
-	http.HandleFunc("/views/registrationsjson", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/admin/registrationsjson", func(w http.ResponseWriter, r *http.Request) {
 
 		regs, _, err := dbService.GetRegistrations(1000, 0)
 		if err != nil {
@@ -146,19 +160,6 @@ func main() {
 		}
 
 		json, err := adminViews.RenderRegistrationsJSON(regs)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write(json)
-	})
-
-	http.HandleFunc("/views/organizationsjson", func(w http.ResponseWriter, r *http.Request) {
-
-		json, err := adminViews.RenderOrganizationsJSON()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
