@@ -906,6 +906,7 @@ func (r *RegistrationRequest) Validate(runtime configuration.RuntimeEnv) error {
 
 		// Do not perform VIES validation in development
 		if runtime != configuration.Development {
+			slog.Info("Checking VAT ID with VIES API", "vatId", r.VatId, "country", r.Country)
 
 			// // Check in the VIES database if the VAT ID is valid for the country provided
 			// viesResp, err := vies.CheckVAT(context.Background(), nil, r.Country, strings.TrimPrefix(r.VatId, expectedPrefix))
