@@ -17,7 +17,6 @@ import (
 	"github.com/hesusruiz/onboardng/credissuance"
 	"github.com/hesusruiz/onboardng/internal/configuration"
 	"github.com/hesusruiz/onboardng/internal/db"
-	"github.com/hesusruiz/onboardng/internal/vies"
 	"github.com/hesusruiz/utils/errl"
 )
 
@@ -908,14 +907,14 @@ func (r *RegistrationRequest) Validate(runtime configuration.RuntimeEnv) error {
 		// Do not perform VIES validation in development
 		if runtime != configuration.Development {
 
-			// Check in the VIES database if the VAT ID is valid for the country provided
-			viesResp, err := vies.CheckVAT(context.Background(), nil, r.Country, strings.TrimPrefix(r.VatId, expectedPrefix))
-			if err != nil {
-				return fmt.Errorf("error checking VAT ID with VIES API: %w", err)
-			}
-			if !viesResp.Valid {
-				return fmt.Errorf("invalid VAT ID for country %s", r.Country)
-			}
+			// // Check in the VIES database if the VAT ID is valid for the country provided
+			// viesResp, err := vies.CheckVAT(context.Background(), nil, r.Country, strings.TrimPrefix(r.VatId, expectedPrefix))
+			// if err != nil {
+			// 	return fmt.Errorf("error checking VAT ID with VIES API: %w", err)
+			// }
+			// if !viesResp.Valid {
+			// 	return fmt.Errorf("invalid VAT ID for country %s", r.Country)
+			// }
 
 		}
 
