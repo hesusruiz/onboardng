@@ -5,7 +5,6 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
-	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -21,7 +20,6 @@ import (
 
 	"github.com/hesusruiz/onboardng/internal/db"
 	"github.com/hesusruiz/onboardng/internal/x509util"
-	"github.com/hesusruiz/onboardng/views"
 	"github.com/hesusruiz/utils/errl"
 
 	"github.com/go-sprout/sprout"
@@ -33,19 +31,19 @@ import (
 const stdCertHeader = "tls-client-certificate"
 const kubeCertHeader = "X-Amzn-Mtls-Clientcert"
 
-func (s *Server) registerAdminRoutes(mux *http.ServeMux) {
+func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 
 	tmfUrl := s.Marketplace + "/party/organization"
 
-	adminViews, err := views.NewAdminViews(true, tmfUrl)
+	adminViews, err := NewAdminViews(true, tmfUrl)
 	if err != nil {
-		log.Fatalf("Failed to create views: %v", err)
+		return errl.Errorf("Failed to create views: %w", err)
 	}
 
 	// Load templates at startup just to check that they compile
 	_, _, err = loadTemplates("templates")
 	if err != nil {
-		panic(err)
+		return errl.Errorf("Failed to load templates: %w", err)
 	}
 
 	allowedOrigins := s.AppURL
@@ -53,7 +51,7 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) {
 
 	urlOrigin, err := url.Parse(allowedOrigins)
 	if err != nil {
-		panic(err)
+		return errl.Errorf("Failed to parse allowed origins: %w", err)
 	}
 	fmt.Println("urlOrigin: ", urlOrigin.Hostname())
 
@@ -65,7 +63,7 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) {
 		HomePage:      "/admin/index",
 	})
 	if err != nil {
-		panic(err)
+		return errl.Errorf("Failed to create passkeys: %w", err)
 	}
 
 	fmt.Println("allowedOrigins:", allowedOrigins)
@@ -163,6 +161,8 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) {
 		}
 		w.Write(data)
 	})
+
+	return nil
 }
 
 // PageAdminIndex returns the list of registrations, displaying the template index.html

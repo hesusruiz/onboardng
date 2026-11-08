@@ -15,6 +15,8 @@ import (
 //go:embed templates/*
 var mailFS embed.FS
 
+const templateDir = "internal/mail"
+
 type MailViews struct {
 	Set *pongo2.TemplateSet
 }
@@ -26,6 +28,31 @@ func NewMailViews(debug bool) (*MailViews, error) {
 	}
 
 	return &MailViews{Set: set}, nil
+}
+
+func loadSet(subapp string, embeddedFS embed.FS, debug bool) (*pongo2.TemplateSet, error) {
+	var templateFS fs.FS
+	if _, err := os.Stat(subapp); err == nil {
+		templateFS = os.DirFS(subapp)
+	} else if _, err := os.Stat(templateDir + "/" + subapp); err == nil {
+		templateFS = os.DirFS(templateDir + "/" + subapp)
+	} else {
+		sub, err := fs.Sub(embeddedFS, subapp)
+		if err != nil {
+			return nil, err
+		}
+		templateFS = sub
+	}
+
+	loader := pongo2.NewFSLoader(templateFS)
+	set := pongo2.NewSet(subapp, loader)
+	set.Debug = debug
+
+	set.Globals = pongo2.Context{
+		"AppName": "DOME Marketplace",
+	}
+
+	return set, nil
 }
 
 func (v *MailViews) RenderEmailFirstPhaseView(runtime configuration.RuntimeEnv, onboardTeamEmail []string, reg *db.RegistrationRecord) (string, error) {
@@ -115,31 +142,6 @@ func getOnboardTeamEmail(onboardTeamEmail []string) string {
 		}
 	}
 	return ""
-}
-
-func loadSet(subapp string, embeddedFS embed.FS, debug bool) (*pongo2.TemplateSet, error) {
-	var templateFS fs.FS
-	if _, err := os.Stat(subapp); err == nil {
-		templateFS = os.DirFS(subapp)
-	} else if _, err := os.Stat("internal/mail/" + subapp); err == nil {
-		templateFS = os.DirFS("internal/mail/" + subapp)
-	} else {
-		sub, err := fs.Sub(embeddedFS, subapp)
-		if err != nil {
-			return nil, err
-		}
-		templateFS = sub
-	}
-
-	loader := pongo2.NewFSLoader(templateFS)
-	set := pongo2.NewSet(subapp, loader)
-	set.Debug = debug
-
-	set.Globals = pongo2.Context{
-		"AppName": "DOME Marketplace",
-	}
-
-	return set, nil
 }
 
 func executeTemplate(set *pongo2.TemplateSet, templateName string, context pongo2.Context) (string, error) {

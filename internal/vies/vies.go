@@ -1,23 +1,22 @@
 package vies
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/hesusruiz/utils/errl"
+	"github.com/hesusruiz/utils/htc"
 	_ "modernc.org/sqlite"
 )
 
 const (
 	endpoint      = "https://ec.europa.eu/taxation_customs/vies/rest-api/check-vat-number"
-	DefaultDBPath = "vies_cache.db"
+	DefaultDBPath = "data/vies_cache.db"
 )
 
 type CheckVATRequest struct {
@@ -60,21 +59,24 @@ type CheckVATResponse struct {
 
 // Service provides VIES VAT validation backed by a local SQLite cache.
 type Service struct {
-	db     *sql.DB
-	client *http.Client
+	db *sql.DB
+	//	client    *http.Client
+	htcClient *htc.Client
 }
 
 // NewService creates a new VIES validation service using the specified SQLite database path.
 // If dbPath is empty, DefaultDBPath ("vies_cache.db" in the current directory) is used.
-func NewService(dbPath string, client *http.Client) (*Service, error) {
+func NewService(dbPath string) (*Service, error) {
 	if dbPath == "" {
 		dbPath = DefaultDBPath
 	}
-	if client == nil {
-		client = &http.Client{
-			Timeout: 15 * time.Second,
-		}
+
+	htcConfig := &htc.Config{
+		Timeout:   30 * time.Second,
+		RetryPost: true,
 	}
+
+	htcClient := htc.New(endpoint, htcConfig)
 
 	dbConn, err := sql.Open("sqlite", dbPath)
 	if err != nil {
@@ -95,8 +97,8 @@ func NewService(dbPath string, client *http.Client) (*Service, error) {
 	}
 
 	return &Service{
-		db:     dbConn,
-		client: client,
+		db:        dbConn,
+		htcClient: htcClient,
 	}, nil
 }
 
@@ -110,31 +112,34 @@ func (s *Service) Close() error {
 
 // CheckVAT validates a VAT number for a given country code, returning a cached validation
 // if one exists and is less than 1 month old, or querying the VIES API and caching the result.
-func (s *Service) CheckVAT(ctx context.Context, countryCode, vatNumber string) (*CheckVATResponse, error) {
+// The VAT number is ensured to have the "VATCC-" prefix before validation.
+func (s *Service) CheckVAT(ctx context.Context, nocache bool, countryCode, vatNumber string) (*CheckVATResponse, error) {
 	countryCode = strings.ToUpper(strings.TrimSpace(countryCode))
 	vatNumber = strings.ToUpper(strings.TrimSpace(vatNumber))
 
 	// 1. Check cache
-	var cached CheckVATResponse
-	err := s.db.QueryRowContext(
-		ctx,
-		`SELECT country_code, vat_number, request_date, valid FROM vat_validations WHERE country_code = ? AND vat_number = ?`,
-		countryCode, vatNumber,
-	).Scan(&cached.CountryCode, &cached.VATNumber, &cached.RequestDate, &cached.Valid)
+	if !nocache {
+		var cached CheckVATResponse
+		err := s.db.QueryRowContext(
+			ctx,
+			`SELECT country_code, vat_number, request_date, valid FROM vat_validations WHERE country_code = ? AND vat_number = ?`,
+			countryCode, vatNumber,
+		).Scan(&cached.CountryCode, &cached.VATNumber, &cached.RequestDate, &cached.Valid)
 
-	if err == nil {
-		// Entry is valid for 1 month from RequestDate
-		if time.Now().Before(cached.RequestDate.AddDate(0, 1, 0)) {
-			return &cached, nil
+		if err == nil {
+			// Entry is valid for 1 month from RequestDate
+			if time.Now().Before(cached.RequestDate.AddDate(0, 1, 0)) {
+				return &cached, nil
+			}
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return nil, errl.Errorf("failed to query VIES cache for %s and %s: %w", countryCode, vatNumber, err)
 		}
-	} else if !errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("failed to query VIES cache: %w", err)
 	}
 
 	// 2. Cache miss or expired: call external VIES API
-	result, err := fetchVIES(ctx, s.client, countryCode, vatNumber)
+	result, err := s.fetchVIES(ctx, countryCode, vatNumber)
 	if err != nil {
-		return nil, err
+		return nil, errl.Errorf("failed to fetch VIES validation for %s and %s: %w", countryCode, vatNumber, err)
 	}
 
 	if result.CountryCode == "" {
@@ -158,58 +163,37 @@ func (s *Service) CheckVAT(ctx context.Context, countryCode, vatNumber string) (
 		countryCode, vatNumber, result.RequestDate, result.Valid,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to store VIES validation in cache: %w", err)
+		return nil, errl.Errorf("failed to store VIES validation for %s and %s in cache: %w", countryCode, vatNumber, err)
 	}
 
 	return result, nil
 }
 
-func fetchVIES(ctx context.Context, client *http.Client, countryCode, vatNumber string) (*CheckVATResponse, error) {
-	if client == nil {
-		client = &http.Client{
-			Timeout: 15 * time.Second,
-		}
-	}
+func (s *Service) fetchVIES(ctx context.Context, countryCode, vatNumber string) (*CheckVATResponse, error) {
+	countryCode = strings.ToUpper(strings.TrimSpace(countryCode))
+	vatNumber = strings.ToUpper(strings.TrimSpace(vatNumber))
 
 	reqBody := CheckVATRequest{
 		CountryCode: countryCode,
 		VATNumber:   vatNumber,
 	}
 
-	body, err := json.Marshal(reqBody)
+	res, err := s.htcClient.Post(ctx, endpoint, reqBody)
 	if err != nil {
-		return nil, err
+		return nil, errl.Errorf("failed to call VIES API for %s and %s: %w", countryCode, vatNumber, err)
 	}
 
-	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodPost,
-		endpoint,
-		bytes.NewReader(body),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected HTTP status: %s", resp.Status)
+	if !res.IsSuccess() {
+		return nil, errl.Errorf("unexpected HTTP status for %s and %s: %s", countryCode, vatNumber, res.StatusError())
 	}
 
 	var result CheckVATResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
+	if err := res.JSON(&result); err != nil {
+		return nil, errl.Errorf("failed to decode VIES API response for %s and %s: %w", countryCode, vatNumber, err)
 	}
 
 	return &result, nil
+
 }
 
 var (
@@ -219,19 +203,12 @@ var (
 )
 
 // CheckVAT uses the default SQLite-backed VIES service ("vies_cache.db" in the current directory).
-func CheckVAT(ctx context.Context, client *http.Client, countryCode, vatNumber string) (*CheckVATResponse, error) {
+func CheckVAT(ctx context.Context, nocache bool, countryCode, vatNumber string) (*CheckVATResponse, error) {
 	defaultOnce.Do(func() {
-		defaultService, defaultInitErr = NewService(DefaultDBPath, client)
+		defaultService, defaultInitErr = NewService(DefaultDBPath)
 	})
 	if defaultInitErr != nil {
-		return nil, defaultInitErr
+		return nil, errl.Errorf("failed to initialize VIES service: %w", defaultInitErr)
 	}
-	if client != nil {
-		svc := &Service{
-			db:     defaultService.db,
-			client: client,
-		}
-		return svc.CheckVAT(ctx, countryCode, vatNumber)
-	}
-	return defaultService.CheckVAT(ctx, countryCode, vatNumber)
+	return defaultService.CheckVAT(ctx, nocache, countryCode, vatNumber)
 }

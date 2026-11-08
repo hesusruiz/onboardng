@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"os"
@@ -95,6 +96,12 @@ type RegistrationRecord struct {
 	FilesUploaded bool `json:"files_uploaded"`
 	// Status of the second step: 0 = pending, 1 = approved, 2 = rejected
 	Approved int `json:"approved"`
+}
+
+func (r *RegistrationRecord) String() string {
+	// Format as JSON for logging purposes
+	b, _ := json.Marshal(r)
+	return string(b)
 }
 
 // RegistrationLog represents a log entry (info, warning, error) during the registration process

@@ -1,4 +1,4 @@
-package views
+package server
 
 import (
 	"context"
@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/flosch/pongo2/v7"
@@ -16,8 +18,10 @@ import (
 	"github.com/hesusruiz/onboardng/internal/vies"
 )
 
-//go:embed admin/*
+//go:embed admintpl/*
 var adminFS embed.FS
+
+const templateDir = "internal/server"
 
 type AdminViews struct {
 	Set    *pongo2.TemplateSet
@@ -25,12 +29,37 @@ type AdminViews struct {
 }
 
 func NewAdminViews(debug bool, tmfUrl string) (*AdminViews, error) {
-	set, err := loadSet("admin", adminFS, debug)
+	set, err := loadSet("admintpl", adminFS, debug)
 	if err != nil {
 		return nil, err
 	}
 
 	return &AdminViews{Set: set, TMFUrl: tmfUrl}, nil
+}
+
+func loadSet(subapp string, embeddedFS embed.FS, debug bool) (*pongo2.TemplateSet, error) {
+	var templateFS fs.FS
+	if _, err := os.Stat(subapp); err == nil {
+		templateFS = os.DirFS(subapp)
+	} else if _, err := os.Stat(templateDir + "/" + subapp); err == nil {
+		templateFS = os.DirFS(templateDir + "/" + subapp)
+	} else {
+		sub, err := fs.Sub(embeddedFS, subapp)
+		if err != nil {
+			return nil, err
+		}
+		templateFS = sub
+	}
+
+	loader := pongo2.NewFSLoader(templateFS)
+	set := pongo2.NewSet(subapp, loader)
+	set.Debug = debug
+
+	set.Globals = pongo2.Context{
+		"AppName": "DOME Marketplace",
+	}
+
+	return set, nil
 }
 
 func (v *AdminViews) RenderIndexView(email string, regs []db.RegistrationRecord, limit int, offset int, numEntries int, total int) (string, error) {
@@ -231,7 +260,7 @@ func RetrieveOrganizationsPage(baseUrl string, offset int, limit int) ([]Organiz
 						org.VIESError = org.VIESError + "<div style='color: orange;'>Missing VAT prefix</div>"
 
 						// Check VIES database
-						viesResponse, err := vies.CheckVAT(context.Background(), nil, countryCode, vatNumber)
+						viesResponse, err := vies.CheckVAT(context.Background(), false, countryCode, vatNumber)
 						if err != nil {
 							org.Errors = append(org.Errors, "Failed to check VAT ID in VIES")
 							org.VIESError = org.VIESError + "<div style='color: red;'>VIES call failed</div>"
@@ -268,7 +297,7 @@ func RetrieveOrganizationsPage(baseUrl string, offset int, limit int) ([]Organiz
 					}
 
 					// Now check in the VIES database
-					viesResponse, err := vies.CheckVAT(context.Background(), nil, countryCode, vatNumber)
+					viesResponse, err := vies.CheckVAT(context.Background(), false, countryCode, vatNumber)
 					if err != nil {
 						org.Errors = append(org.Errors, "Failed to check VAT ID in VIES")
 						org.VIESError = org.VIESError + "<div style='color: red;'>Error: VIES call failed</div>"
@@ -288,7 +317,7 @@ func RetrieveOrganizationsPage(baseUrl string, offset int, limit int) ([]Organiz
 							countryCode = "EL"
 						}
 						vatNumber = vatNumber[2:]
-						viesResponse, err := vies.CheckVAT(context.Background(), nil, countryCode, vatNumber)
+						viesResponse, err := vies.CheckVAT(context.Background(), false, countryCode, vatNumber)
 						if err != nil {
 							org.Errors = append(org.Errors, "Failed to check VAT ID in VIES (second attempt)")
 							org.VIESError = org.VIESError + "<div style='color: red;'>Error: VIES call failed (second attempt)</div>"
@@ -320,4 +349,18 @@ func RetrieveOrganizationsPage(baseUrl string, offset int, limit int) ([]Organiz
 	}
 
 	return orgs, nil
+}
+
+func executeTemplate(set *pongo2.TemplateSet, templateName string, context pongo2.Context) (string, error) {
+	tpl, err := set.FromCache(templateName)
+	if err != nil {
+		return "", err
+	}
+
+	out, err := tpl.Execute(context)
+	if err != nil {
+		return "", err
+	}
+
+	return out, nil
 }
