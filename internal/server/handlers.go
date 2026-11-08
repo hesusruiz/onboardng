@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"math/big"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -17,8 +18,69 @@ import (
 	"github.com/hesusruiz/onboardng/credissuance"
 	"github.com/hesusruiz/onboardng/internal/configuration"
 	"github.com/hesusruiz/onboardng/internal/db"
+	"github.com/hesusruiz/onboardng/internal/vies"
 	"github.com/hesusruiz/utils/errl"
 )
+
+// registerAppRoutes registers the application routes in the provided ServeMux
+func (s *Server) registerAppRoutes(mux *http.ServeMux) error {
+
+	// Create the App views, which will be used to render the QR code page
+	appViews, err := NewAppViews(true)
+	if err != nil {
+		return errl.Errorf("Failed to create App views: %w", err)
+	}
+
+	// Middleware to wrap the non Admin routes
+	nonAdminChain := func(next http.HandlerFunc) http.Handler {
+		return s.LogRequest(s.EnableCORS(s.RateLimitIP(next)))
+	}
+
+	// Main API Routes
+	mux.Handle("POST /api/validate-email", nonAdminChain(s.HandleSendEmailValidationCode))
+	mux.Handle("POST /api/verify-code", nonAdminChain(s.HandleValidateEmailCode))
+	mux.Handle("POST /api/register", nonAdminChain(s.HandleRegister))
+	mux.Handle("POST /api/representatives", nonAdminChain(s.HandleUpdateRepresentatives))
+	mux.Handle("GET /api/orgstatus", nonAdminChain(s.HandleOrgStatus))
+
+	// The Health route does not log, to avoid polluting the logs
+	mux.Handle("GET /health", s.EnableCORS(s.RateLimitIP(http.HandlerFunc(s.HandleHealth))))
+
+	mux.HandleFunc("GET /qr", func(w http.ResponseWriter, r *http.Request) {
+
+		// Get the credential_offer_uri from the parameter in the request URL
+		credentialOfferURI := r.URL.Query().Get("credential_offer_uri")
+
+		// Return error if credentialOfferURI is not provided
+		if credentialOfferURI == "" {
+			s.SendJSON(w, r, http.StatusBadRequest, false, "credential_offer_uri is required", nil)
+			return
+		}
+
+		fmt.Printf("credentialOfferURI: %s\n", credentialOfferURI)
+
+		//URLEncode the credentialOfferURI
+		credentialOfferURI = url.QueryEscape(credentialOfferURI)
+
+		// Add the prefix for the wallet credential issuance callback URL
+		credentialOfferURI = s.WalletURL + "?credential_offer_uri=" + credentialOfferURI
+
+		fmt.Printf("Displaying credentialOfferURI: %s\n", credentialOfferURI)
+
+		html, err := appViews.RenderQRCodeView(credentialOfferURI, s.Marketplace)
+		if err != nil {
+			s.SendJSON(w, r, http.StatusInternalServerError, false, "Error rendering QR code view", err.Error())
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(html))
+	})
+
+	return nil
+
+}
 
 // HandleSendEmailValidationCode is the first step in the registration process.
 // It receives an email address in the body of the request and sends a verification code
@@ -27,10 +89,6 @@ import (
 // It uses the rate limiter (RegisterEmailAttempt) to prevent too many requests using the same email address.
 // The code will be received and validated by the HandleValidateEmailCode handler.
 func (s *Server) HandleSendEmailValidationCode(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 
 	if !validateCSRF(r) {
 		s.SendJSON(w, r, http.StatusForbidden, false, "Security check failed: missing CSRF header", nil)
@@ -42,7 +100,7 @@ func (s *Server) HandleSendEmailValidationCode(w http.ResponseWriter, r *http.Re
 		Resend bool   `json:"resend"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		s.SendJSON(w, r, http.StatusBadRequest, false, "Invalid request body", nil)
+		s.SendJSON(w, r, http.StatusBadRequest, false, "Invalid request body", err.Error())
 		return
 	}
 
@@ -54,6 +112,7 @@ func (s *Server) HandleSendEmailValidationCode(w http.ResponseWriter, r *http.Re
 	// If not an explicit resend request, reuse the code in memory if the email was already verified
 	if !req.Resend {
 		if code, ok := s.GetVerifiedCode(req.Email); ok {
+			slog.Info("Email already verified, reusing code", "email", req.Email)
 			s.SendJSON(w, r, http.StatusOK, true, "Email already verified", map[string]any{
 				"code":            code,
 				"alreadyVerified": true,
@@ -72,9 +131,10 @@ func (s *Server) HandleSendEmailValidationCode(w http.ResponseWriter, r *http.Re
 	code := generateCode()
 	s.StoreVerificationCode(req.Email, code)
 
+	slog.Info("Sending validation code to email", "email", req.Email, "code", code)
+
 	// Send the code to the user via email
 	if err := s.Mail.SendVerificationCodeEmail(req.Email, code); err != nil {
-		slog.Error("Error sending verification code", "error", err)
 		s.SendJSON(w, r, http.StatusInternalServerError, false, "Error sending verification code", err.Error())
 		return
 	}
@@ -92,10 +152,6 @@ func (s *Server) HandleSendEmailValidationCode(w http.ResponseWriter, r *http.Re
 // - If the email address is registered, it returns the registration data.
 // - If the email address is not registered, it just returns OK with empty registration data.
 func (s *Server) HandleValidateEmailCode(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 
 	if !validateCSRF(r) {
 		s.SendJSON(w, r, http.StatusForbidden, false, "Security check failed: missing CSRF header", nil)
@@ -107,7 +163,7 @@ func (s *Server) HandleValidateEmailCode(w http.ResponseWriter, r *http.Request)
 		Code  string `json:"code"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		s.SendJSON(w, r, http.StatusBadRequest, false, "Invalid request body", nil)
+		s.SendJSON(w, r, http.StatusBadRequest, false, "Invalid request body", err.Error())
 		return
 	}
 
@@ -120,16 +176,16 @@ func (s *Server) HandleValidateEmailCode(w http.ResponseWriter, r *http.Request)
 	regRecord, err := s.DB.GetRegistrationByEmail(req.Email)
 	if err != nil {
 		// Just send a successful response to avoid leaking information
-		s.SendJSON(w, r, http.StatusOK, true, "Email verified successfully", nil)
+		s.SendJSON(w, r, http.StatusOK, true, "Email verified successfully", err.Error())
 		return
 	}
 
-	// Strip the prefix "VATxx-" from the VAT ID if it exists, to return a clean VAT ID to the user
+	// Strip the prefix "VATxx-" from the VAT ID if it exists, to display a clean VAT ID to the user in the frontend.
+	// The full VAT ID will be reconstructed when received in the registration request
 	vatPrefix := "VAT" + regRecord.Country + "-"
 	vatID := strings.TrimPrefix(regRecord.VatID, vatPrefix)
 
-	// Send back a successful message including the registration data
-	// Convert the registration record to a registratrion request
+	// Send back a successful message including the registration data, converting the registration record to a registration request
 	regRequest := RegistrationRequest{
 		FirstName:     regRecord.FirstName,
 		LastName:      regRecord.LastName,
@@ -145,7 +201,7 @@ func (s *Server) HandleValidateEmailCode(w http.ResponseWriter, r *http.Request)
 	s.SendJSON(w, r, http.StatusOK, true, "Email verified successfully", regRequest)
 }
 
-// HandleRegister is the third and last step in the first phase of theregistration process.
+// HandleRegister is the third and last step in the first phase of the registration process.
 // It receives registration data, validates it and stores it in the database.
 // Then it proceeds to the automatic processes:
 // - Send a welcome email to the user
@@ -156,18 +212,13 @@ func (s *Server) HandleValidateEmailCode(w http.ResponseWriter, r *http.Request)
 func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	var requestData RegistrationRequest
 
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	if !validateCSRF(r) {
 		s.SendJSON(w, r, http.StatusForbidden, false, "Security check failed: missing CSRF header", nil)
 		return
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
-		s.SendJSON(w, r, http.StatusBadRequest, false, "Invalid request body", nil)
+		s.SendJSON(w, r, http.StatusBadRequest, false, "Invalid request body", err.Error())
 		return
 	}
 
@@ -178,7 +229,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := requestData.Validate(s.Runtime); err != nil {
-		s.SendJSON(w, r, http.StatusBadRequest, false, err.Error(), nil)
+		s.SendJSON(w, r, http.StatusBadRequest, false, err.Error(), err.Error())
 		return
 	}
 
@@ -188,7 +239,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slog.Info("Attempting to issue credential for registration", "email", requestData.Email, "vatID", requestData.VatId)
+	slog.Info("Attempting registration", "email", requestData.Email, "vatID", requestData.VatId)
 
 	// Check if there is a registration for this email or VAT ID
 	regRecord, err := s.DB.GetRegistrationByEmailOrVatID(requestData.Email, requestData.VatId)
@@ -214,7 +265,6 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	token, err := s.Issuer.GetAccessToken(r.Context())
 	if err != nil {
 		err = errl.Errorf("Failed to get access token for credential issuance: %v", err)
-		slog.Error("Error getting access token", "error", err)
 		s.SendJSON(w, r, http.StatusInternalServerError, false, "Error getting access token", err.Error())
 		return
 	}
@@ -257,7 +307,6 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	reg, err := saveToDB(requestData, s)
 	if err != nil {
 		err = errl.Errorf("Failed to save registration: %w", err)
-		slog.Error("Error saving registration", "error", err)
 		s.SendJSON(w, r, http.StatusInternalServerError, false, "Error saving to database", err.Error())
 		return
 	}
@@ -292,7 +341,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		// Perform the verifiable credential issuance
 		redirectUri, err := performIssuanceNew(r.Context(), token, reg, s, requestData)
 		if err != nil {
-			slog.Error("Error performing issuance", "error", err)
+			slog.Error("Error performing issuance", "error", errl.Error(err))
 		}
 		// Instruct the client to perform the redirect
 		s.SendJSON(w, r, http.StatusOK, true, "Redirecting...", redirectUri)
@@ -302,7 +351,7 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		// Perform the verifiable credential issuance
 		err = performIssuance(r.Context(), token, reg, s, requestData)
 		if err != nil {
-			slog.Error("Error performing issuance", "error", err)
+			slog.Error("Error performing issuance", "error", errl.Error(err))
 		}
 		s.SendJSON(w, r, http.StatusOK, true, "Registration successful", nil)
 	}
@@ -332,11 +381,6 @@ func (s *Server) HandleRegister(w http.ResponseWriter, r *http.Request) {
 
 // HandleHealth returns a simple 200 OK response for health checks
 func (s *Server) HandleHealth(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(APIResponse{
@@ -347,20 +391,16 @@ func (s *Server) HandleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) HandleOrgStatus(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 
 	vatID := r.URL.Query().Get("vat_id")
 	if vatID == "" {
-		http.Error(w, "Missing vat_id", http.StatusBadRequest)
+		s.SendJSON(w, r, http.StatusBadRequest, false, "Missing vat_id", nil)
 		return
 	}
 
 	reg, err := s.DB.GetRegistrationByVatID(vatID)
 	if err != nil {
-		http.Error(w, "Registration not found", http.StatusNotFound)
+		s.SendJSON(w, r, http.StatusNotFound, false, "Registration not found", err.Error())
 		return
 	}
 
@@ -452,46 +492,10 @@ func performIssuanceNew(ctx context.Context, token string, reg *db.RegistrationR
 		Payload:                   payload,
 	}
 
-	// // Create the struct needed by the Issuer API for a credential for the self-registration
-	// _ = &credissuance.LEARIssuanceRequestBody{
-	// 	Schema:        "LEARCredentialEmployee",
-	// 	OperationMode: "S",
-	// 	Format:        "jwt_vc_json",
-	// 	Payload: credissuance.Payload{
-	// 		Mandator: credissuance.Mandator{
-	// 			OrganizationIdentifier: organizationIdentifier,
-	// 			Organization:           requestData.CompanyName,
-	// 			Country:                requestData.Country,
-	// 			CommonName:             requestData.FirstName + " " + requestData.LastName,
-	// 			Email:                  requestData.Email,
-	// 			// SerialNumber:           "1234567890", // TODO: this is temporary because the Issuer requires a serialNumber
-	// 		},
-	// 		Mandatee: credissuance.Mandatee{
-	// 			FirstName: requestData.FirstName,
-	// 			LastName:  requestData.LastName,
-	// 			// Nationality: requestData.Country,
-	// 			Email: requestData.Email,
-	// 		},
-	// 		Power: []credissuance.Power{
-	// 			{
-	// 				Type:     "domain",
-	// 				Domain:   "DOME",
-	// 				Function: "Onboarding",
-	// 				Action:   credissuance.Strings{"Execute"},
-	// 			},
-	// 			{
-	// 				Type:     "domain",
-	// 				Domain:   "DOME",
-	// 				Function: "ProductOffering",
-	// 				Action:   credissuance.Strings{"Create", "Update", "Delete"},
-	// 			},
-	// 		},
-	// 	},
-	// }
-
 	issuanceResponse, err := s.Issuer.LEARIssuanceRequestNew(ctx, token, newCredential)
 	if err != nil {
-		slog.Error("Error calling issuance service", "error", err)
+		errIssuance := errl.Errorf("Failed to perform issuance: %v", err)
+		slog.Error("Error calling issuance service", "error", errl.Error(err))
 
 		// Record the error in the database
 		_ = s.DB.SaveRegistrationLog(&db.RegistrationLog{
@@ -499,31 +503,32 @@ func performIssuanceNew(ctx context.Context, token string, reg *db.RegistrationR
 			Email:          reg.Email,
 			VatID:          reg.VatID,
 			Type:           "error",
-			Message:        fmt.Sprintf("Issuance error (in performIssuance): %v", err),
+			Message:        errIssuance.Error(),
 		})
 
 		// Format the information we sent to the Issuer
 		buf, errformat := json.MarshalIndent(newCredential, "", "  ")
 		if errformat != nil {
-			slog.Error("Error marshalling credential data", "error", errformat)
+			slog.Error("Error marshalling credential data", "error", errl.Error(errformat))
 			buf = []byte("Error marshalling credential data")
 		}
 
 		// Send an email to the internal team informing of the error, including the information that we wanted to issue
 		// They can perform the rest of the registration steps manually, transparently to the user.
 
-		if err := s.Mail.SendIssuerErrorEmail(reg, string(buf), err.Error()); err != nil {
-			slog.Error("Error sending issuer error email", "error", err)
+		if err := s.Mail.SendIssuerErrorEmail(reg, string(buf), errIssuance.Error()); err != nil {
+			slog.Error("Error sending issuer error email", "error", errl.Error(err))
 		}
 
-		return "", errl.Error(err)
+		return "", errIssuance
 	}
 
 	// Get the credential_offer_uri from the issuance response
 	credentialOfferURI := issuanceResponse.Responses[0].Body.CredentialOfferURI
 
-	// Strip the prefix "https://wallet.dome-marketplace-sbx.org/wallet/protocol/callback?"
-	credentialOfferURI = strings.TrimPrefix(credentialOfferURI, "https://wallet.dome-marketplace-sbx.org/wallet/protocol/callback?")
+	// Strip the prefix, including the "?" character, from the credential offer URI, to get only the query parameters
+	walletCallbackPrefix := s.WalletURL + "?"
+	credentialOfferURI = strings.TrimPrefix(credentialOfferURI, walletCallbackPrefix)
 
 	// Build the redirect Uri with the credential offer URI
 	redirectUri := "/qr?" + credentialOfferURI
@@ -709,10 +714,6 @@ type RepresentativesRequest struct {
 
 // HandleUpdateRepresentatives handles updating the LR and LEAR info
 func (s *Server) HandleUpdateRepresentatives(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 
 	if !validateCSRF(r) {
 		s.SendJSON(w, r, http.StatusForbidden, false, "Security check failed: missing CSRF header", nil)
@@ -721,7 +722,7 @@ func (s *Server) HandleUpdateRepresentatives(w http.ResponseWriter, r *http.Requ
 
 	var req RepresentativesRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		s.SendJSON(w, r, http.StatusBadRequest, false, "Invalid request body", nil)
+		s.SendJSON(w, r, http.StatusBadRequest, false, "Invalid request body", errl.Error(err))
 		return
 	}
 	out, _ := json.MarshalIndent(req, "", "  ")
@@ -752,10 +753,10 @@ func (s *Server) HandleUpdateRepresentatives(w http.ResponseWriter, r *http.Requ
 	// Fetch registration and check if immutable
 	current, err := s.DB.GetRegistrationByVatID(req.VatID)
 	if err != nil {
-		s.SendJSON(w, r, http.StatusNotFound, false, "Registration not found", nil)
+		s.SendJSON(w, r, http.StatusNotFound, false, "Registration not found", errl.Error(err))
 		return
 	}
-	slog.Info("Registration found", "registration", current)
+	slog.Info("Registration found", "registration", current.String())
 
 	// Check if the email matches the registration email
 	if current.Email != strings.ToLower(req.Email) {
@@ -785,8 +786,7 @@ func (s *Server) HandleUpdateRepresentatives(w http.ResponseWriter, r *http.Requ
 
 	err = s.DB.UpdateRepresentativesByVatID(req.VatID, current)
 	if err != nil {
-		slog.Error("Error updating representatives", "error", err)
-		s.SendJSON(w, r, http.StatusInternalServerError, false, "Error updating registration", err.Error())
+		s.SendJSON(w, r, http.StatusInternalServerError, false, "Error updating registration", errl.Error(err))
 		return
 	}
 
@@ -799,13 +799,13 @@ func (s *Server) HandleUpdateRepresentatives(w http.ResponseWriter, r *http.Requ
 			Email:          current.Email,
 			VatID:          current.VatID,
 			Type:           "error",
-			Message:        fmt.Sprintf("Second phase email error: %v", err.Error()),
+			Message:        err.Error(),
 		})
 	} else {
 		slog.Info("Second phase email sent", "email", current.Email)
 		current.Notified = true
 		if updateErr := s.DB.UpdateRegistrationStatus(current); updateErr != nil {
-			slog.Error("Error updating registration status with email result", "error", updateErr)
+			slog.Error("Error updating registration status with email result", "error", errl.Error(updateErr))
 		}
 	}
 
@@ -836,48 +836,48 @@ type RegistrationRequest struct {
 
 func (r *RegistrationRequest) Validate(runtime configuration.RuntimeEnv) error {
 	if r.FirstName == "" {
-		return fmt.Errorf("first name is required")
+		return errl.Errorf("first name is required")
 	}
 	if r.LastName == "" {
-		return fmt.Errorf("last name is required")
+		return errl.Errorf("last name is required")
 	}
 	if r.CompanyName == "" {
-		return fmt.Errorf("company name is required")
+		return errl.Errorf("company name is required")
 	}
 
 	// Check that Role is either "Buyer" or "Seller"
 	if r.Role != "Buyer" && r.Role != "Seller" {
-		return fmt.Errorf("invalid role")
+		return errl.Errorf("invalid role")
 	}
 
 	if r.Country == "" {
-		return fmt.Errorf("country is required")
+		return errl.Errorf("country is required")
 	}
 
 	// Convert to uppercase to avoid case sensitivity issues
 	r.Country = strings.ToUpper(r.Country)
 
 	if r.StreetAddress == "" {
-		return fmt.Errorf("street address is required")
+		return errl.Errorf("street address is required")
 	}
 	if r.City == "" {
-		return fmt.Errorf("city is required")
+		return errl.Errorf("city is required")
 	}
 	if r.PostalCode == "" {
-		return fmt.Errorf("postal code is required")
+		return errl.Errorf("postal code is required")
 	}
 	if r.Email == "" {
-		return fmt.Errorf("email is required")
+		return errl.Errorf("email is required")
 	}
 	if !isValidEmailFormat(r.Email) {
-		return fmt.Errorf("invalid email address format")
+		return errl.Errorf("invalid email address format")
 	}
 	if r.Code == "" {
-		return fmt.Errorf("verification code is required")
+		return errl.Errorf("verification code is required")
 	}
 
 	if r.VatId == "" {
-		return fmt.Errorf("VAT ID is required")
+		return errl.Errorf("VAT ID is required")
 	}
 
 	// Convert to uppercase to avoid case sensitivity issues
@@ -897,25 +897,26 @@ func (r *RegistrationRequest) Validate(runtime configuration.RuntimeEnv) error {
 
 			// It the provided VAT includes only the "VAT" prefix, it is an error
 			if strings.HasPrefix(r.VatId, "VAT") {
-				return fmt.Errorf("invalid VAT ID format for country %s", r.Country)
+				return errl.Errorf("invalid VAT ID format %s for country %s", r.VatId, r.Country)
 			}
 
-			// Add the expected prefix to the VAT ID and check if it's valid
+			// Add the expected prefix to the VAT ID
 			r.VatId = expectedPrefix + strings.TrimPrefix(r.VatId, "VAT")
 		}
 
+		// At this moment, the VAT ID has the prefix
+
 		// Do not perform VIES validation in development
 		if runtime != configuration.Development {
-			slog.Info("Checking VAT ID with VIES API", "vatId", r.VatId, "country", r.Country)
 
-			// // Check in the VIES database if the VAT ID is valid for the country provided
-			// viesResp, err := vies.CheckVAT(context.Background(), nil, r.Country, strings.TrimPrefix(r.VatId, expectedPrefix))
-			// if err != nil {
-			// 	return fmt.Errorf("error checking VAT ID with VIES API: %w", err)
-			// }
-			// if !viesResp.Valid {
-			// 	return fmt.Errorf("invalid VAT ID for country %s", r.Country)
-			// }
+			// Check in the VIES database if the VAT ID is valid for the country provided
+			viesResp, err := vies.CheckVAT(context.Background(), true, r.Country, strings.TrimPrefix(r.VatId, expectedPrefix))
+			if err != nil {
+				return errl.Errorf("error checking VAT ID %s with VIES API: %w", r.VatId, err)
+			}
+			if !viesResp.Valid {
+				return errl.Errorf("invalid VAT ID %s for country %s", r.VatId, r.Country)
+			}
 
 		}
 
@@ -926,7 +927,17 @@ func (r *RegistrationRequest) Validate(runtime configuration.RuntimeEnv) error {
 
 // SendJSON utility helper
 func (s *Server) SendJSON(w http.ResponseWriter, r *http.Request, status int, success bool, message string, data any) {
-	slog.Info("Exit", "method", r.Method, "url", r.URL.Path, "status", status)
+	// Format data as JSON if not nil, for logging purposes
+	var b []byte
+	if data != nil {
+		b, _ = json.Marshal(data)
+	}
+
+	if status < http.StatusOK || status >= http.StatusMultipleChoices {
+		slog.Error("Exit", "method", r.Method, "url", r.URL.Path, "status", status, "message", message, "data", string(b))
+	} else {
+		slog.Info("Exit", "method", r.Method, "url", r.URL.Path, "status", status, "message", message, "data", string(b))
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(APIResponse{
