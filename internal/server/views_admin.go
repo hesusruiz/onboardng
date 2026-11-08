@@ -260,7 +260,7 @@ func RetrieveOrganizationsPage(baseUrl string, offset int, limit int) ([]Organiz
 						org.VIESError = org.VIESError + "<div style='color: orange;'>Missing VAT prefix</div>"
 
 						// Check VIES database
-						viesResponse, err := vies.CheckVAT(context.Background(), nil, countryCode, vatNumber)
+						viesResponse, err := vies.CheckVAT(context.Background(), false, countryCode, vatNumber)
 						if err != nil {
 							org.Errors = append(org.Errors, "Failed to check VAT ID in VIES")
 							org.VIESError = org.VIESError + "<div style='color: red;'>VIES call failed</div>"
@@ -297,7 +297,7 @@ func RetrieveOrganizationsPage(baseUrl string, offset int, limit int) ([]Organiz
 					}
 
 					// Now check in the VIES database
-					viesResponse, err := vies.CheckVAT(context.Background(), nil, countryCode, vatNumber)
+					viesResponse, err := vies.CheckVAT(context.Background(), false, countryCode, vatNumber)
 					if err != nil {
 						org.Errors = append(org.Errors, "Failed to check VAT ID in VIES")
 						org.VIESError = org.VIESError + "<div style='color: red;'>Error: VIES call failed</div>"
@@ -317,7 +317,7 @@ func RetrieveOrganizationsPage(baseUrl string, offset int, limit int) ([]Organiz
 							countryCode = "EL"
 						}
 						vatNumber = vatNumber[2:]
-						viesResponse, err := vies.CheckVAT(context.Background(), nil, countryCode, vatNumber)
+						viesResponse, err := vies.CheckVAT(context.Background(), false, countryCode, vatNumber)
 						if err != nil {
 							org.Errors = append(org.Errors, "Failed to check VAT ID in VIES (second attempt)")
 							org.VIESError = org.VIESError + "<div style='color: red;'>Error: VIES call failed (second attempt)</div>"
