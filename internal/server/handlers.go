@@ -18,6 +18,7 @@ import (
 	"github.com/hesusruiz/onboardng/credissuance"
 	"github.com/hesusruiz/onboardng/internal/configuration"
 	"github.com/hesusruiz/onboardng/internal/db"
+	"github.com/hesusruiz/onboardng/internal/vies"
 	"github.com/hesusruiz/utils/errl"
 )
 
