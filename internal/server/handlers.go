@@ -880,15 +880,17 @@ func (r *RegistrationRequest) Validate(runtime configuration.RuntimeEnv) error {
 		return errl.Errorf("VAT ID is required")
 	}
 
+	// Trim blanks at the beginning and end
+	r.VatId = strings.TrimSpace(r.VatId)
 	// Convert to uppercase to avoid case sensitivity issues
 	r.VatId = strings.ToUpper(r.VatId)
+
+	// The prefix must be "VAT" followed by the country code and a dash
+	expectedPrefix := "VAT" + r.Country + "-"
 
 	// If country is an EU country, then the VAT ID must comply with the ETSI EN 319 412-1 format for organizationIdentifier
 	// That is, it must start with "VAT" followed by the country code and a dash, e.g. "VATES-12345678"
 	if common.IsValidEUCountry(r.Country) {
-
-		// The prefix must be "VAT" followed by the country code and a dash
-		expectedPrefix := "VAT" + r.Country + "-"
 
 		// The user may have provided the VAT ID with or without the prefix, so we check if it starts with the expected prefix
 		// If it does not have the prefix, we add it to the VAT ID and check if the rest of the string is a valid VAT number for the country provided
@@ -910,7 +912,8 @@ func (r *RegistrationRequest) Validate(runtime configuration.RuntimeEnv) error {
 		if runtime != configuration.Development {
 
 			// Check in the VIES database if the VAT ID is valid for the country provided
-			viesResp, err := vies.CheckVAT(context.Background(), true, r.Country, strings.TrimPrefix(r.VatId, expectedPrefix))
+			vatNumber := strings.TrimPrefix(r.VatId, expectedPrefix)
+			viesResp, err := vies.CheckVAT(context.Background(), true, r.Country, vatNumber)
 			if err != nil {
 				return errl.Errorf("error checking VAT ID %s with VIES API: %w", r.VatId, err)
 			}
@@ -920,6 +923,12 @@ func (r *RegistrationRequest) Validate(runtime configuration.RuntimeEnv) error {
 
 		}
 
+	} else {
+
+		if !strings.HasPrefix(r.VatId, expectedPrefix) {
+			// Add the expected prefix to the VAT ID
+			r.VatId = expectedPrefix + r.VatId
+		}
 	}
 
 	return nil
