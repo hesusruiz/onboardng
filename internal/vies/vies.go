@@ -72,11 +72,15 @@ func NewService(dbPath string) (*Service, error) {
 	}
 
 	htcConfig := &htc.Config{
-		Timeout:   30 * time.Second,
-		RetryPost: true,
+		Timeout:       30 * time.Second,
+		RateLimitMode: htc.RateLimitSerial,
+		RetryPost:     true,
 	}
 
-	htcClient := htc.New(endpoint, htcConfig)
+	htcClient, err := htc.New(endpoint, htcConfig)
+	if err != nil {
+		return nil, fmt.Errorf("creating htc client: %w", err)
+	}
 
 	dbConn, err := sql.Open("sqlite", dbPath)
 	if err != nil {
