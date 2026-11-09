@@ -12,8 +12,8 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/hesusruiz/authgo v1.0.8
-	github.com/hesusruiz/utils/errl v0.0.0-20261108084542-720af035afa0
-	github.com/hesusruiz/utils/htc v0.0.0-20261108111122-c5efab55d2cf
+	github.com/hesusruiz/utils/errl v0.0.0-20261109085632-a0c83804b366
+	github.com/hesusruiz/utils/htc v0.0.0-20261109085632-a0c83804b366
 	github.com/lestrrat-go/jwx/v2 v2.1.7
 	github.com/mr-tron/base58 v1.3.0
 	github.com/pkg/errors v0.9.1
@@ -35,6 +35,7 @@ require (
 	github.com/go-webauthn/x v0.3.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/go-tpm v0.9.8 // indirect
+	github.com/hesusruiz/utils v0.0.0-20260203155429-e59ff4b6d2e4 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.4 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
 	github.com/lestrrat-go/httprc v1.0.6 // indirect
