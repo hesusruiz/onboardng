@@ -907,20 +907,21 @@ func (r *RegistrationRequest) Validate(runtime configuration.RuntimeEnv) error {
 		}
 
 		// At this moment, the VAT ID has the prefix
+		vatNumber := strings.TrimPrefix(r.VatId, expectedPrefix)
 
-		// Do not perform VIES validation in development
-		if runtime != configuration.Development {
+		// Do not perform VIES validation in development, but log for developers
+		if runtime == configuration.Development {
+			slog.Warn("VIES in Development", "country", r.Country, "VAT number", r.VatId)
+			return nil
+		}
 
-			// Check in the VIES database if the VAT ID is valid for the country provided
-			vatNumber := strings.TrimPrefix(r.VatId, expectedPrefix)
-			viesResp, err := vies.CheckVAT(context.Background(), true, r.Country, vatNumber)
-			if err != nil {
-				return errl.Errorf("error checking VAT ID %s with VIES API: %w", r.VatId, err)
-			}
-			if !viesResp.Valid {
-				return errl.Errorf("invalid VAT ID %s for country %s", r.VatId, r.Country)
-			}
-
+		// Check in the VIES database if the VAT ID is valid for the country provided
+		viesResp, err := vies.CheckVAT(context.Background(), true, r.Country, vatNumber)
+		if err != nil {
+			return errl.Errorf("error checking VAT ID %s with VIES API: %w", r.VatId, err)
+		}
+		if !viesResp.Valid {
+			return errl.Errorf("invalid VAT ID %s for country %s", r.VatId, r.Country)
 		}
 
 	} else {

@@ -41,6 +41,7 @@ func Run() error {
 	watchFlag := serveCmd.Bool("watch", false, "watch for changes and start server")
 	envFlag := serveCmd.String("env", "dev", "environment to serve (dev, pre or pro)")
 	port := serveCmd.String("port", "7777", "port for the server")
+	noAuth := serveCmd.Bool("noauth", false, "disable authentication, ONLY for testing")
 
 	// Define the generate command
 	generateCmd := flag.NewFlagSet("generate", flag.ExitOnError)
@@ -93,6 +94,21 @@ func Run() error {
 		if envPort := os.Getenv("ONBOARDNG_PORT"); envPort != "" {
 			*port = envPort
 		}
+		if envNoAuth := os.Getenv("ONBOARDNG_NOAUTH"); envNoAuth != "" {
+			*noAuth = (envNoAuth == "true" || envNoAuth == "1")
+		}
+
+		// Set the logging level to DEBUG if environment is development
+		// And also if the environment variable is set
+		logLevel := slog.LevelInfo
+		if *envFlag == "dev" {
+			logLevel = slog.LevelDebug
+		}
+		if lvl := os.Getenv("ONBOARDNG_LOG"); strings.ToUpper(lvl) != "DEBUG" {
+			logLevel = slog.LevelDebug
+		}
+		slog.SetLogLoggerLevel(logLevel)
+		slog.Info("Logging level set:", "level", logLevel)
 
 		// Read and immediately UNSET the secret key from the environment
 		secretKey := os.Getenv("AGE_SECRET_KEY")
@@ -111,6 +127,7 @@ func Run() error {
 
 		configPath := resolveConfigPath(*serveCfgPath, *envFlag)
 		cfg := LoadEncryptedConfig(configPath, secretKey)
+		cfg.Features.DisableAuth = *noAuth
 
 		return serve(cfg, *envFlag, *port, *watchFlag, secretKey)
 

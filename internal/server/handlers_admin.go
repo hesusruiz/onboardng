@@ -33,9 +33,9 @@ const kubeCertHeader = "X-Amzn-Mtls-Clientcert"
 
 func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 
-	tmfUrl := s.Marketplace + "/party/organization"
+	tmfOrganizationUrl := s.Marketplace + "/party/organization"
 
-	adminViews, err := NewAdminViews(true, tmfUrl)
+	adminViews, err := NewAdminViews(true, tmfOrganizationUrl)
 	if err != nil {
 		return errl.Errorf("Failed to create views: %w", err)
 	}
@@ -61,6 +61,7 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 		RPOrigins:     []string{allowedOrigins},
 		PathPrefix:    "/passkeys",
 		HomePage:      "/admin/index",
+		DisableAuth:   s.Features.DisableAuth,
 	})
 	if err != nil {
 		return errl.Errorf("Failed to create passkeys: %w", err)
@@ -78,11 +79,23 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 	}
 
 	// Admin routes for pages and APIs
-	mux.Handle("/admin/index", adminChain(s.PageAdminIndex))
+	mux.Handle("/admin/index", adminChain(func(w http.ResponseWriter, r *http.Request) {
+
+		html, err := adminViews.RenderRegistrationsView("/admin/registrationsjson")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(html))
+	}))
 	mux.Handle("/admin/registration", adminChain(s.PageAdminDetailsByVatID))
 	mux.Handle("/admin/api/registrations", adminChain(s.APIAdminGetRegistrations))
 	mux.Handle("/admin/api/registration", adminChain(s.APIAdminGetRegistrationByVatID))
 	mux.Handle("/admin/api/registration-logs", adminChain(s.APIAdminGetRegistrationLogs))
+	mux.Handle("GET /admin/api/registration-log", adminChain(s.APIAdminGetRegistrationLog))
 	mux.Handle("/admin/api/registration-files", adminChain(s.APIAdminGetRegistrationFiles))
 	mux.Handle("/admin/api/file/{file_id}", adminChain(s.APIAdminGetFile))
 
@@ -142,6 +155,33 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write(json)
+	})
+
+	mux.HandleFunc("/admin/oneregistration", func(w http.ResponseWriter, r *http.Request) {
+		slog.Info("Hello in OneRegistration")
+
+		// Get the vat_id from the query string
+		vatID := r.URL.Query().Get("vat_id")
+		if vatID == "" {
+			http.Error(w, "No VAT ID in request", http.StatusInternalServerError)
+			return
+		}
+
+		registration, err := s.DB.GetRegistrationByVatID(vatID)
+		if err != nil {
+			http.Error(w, "Registration not found", http.StatusNotFound)
+			return
+		}
+
+		html, err := adminViews.RenderOneRegistrationView(registration)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(html))
 	})
 
 	// Public route to serve styles for admin dashboard
@@ -389,6 +429,42 @@ func (s *Server) APIAdminGetRegistrationByVatID(w http.ResponseWriter, r *http.R
 }
 
 // APIAdminGetRegistrationLogs returns the list of registration logs
+func (s *Server) APIAdminGetRegistrationLog(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	limit := 100
+	offset := 0
+
+	vatID := r.FormValue("vat_id")
+	if vatID == "" {
+		s.SendJSON(w, r, http.StatusInternalServerError, false, "VAT ID not specified", nil)
+		return
+	}
+
+	if l := r.FormValue("limit"); l != "" {
+		if parsedLimit, err := strconv.Atoi(l); err == nil {
+			limit = parsedLimit
+		}
+	}
+	if o := r.FormValue("offset"); o != "" {
+		if parsedOffset, err := strconv.Atoi(o); err == nil {
+			offset = parsedOffset
+		}
+	}
+
+	logsList, err := s.DB.GetRegistrationLogs(vatID, limit, offset)
+	if err != nil {
+		err = errl.Errorf("Error fetching registration logs for vatID %s: %w", vatID, err)
+		s.SendJSON(w, r, http.StatusInternalServerError, false, "Error fetching registration logs", err.Error())
+		return
+	}
+
+	s.SendJSON(w, r, http.StatusOK, true, "Registration logs fetched successfully", logsList)
+}
+
 func (s *Server) APIAdminGetRegistrationLogs(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
