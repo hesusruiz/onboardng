@@ -81,6 +81,11 @@ func (v *AdminViews) RenderRegistrationsView(tmfUrl string) (string, error) {
 	return executeTemplate(v.Set, "registrations.html.j2", pongo2.Context{"APIJson": tmfUrl})
 }
 
+func (v *AdminViews) RenderOneRegistrationView(registration *db.RegistrationRecord) (string, error) {
+
+	return executeTemplate(v.Set, "oneregistration.html.j2", pongo2.Context{"Reg": registration})
+}
+
 func (v *AdminViews) RenderRegistrationsJSON(regs []*db.RegistrationRecord) ([]byte, error) {
 
 	jsonData, err := json.Marshal(regs)
