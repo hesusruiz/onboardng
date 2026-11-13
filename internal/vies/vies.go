@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -121,8 +122,20 @@ func (s *Service) CheckVAT(ctx context.Context, nocache bool, countryCode, vatNu
 	countryCode = strings.ToUpper(strings.TrimSpace(countryCode))
 	vatNumber = strings.ToUpper(strings.TrimSpace(vatNumber))
 
+	// Perform some formal checks on the vatNumber
+	// Must be of 5 chars minimum
+	if len(vatNumber) < 5 {
+		return nil, errl.Errorf("VAT number too short: %s", vatNumber)
+	}
+
+	// vatNumber must start with a digit or a letter
+	if (vatNumber[0] < '0' || vatNumber[0] > '9') && (vatNumber[0] < 'A' || vatNumber[0] > 'Z') {
+		return nil, errl.Errorf("VAT number must start with a digit or letter: %s", vatNumber)
+	}
+
 	// 1. Check cache
 	if !nocache {
+		slog.Info("Check CACHE", "country", countryCode, "VATnumber", vatNumber)
 		var cached CheckVATResponse
 		err := s.db.QueryRowContext(
 			ctx,
@@ -133,6 +146,7 @@ func (s *Service) CheckVAT(ctx context.Context, nocache bool, countryCode, vatNu
 		if err == nil {
 			// Entry is valid for 1 month from RequestDate
 			if time.Now().Before(cached.RequestDate.AddDate(0, 1, 0)) {
+				slog.Info("CACHE found", "valid", cached.Valid)
 				return &cached, nil
 			}
 		} else if !errors.Is(err, sql.ErrNoRows) {
@@ -140,6 +154,7 @@ func (s *Service) CheckVAT(ctx context.Context, nocache bool, countryCode, vatNu
 		}
 	}
 
+	slog.Info("CACHE miss", "country", countryCode, "VATnumber", vatNumber)
 	// 2. Cache miss or expired: call external VIES API
 	result, err := s.fetchVIES(ctx, countryCode, vatNumber)
 	if err != nil {
