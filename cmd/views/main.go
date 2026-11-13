@@ -114,7 +114,7 @@ func main() {
 
 	http.HandleFunc("/admin/organizations", func(w http.ResponseWriter, r *http.Request) {
 
-		html, err := adminViews.RenderOrganizationsView("/admin/organizationsjson")
+		html, err := adminViews.PageOrganizations("/admin/organizationsjson")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -127,7 +127,7 @@ func main() {
 
 	http.HandleFunc("/admin/organizationsjson", func(w http.ResponseWriter, r *http.Request) {
 
-		json, err := adminViews.RenderOrganizationsJSON()
+		json, err := adminViews.APIOrganizationsJSON()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -140,7 +140,7 @@ func main() {
 
 	http.HandleFunc("/admin/registrations", func(w http.ResponseWriter, r *http.Request) {
 
-		html, err := adminViews.RenderRegistrationsView("/admin/registrationsjson")
+		html, err := adminViews.PageRegistrations("/admin/registrationsjson")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -159,7 +159,7 @@ func main() {
 			return
 		}
 
-		json, err := adminViews.RenderRegistrationsJSON(regs)
+		json, err := adminViews.APIRegistrationsJSON(regs)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -189,7 +189,7 @@ func main() {
 
 	http.HandleFunc("/views/index", func(w http.ResponseWriter, r *http.Request) {
 
-		html, err := adminViews.RenderIndexView("admin@alastria.io", regs, 20, 0, 3, 100)
+		html, err := adminViews.PageIndex("admin@alastria.io", regs, 20, 0, 3, 100)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

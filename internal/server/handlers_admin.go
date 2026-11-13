@@ -81,7 +81,7 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 	// Admin routes for pages and APIs
 	mux.Handle("/admin/index", adminChain(func(w http.ResponseWriter, r *http.Request) {
 
-		html, err := adminViews.RenderRegistrationsView("/admin/registrationsjson")
+		html, err := adminViews.PageRegistrations("/admin/registrationsjson")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -99,9 +99,9 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 	mux.Handle("/admin/api/registration-files", adminChain(s.APIAdminGetRegistrationFiles))
 	mux.Handle("/admin/api/file/{file_id}", adminChain(s.APIAdminGetFile))
 
-	mux.HandleFunc("/admin/organizations", func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/admin/organizations", adminChain(func(w http.ResponseWriter, r *http.Request) {
 
-		html, err := adminViews.RenderOrganizationsView("/admin/organizationsjson")
+		html, err := adminViews.PageOrganizations("/admin/organizationsjson")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -110,11 +110,11 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(html))
-	})
+	}))
 
-	mux.HandleFunc("/admin/organizationsjson", func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/admin/organizationsjson", adminChain(func(w http.ResponseWriter, r *http.Request) {
 
-		json, err := adminViews.RenderOrganizationsJSON()
+		json, err := adminViews.APIOrganizationsJSON()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -123,11 +123,11 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write(json)
-	})
+	}))
 
-	mux.HandleFunc("/admin/registrations", func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/admin/registrations", adminChain(func(w http.ResponseWriter, r *http.Request) {
 
-		html, err := adminViews.RenderRegistrationsView("/admin/registrationsjson")
+		html, err := adminViews.PageRegistrations("/admin/registrationsjson")
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -136,9 +136,9 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(html))
-	})
+	}))
 
-	mux.HandleFunc("/admin/registrationsjson", func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/admin/registrationsjson", adminChain(func(w http.ResponseWriter, r *http.Request) {
 
 		regs, _, err := s.DB.GetRegistrations(1000, 0)
 		if err != nil {
@@ -146,7 +146,7 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 			return
 		}
 
-		json, err := adminViews.RenderRegistrationsJSON(regs)
+		json, err := adminViews.APIRegistrationsJSON(regs)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -155,9 +155,9 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write(json)
-	})
+	}))
 
-	mux.HandleFunc("/admin/oneregistration", func(w http.ResponseWriter, r *http.Request) {
+	mux.Handle("/admin/oneregistration", adminChain(func(w http.ResponseWriter, r *http.Request) {
 		slog.Info("Hello in OneRegistration")
 
 		// Get the vat_id from the query string
@@ -173,7 +173,7 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 			return
 		}
 
-		html, err := adminViews.RenderOneRegistrationView(registration)
+		html, err := adminViews.PageOneRegistration(registration)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -182,7 +182,7 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(html))
-	})
+	}))
 
 	// Public route to serve styles for admin dashboard
 	mux.HandleFunc("/admin/styles.css", func(w http.ResponseWriter, r *http.Request) {
