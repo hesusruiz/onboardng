@@ -35,7 +35,7 @@
             "program": ".",
             "cwd": "${workspaceFolder}",
             "args": [
-                "serve"
+                "serve", "-noauth=true", 
             ]
         }
     ]

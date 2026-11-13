@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="light">
 
 <head>
     <title>Registrations</title>
@@ -37,7 +37,7 @@
         </nav>
 
         <!-- Sidebar -->
-        <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
+        <aside class="app-sidebar bg-primary" data-bs-theme="dark">
             <div class="sidebar-brand">
                 <a href="#" class="brand-link">
                     <span class="brand-text fw-light">Onboarding</span>
@@ -67,7 +67,7 @@
         <main class="app-main">
             <div class="app-content-header">
                 <div class="container-fluid">
-                    <h3 class="mb-0"><span id="org-count"></span> (Organizations)</span></h3>
+                    <h3 class="mb-0"><span id="org-count">Registrations: </span></h3>
                 </div>
             </div>
             <div class="app-content">
@@ -89,13 +89,21 @@
             paginationCounter: "rows",
             paginationCounterElement: "#org-count",
             layout: "fitDataFill",
+            rowFormatter: function (row) {
+                if (row.getData().role == "Seller") {
+                    row.getElement().style.backgroundColor = "#cff4fc";
+                }
+            },
             columns: [
                 {
                     title: "Role", field: "role", formatter: function (cell, formatterParams, onRendered) {
                         const value = cell.getValue();
                         const data = cell.getData();
 
-                        var content = `<div class="fw-bold">${data.role}</div>`;
+                        var content = `<div>${data.role}</div>`;
+                        if (data.role === "Seller") {
+                            content = `<div class="fw-bold">${data.role}</div>`;
+                        }
 
                         return content;
                     }
@@ -106,8 +114,8 @@
                         const data = cell.getData();
 
                         var content = `<div class="fw-bold">${data.company_name}</div>`;
-                        content = content + `<div class="text-body-secondary">${data.vat_id}</div>`;
-                        content = content + `<div class="text-body-secondary">Country: ${data.country}</div>`;
+                        content = content + `<div">${data.vat_id}</div>`;
+                        content = content + `<div>Country: ${data.country}</div>`;
 
                         return content;
                     }
@@ -131,8 +139,8 @@
                         const value = cell.getValue();
                         const data = cell.getData();
 
-                        var content = `<div> ${data.first_name} ${data.last_name}</div>`;
-                        content = content + `<div class="text-body-secondary">${data.email}</div>`;
+                        var content = `<div class="fw-bold"> ${data.first_name} ${data.last_name}</div>`;
+                        content = content + `<div>${data.email}</div>`;
 
                         return content;
                     }
@@ -164,8 +172,8 @@
 
                         if (data.lear_completed) {
                             content = `<div class="fw-bold"> ${data.lr_first_name} ${data.lr_last_name}</div>`;
-                            content = content + `<div class="text-body-secondary">${data.lr_email}</div>`;
-                            content = content + `<div class="text-body-secondary">Country: ${data.lr_country}</div>`;
+                            content = content + `<div>${data.lr_email}</div>`;
+                            content = content + `<div>Country: ${data.lr_country}</div>`;
                         }
 
                         return content;
@@ -180,8 +188,8 @@
 
                         if (data.lear_completed) {
                             content = `<div class="fw-bold"> ${data.lear_first_name} ${data.lear_last_name}</div>`;
-                            content = content + `<div class="text-body-secondary">${data.lear_email}</div>`;
-                            content = content + `<div class="text-body-secondary">Country: ${data.lear_country}</div>`;
+                            content = content + `<div>${data.lear_email}</div>`;
+                            content = content + `<div>Country: ${data.lear_country}</div>`;
                         }
 
                         return content;
@@ -206,6 +214,13 @@
                 }
             ],
             ajaxURL: "{{ APIJson | safe }}",
+        });
+
+        table.on("rowClick", function (e, row) {
+            //e - the click event object
+            //row - row component
+            var data = row.getData();
+            location = "/admin/oneregistration?vat_id=" + data.vat_id
         });
     </script>
 </body>

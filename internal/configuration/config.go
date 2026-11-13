@@ -1,8 +1,8 @@
 package configuration
 
 import (
+	"encoding/json"
 	"fmt"
-	"strings"
 )
 
 // // Config holds the configuration for the application for a specific environment.
@@ -33,7 +33,7 @@ type EnvConfig struct {
 
 	// The decrypted AGE secret key used for decryption of embedded files.
 	// This is not stored in the YAML config file.
-	AgeSecretKey string `yaml:"-"`
+	AgeSecretKey string `yaml:"-" json:"-"`
 
 	// Whether the environment is in debug mode.
 	Debug bool `yaml:"debug"`
@@ -46,11 +46,11 @@ type EnvConfig struct {
 
 	// The path to the private key file corresponding to the didKey, which must be placed in a secure place.
 	PrivateKeyFile string `yaml:"privateKeyFile,omitempty"`
-	PrivateKey     string `yaml:"privateKey,omitempty"`
+	PrivateKey     string `yaml:"privateKey,omitempty" json:"-"`
 
 	// The path to the machine credential file, which must be placed in a secure place.
 	MachineCredentialFile string `yaml:"machineCredentialFile,omitempty"`
-	MachineCredential     string `yaml:"machineCredential,omitempty"`
+	MachineCredential     string `yaml:"machineCredential,omitempty" json:"-"`
 
 	// The Marketplace configuration
 	Marketplace MarketplaceConfig `yaml:"marketplace"`
@@ -74,6 +74,8 @@ type EnvConfig struct {
 type Features struct {
 	TMFServerEnabled bool `yaml:"tmfServerEnabled"`
 	DirectIssuance   bool `yaml:"directIssuance"`
+	NotValidateEmail bool `yaml:"notValidateEmail"`
+	DisableAuth      bool `yaml:"disableAuth"`
 }
 
 type RuntimeEnv string
@@ -125,43 +127,49 @@ func (r RuntimeEnv) IsProduction() bool {
 
 func (e *EnvConfig) String() string {
 
-	var b strings.Builder
+	buf, err := json.MarshalIndent(e, "", "  ")
+	if err != nil {
+		return "error formatting"
+	}
+	return fmt.Sprint(string(buf))
 
-	fmt.Fprintf(&b, "Runtime: %s\n", e.Runtime)
-	fmt.Fprintf(&b, "Debug: %t\n", e.Debug)
-	fmt.Fprintf(&b, "AppURL: %s\n", e.AppURL)
-	fmt.Fprintf(&b, "MyDidkey: %s\n", e.MyDidkey)
-	fmt.Fprintf(&b, "PrivateKeyFile: %s\n", e.PrivateKeyFile)
-	fmt.Fprintf(&b, "MachineCredentialFile: %s\n", e.MachineCredentialFile)
-	fmt.Fprintf(&b, "Marketplace:\n")
-	fmt.Fprintf(&b, "  URL: %s\n", e.Marketplace.URL)
-	fmt.Fprintf(&b, "Verifier:\n")
-	fmt.Fprintf(&b, "  URL: %s\n", e.Verifier.URL)
-	fmt.Fprintf(&b, "  TokenEndpoint: %s\n", e.Verifier.TokenEndpoint)
-	fmt.Fprintf(&b, "Issuer:\n")
-	fmt.Fprintf(&b, "  CredentialIssuancePath: %s\n", e.Issuer.CredentialIssuancePath)
-	fmt.Fprintf(&b, "Wallet:\n")
-	fmt.Fprintf(&b, "  CredentialIssuanceCallback: %s\n", e.Wallet.CredentialIssuanceCallback)
-	fmt.Fprintf(&b, "TMForum:\n")
-	fmt.Fprintf(&b, "  BaseURL: %s\n", e.TMForum.BaseURL)
-	fmt.Fprintf(&b, "Mail:\n")
-	fmt.Fprintf(&b, "  OnboardTeamEmail: %v\n", e.Mail.OnboardTeamEmail)
-	fmt.Fprintf(&b, "  IssuerTeamEmail: %v\n", e.Mail.IssuerTeamEmail)
-	fmt.Fprintf(&b, "  CCTeamEmail: %v\n", e.Mail.CCTeamEmail)
-	fmt.Fprintf(&b, "  TestRecipientEmail: %s\n", e.Mail.TestRecipientEmail)
-	fmt.Fprintf(&b, "  TemplateDir: %s\n", e.Mail.TemplateDir)
-	fmt.Fprintf(&b, "  SMTP:\n")
-	fmt.Fprintf(&b, "    Enabled: %t\n", e.Mail.SMTP.Enabled)
-	fmt.Fprintf(&b, "    Host: %s\n", e.Mail.SMTP.Host)
-	fmt.Fprintf(&b, "    Port: %d\n", e.Mail.SMTP.Port)
-	fmt.Fprintf(&b, "    TLS: %t\n", e.Mail.SMTP.TLS)
-	fmt.Fprintf(&b, "    Username: %s\n", e.Mail.SMTP.Username)
-	fmt.Fprintf(&b, "    PasswordFile: %s\n", e.Mail.SMTP.PasswordFile)
-	fmt.Fprintf(&b, "Features:\n")
-	fmt.Fprintf(&b, "  TMFServerEnabled: %t\n", e.Features.TMFServerEnabled)
-	fmt.Fprintf(&b, "  DirectIssuance: %t\n", e.Features.DirectIssuance)
+	// var b strings.Builder
 
-	return b.String()
+	// fmt.Fprintf(&b, "Runtime: %s\n", e.Runtime)
+	// fmt.Fprintf(&b, "Debug: %t\n", e.Debug)
+	// fmt.Fprintf(&b, "AppURL: %s\n", e.AppURL)
+	// fmt.Fprintf(&b, "MyDidkey: %s\n", e.MyDidkey)
+	// fmt.Fprintf(&b, "PrivateKeyFile: %s\n", e.PrivateKeyFile)
+	// fmt.Fprintf(&b, "MachineCredentialFile: %s\n", e.MachineCredentialFile)
+	// fmt.Fprintf(&b, "Marketplace:\n")
+	// fmt.Fprintf(&b, "  URL: %s\n", e.Marketplace.URL)
+	// fmt.Fprintf(&b, "Verifier:\n")
+	// fmt.Fprintf(&b, "  URL: %s\n", e.Verifier.URL)
+	// fmt.Fprintf(&b, "  TokenEndpoint: %s\n", e.Verifier.TokenEndpoint)
+	// fmt.Fprintf(&b, "Issuer:\n")
+	// fmt.Fprintf(&b, "  CredentialIssuancePath: %s\n", e.Issuer.CredentialIssuancePath)
+	// fmt.Fprintf(&b, "Wallet:\n")
+	// fmt.Fprintf(&b, "  CredentialIssuanceCallback: %s\n", e.Wallet.CredentialIssuanceCallback)
+	// fmt.Fprintf(&b, "TMForum:\n")
+	// fmt.Fprintf(&b, "  BaseURL: %s\n", e.TMForum.BaseURL)
+	// fmt.Fprintf(&b, "Mail:\n")
+	// fmt.Fprintf(&b, "  OnboardTeamEmail: %v\n", e.Mail.OnboardTeamEmail)
+	// fmt.Fprintf(&b, "  IssuerTeamEmail: %v\n", e.Mail.IssuerTeamEmail)
+	// fmt.Fprintf(&b, "  CCTeamEmail: %v\n", e.Mail.CCTeamEmail)
+	// fmt.Fprintf(&b, "  TestRecipientEmail: %s\n", e.Mail.TestRecipientEmail)
+	// fmt.Fprintf(&b, "  TemplateDir: %s\n", e.Mail.TemplateDir)
+	// fmt.Fprintf(&b, "  SMTP:\n")
+	// fmt.Fprintf(&b, "    Enabled: %t\n", e.Mail.SMTP.Enabled)
+	// fmt.Fprintf(&b, "    Host: %s\n", e.Mail.SMTP.Host)
+	// fmt.Fprintf(&b, "    Port: %d\n", e.Mail.SMTP.Port)
+	// fmt.Fprintf(&b, "    TLS: %t\n", e.Mail.SMTP.TLS)
+	// fmt.Fprintf(&b, "    Username: %s\n", e.Mail.SMTP.Username)
+	// fmt.Fprintf(&b, "    PasswordFile: %s\n", e.Mail.SMTP.PasswordFile)
+	// fmt.Fprintf(&b, "Features:\n")
+	// fmt.Fprintf(&b, "  TMFServerEnabled: %t\n", e.Features.TMFServerEnabled)
+	// fmt.Fprintf(&b, "  DirectIssuance: %t\n", e.Features.DirectIssuance)
+
+	// return b.String()
 }
 
 type MarketplaceConfig struct {
@@ -186,7 +194,7 @@ type WalletConfig struct {
 }
 
 type MailConfig struct {
-	AgeSecretKey       string   `yaml:"-"`
+	AgeSecretKey       string   `yaml:"-" json:"-"`
 	OnboardTeamEmail   []string `yaml:"onboard_team_email"`
 	IssuerTeamEmail    []string `yaml:"issuer_team_email"`
 	CCTeamEmail        []string `yaml:"cc_list_email"`
@@ -202,5 +210,5 @@ type SMTPConfig struct {
 	TLS          bool   `json:"tls,omitempty" yaml:"tls"`
 	Username     string `json:"username,omitempty" yaml:"username"`
 	PasswordFile string `json:"passwordFile,omitempty" yaml:"passwordFile"`
-	Password     string `json:"password,omitempty" yaml:"password"`
+	Password     string `json:"-" yaml:"password"`
 }

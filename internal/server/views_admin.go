@@ -37,32 +37,7 @@ func NewAdminViews(debug bool, tmfUrl string) (*AdminViews, error) {
 	return &AdminViews{Set: set, TMFUrl: tmfUrl}, nil
 }
 
-func loadSet(subapp string, embeddedFS embed.FS, debug bool) (*pongo2.TemplateSet, error) {
-	var templateFS fs.FS
-	if _, err := os.Stat(subapp); err == nil {
-		templateFS = os.DirFS(subapp)
-	} else if _, err := os.Stat(templateDir + "/" + subapp); err == nil {
-		templateFS = os.DirFS(templateDir + "/" + subapp)
-	} else {
-		sub, err := fs.Sub(embeddedFS, subapp)
-		if err != nil {
-			return nil, err
-		}
-		templateFS = sub
-	}
-
-	loader := pongo2.NewFSLoader(templateFS)
-	set := pongo2.NewSet(subapp, loader)
-	set.Debug = debug
-
-	set.Globals = pongo2.Context{
-		"AppName": "DOME Marketplace",
-	}
-
-	return set, nil
-}
-
-func (v *AdminViews) RenderIndexView(email string, regs []db.RegistrationRecord, limit int, offset int, numEntries int, total int) (string, error) {
+func (v *AdminViews) PageIndex(email string, regs []db.RegistrationRecord, limit int, offset int, numEntries int, total int) (string, error) {
 
 	ctx := pongo2.Context{
 		"Email":      email,
@@ -76,12 +51,17 @@ func (v *AdminViews) RenderIndexView(email string, regs []db.RegistrationRecord,
 	return executeTemplate(v.Set, "index.html.j2", ctx)
 }
 
-func (v *AdminViews) RenderRegistrationsView(tmfUrl string) (string, error) {
+func (v *AdminViews) PageRegistrations(apiJSON string) (string, error) {
 
-	return executeTemplate(v.Set, "registrations.html.j2", pongo2.Context{"APIJson": tmfUrl})
+	return executeTemplate(v.Set, "registrations.html.j2", pongo2.Context{"APIJson": apiJSON})
 }
 
-func (v *AdminViews) RenderRegistrationsJSON(regs []*db.RegistrationRecord) ([]byte, error) {
+func (v *AdminViews) PageOneRegistration(registration *db.RegistrationRecord) (string, error) {
+
+	return executeTemplate(v.Set, "oneregistration.html.j2", pongo2.Context{"Reg": registration})
+}
+
+func (v *AdminViews) APIRegistrationsJSON(regs []*db.RegistrationRecord) ([]byte, error) {
 
 	jsonData, err := json.Marshal(regs)
 	if err != nil {
@@ -93,12 +73,12 @@ func (v *AdminViews) RenderRegistrationsJSON(regs []*db.RegistrationRecord) ([]b
 
 }
 
-func (v *AdminViews) RenderOrganizationsView(tmfUrl string) (string, error) {
+func (v *AdminViews) PageOrganizations(tmfUrl string) (string, error) {
 
 	return executeTemplate(v.Set, "organizations.html.j2", pongo2.Context{"APIJson": tmfUrl})
 }
 
-func (v *AdminViews) RenderOrganizationsJSON() ([]byte, error) {
+func (v *AdminViews) APIOrganizationsJSON() ([]byte, error) {
 
 	// Retrieve all Organizations from the TMF server
 	baseUrlSBX := v.TMFUrl
@@ -107,7 +87,7 @@ func (v *AdminViews) RenderOrganizationsJSON() ([]byte, error) {
 	allOrgs := make([]Organization, 0)
 
 	for {
-		orgs, err := RetrieveOrganizationsPage(baseUrlSBX, offset, limit)
+		orgs, err := TMFRetrieveOrganizations(baseUrlSBX, offset, limit)
 		if err != nil {
 			return nil, err
 		}
@@ -144,7 +124,7 @@ type Organization struct {
 	rawData                    map[string]any `json:"-"`
 }
 
-func RetrieveOrganizationsPage(baseUrl string, offset int, limit int) ([]Organization, error) {
+func TMFRetrieveOrganizations(baseUrl string, offset int, limit int) ([]Organization, error) {
 	url := fmt.Sprintf("%s?offset=%d&limit=%d", baseUrl, offset, limit)
 	resp, err := http.Get(url)
 	if err != nil {
@@ -363,4 +343,29 @@ func executeTemplate(set *pongo2.TemplateSet, templateName string, context pongo
 	}
 
 	return out, nil
+}
+
+func loadSet(subapp string, embeddedFS embed.FS, debug bool) (*pongo2.TemplateSet, error) {
+	var templateFS fs.FS
+	if _, err := os.Stat(subapp); err == nil {
+		templateFS = os.DirFS(subapp)
+	} else if _, err := os.Stat(templateDir + "/" + subapp); err == nil {
+		templateFS = os.DirFS(templateDir + "/" + subapp)
+	} else {
+		sub, err := fs.Sub(embeddedFS, subapp)
+		if err != nil {
+			return nil, err
+		}
+		templateFS = sub
+	}
+
+	loader := pongo2.NewFSLoader(templateFS)
+	set := pongo2.NewSet(subapp, loader)
+	set.Debug = debug
+
+	set.Globals = pongo2.Context{
+		"AppName": "DOME Marketplace",
+	}
+
+	return set, nil
 }
