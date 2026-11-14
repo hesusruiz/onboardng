@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
@@ -56,21 +57,14 @@ func (v *AdminViews) PageRegistrations(apiJSON string) (string, error) {
 	return executeTemplate(v.Set, "registrations.html.j2", pongo2.Context{"APIJson": apiJSON})
 }
 
+func (v *AdminViews) PageRegsOrgs(apiJSON string) (string, error) {
+
+	return executeTemplate(v.Set, "regs_orgs.html.j2", pongo2.Context{"APIJson": apiJSON})
+}
+
 func (v *AdminViews) PageOneRegistration(registration *db.RegistrationRecord) (string, error) {
 
 	return executeTemplate(v.Set, "oneregistration.html.j2", pongo2.Context{"Reg": registration})
-}
-
-func (v *AdminViews) APIRegistrationsJSON(regs []*db.RegistrationRecord) ([]byte, error) {
-
-	jsonData, err := json.Marshal(regs)
-	if err != nil {
-		fmt.Println("Error marshalling registrations to JSON:", err)
-		return nil, err
-	}
-
-	return jsonData, nil
-
 }
 
 func (v *AdminViews) PageOrganizations(tmfUrl string) (string, error) {
@@ -107,6 +101,31 @@ func (v *AdminViews) APIOrganizationsJSON() ([]byte, error) {
 	}
 
 	return orgsJSON, nil
+}
+
+func (v *AdminViews) AllOrganizations() ([]Organization, error) {
+
+	// Retrieve all Organizations from the TMF server
+	baseUrlSBX := v.TMFUrl
+	offset := 0
+	limit := 200
+	allOrgs := make([]Organization, 0)
+
+	for {
+		orgs, err := TMFRetrieveOrganizations(baseUrlSBX, offset, limit)
+		if err != nil {
+			return nil, err
+		}
+
+		allOrgs = append(allOrgs, orgs...)
+
+		if len(orgs) < limit {
+			break
+		}
+		offset += limit
+	}
+
+	return allOrgs, nil
 }
 
 type Organization struct {
@@ -329,6 +348,121 @@ func TMFRetrieveOrganizations(baseUrl string, offset int, limit int) ([]Organiza
 	}
 
 	return orgs, nil
+}
+
+func VerifyLazyEUVATID(org *Organization) error {
+	// Now we are going to handle a series of cases for badly formatted VATIDs, and will try to correct them if possible
+	var countryCode string
+	var vatNumber string
+
+	// The VAT ID must be long enough
+	if len(org.VATID) < 7 {
+		org.Errors = append(org.Errors, "VAT ID too short")
+		fmt.Println("VAT ID too short:", "OID:", org.ID, "VAT ID:", org.VATID)
+		org.VIESError = org.VIESError + "<div style='color: red;'>Error: VAT ID too short</div>"
+		return fmt.Errorf("VAT ID too short")
+	}
+
+	if !strings.HasPrefix(org.VATID, "VAT") {
+		// No VAT prefix. Check if it starts with a valid EU country code (2 letters)
+		countryCode = org.VATID[0:2]
+
+		// Handle the 'GR' case for Greece, which should be 'EL'
+		if countryCode == "GR" {
+			countryCode = "EL"
+			org.VIESError = org.VIESError + "<div style='color: orange;'>Greece should be 'EL'</div>"
+		}
+
+		if !common.IsValidEUCountry(countryCode) {
+			org.Errors = append(org.Errors, "Invalid EU country code in VAT ID")
+			fmt.Println("Invalid EU country code in VAT ID:", "OID:", org.ID, "VAT ID:", org.VATID, "CountryCode:", countryCode)
+			org.VIESError = org.VIESError + "<div style='color: orange;'>Non EU country code</div>"
+			return fmt.Errorf("Invalid EU country code in VAT ID")
+		}
+
+		// Skip the country code
+		vatNumber = org.VATID[2:]
+		// Add warning to VIESError field, but continue to check in VIES
+		org.VIESError = org.VIESError + "<div style='color: orange;'>Missing VAT prefix</div>"
+
+		// Check VIES database
+		viesResponse, err := vies.CheckVAT(context.Background(), false, countryCode, vatNumber)
+		if err != nil {
+			org.Errors = append(org.Errors, "Failed to check VAT ID in VIES")
+			org.VIESError = org.VIESError + "<div style='color: red;'>VIES call failed</div>"
+			slog.Error("Failed to check VAT ID in VIES", "error", err.Error())
+			return fmt.Errorf("Failed to check VAT ID in VIES")
+		} else {
+			if !viesResponse.Valid {
+				org.Errors = append(org.Errors, "VAT ID is not valid according to VIES")
+				org.VIESError = org.VIESError + "<div style='color: red;'>NOT VALID in VIES</div>"
+				slog.Error("VATID invalid", "VATID", org.VATID, "CC", countryCode, "Num", vatNumber, "OID", org.ID)
+				return fmt.Errorf("VAT ID is not valid according to VIES")
+			} else {
+				org.VIESError = org.VIESError + "<div style='color: green;'>Valid in VIES</div>"
+				return nil
+			}
+		}
+	}
+
+	// Get the country code and VAT number from the VAT ID
+	countryCode = org.VATID[3:5]
+	vatNumber = org.VATID[6:]
+
+	// Handle the 'GR' case for Greece, which should be 'EL'
+	if countryCode == "GR" {
+		countryCode = "EL"
+		org.VIESError = org.VIESError + "<div style='color: orange;'>Greece should be 'EL'</div>"
+	}
+
+	// Check if country is a valid EU country code (2 letters)
+	if !common.IsValidEUCountry(countryCode) {
+		org.Errors = append(org.Errors, "Invalid EU country code in VAT ID")
+		fmt.Println("Invalid EU country code in VAT ID:", "OID:", org.ID, "VAT ID:", org.VATID, "CountryCode:", countryCode, "VAT number:", vatNumber)
+		org.VIESError = org.VIESError + "<div style='color: red;'>Non EU country code</div>"
+		return fmt.Errorf("Invalid EU country code in VAT ID")
+	}
+
+	// Now check in the VIES database first time
+	viesResponse, err := vies.CheckVAT(context.Background(), false, countryCode, vatNumber)
+	if err != nil {
+		org.Errors = append(org.Errors, "Failed to check VAT ID in VIES")
+		org.VIESError = org.VIESError + "<div style='color: red;'>Error: VIES call failed</div>"
+		return fmt.Errorf("Failed to check VAT ID in VIES")
+	}
+
+	if viesResponse.Valid {
+		org.VIESError = org.VIESError + "<div style='color: green;'>Valid in VIES</div>"
+		return nil
+	}
+
+	// We will try again to see if we can bypass the error
+
+	// Check to see if the first 2 chars of the VAT number is the country code
+	countryCode = org.VATID[3:5]
+
+	if len(vatNumber) >= 2 && strings.ToUpper(vatNumber[0:2]) == countryCode {
+		if countryCode == "GR" {
+			countryCode = "EL"
+		}
+		vatNumber = vatNumber[2:]
+		viesResponse, err := vies.CheckVAT(context.Background(), false, countryCode, vatNumber)
+		if err != nil {
+			org.Errors = append(org.Errors, "Failed to check VAT ID in VIES (second attempt)")
+			org.VIESError = org.VIESError + "<div style='color: red;'>Error: VIES call failed (second attempt)</div>"
+			return fmt.Errorf("Failed to check VAT ID in VIES (second attempt)")
+		}
+
+		if viesResponse.Valid {
+			org.VIESError = org.VIESError + "<div style='color: green;'>Valid in VIES (corrected number)</div>"
+			return nil
+		}
+	}
+
+	org.Errors = append(org.Errors, "VAT ID is not valid according to VIES")
+	org.VIESError = org.VIESError + "<div style='color: red;'>Error: not valid in VIES</div>"
+	fmt.Println("VATID invalid:", org.VATID, "CC:", countryCode, "Num:", vatNumber, "OID:", org.ID)
+	return fmt.Errorf("VAT ID is not valid according to VIES")
 }
 
 func executeTemplate(set *pongo2.TemplateSet, templateName string, context pongo2.Context) (string, error) {

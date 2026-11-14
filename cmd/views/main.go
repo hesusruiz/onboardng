@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"log/slog"
 	"net/http"
@@ -159,7 +160,7 @@ func main() {
 			return
 		}
 
-		json, err := adminViews.APIRegistrationsJSON(regs)
+		json, err := json.Marshal(regs)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
