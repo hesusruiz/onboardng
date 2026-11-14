@@ -880,59 +880,70 @@ func (r *RegistrationRequest) Validate(runtime configuration.RuntimeEnv) error {
 		return errl.Errorf("VAT ID is required")
 	}
 
-	// Trim blanks at the beginning and end
-	r.VatId = strings.TrimSpace(r.VatId)
-	// Convert to uppercase to avoid case sensitivity issues
-	r.VatId = strings.ToUpper(r.VatId)
-
 	// The prefix must be "VAT" followed by the country code and a dash
 	expectedPrefix := "VAT" + r.Country + "-"
 
-	// If country is an EU country, then the VAT ID must comply with the ETSI EN 319 412-1 format for organizationIdentifier
-	// That is, it must start with "VAT" followed by the country code and a dash, e.g. "VATES-12345678"
-	if common.IsValidEUCountry(r.Country) {
-
-		// The user may have provided the VAT ID with or without the prefix, so we check if it starts with the expected prefix
-		// If it does not have the prefix, we add it to the VAT ID and check if the rest of the string is a valid VAT number for the country provided
-
-		if !strings.HasPrefix(r.VatId, expectedPrefix) {
-
-			// It the provided VAT includes only the "VAT" prefix, it is an error
-			if strings.HasPrefix(r.VatId, "VAT") {
-				return errl.Errorf("invalid VAT ID format %s for country %s", r.VatId, r.Country)
-			}
-
-			// Add the expected prefix to the VAT ID
-			r.VatId = expectedPrefix + strings.TrimPrefix(r.VatId, "VAT")
-		}
-
-		// At this moment, the VAT ID has the prefix
-		vatNumber := strings.TrimPrefix(r.VatId, expectedPrefix)
-
-		// Do not perform VIES validation in development, but log for developers
-		if runtime == configuration.Development {
-			slog.Warn("VIES in Development", "country", r.Country, "VAT number", r.VatId)
-			return nil
-		}
-
-		// Check in the VIES database if the VAT ID is valid for the country provided
-		viesResp, err := vies.CheckVAT(context.Background(), true, r.Country, vatNumber)
-		if err != nil {
-			return errl.Errorf("error checking VAT ID %s with VIES API: %w", r.VatId, err)
-		}
-		if !viesResp.Valid {
-			return errl.Errorf("invalid VAT ID %s for country %s", r.VatId, r.Country)
-		}
-
-	} else {
-
+	// Handle non-EU countries
+	if !common.IsValidEUCountry(r.Country) {
 		if !strings.HasPrefix(r.VatId, expectedPrefix) {
 			// Add the expected prefix to the VAT ID
 			r.VatId = expectedPrefix + r.VatId
 		}
+		return nil
 	}
 
+	// If country is an EU country, then the VAT ID must comply with the ETSI EN 319 412-1 format for organizationIdentifier
+	// That is, it must start with "VAT" followed by the country code and a dash, e.g. "VATES-12345678"
+
+	vatNumber, err := VerifyEUVATNumber(r.VatId, r.Country)
+	if err != nil {
+		return err
+	}
+
+	// Do not perform VIES validation in development, but log for developers
+	if runtime == configuration.Development {
+		slog.Warn("VIES in Development", "country", r.Country, "VAT ID", r.VatId)
+		// Add the expected prefix to the VAT number
+		r.VatId = expectedPrefix + vatNumber
+		return nil
+	}
+
+	// Check in the VIES database if the VAT number is valid for the country provided
+	viesResp, err := vies.CheckVAT(context.Background(), true, r.Country, vatNumber)
+	if err != nil {
+		return errl.Errorf("error checking VAT ID %s with VIES API: %w", r.VatId, err)
+	}
+	if !viesResp.Valid {
+		return errl.Errorf("invalid VAT ID %s for country %s", r.VatId, r.Country)
+	}
+
+	// Add the expected prefix to the VAT number
+	r.VatId = expectedPrefix + vatNumber
+
 	return nil
+}
+
+// VerifyEUVATNumber verifies vatNumber for a EU country
+// The vatNumber is the last part of a VATID, which has the format VAT{country}-{vatNumber} where country is the 2-digit country code
+// This function is intended for verifying the vatNumber introduced by a user in a form
+func VerifyEUVATNumber(vatNumber string, country string) (string, error) {
+	// Trim blanks at the beginning and end
+	vatNumber = strings.TrimSpace(vatNumber)
+	// Convert to uppercase to avoid case sensitivity issues
+	vatNumber = strings.ToUpper(vatNumber)
+
+	// The prefix must be "VAT" followed by the country code and a dash
+	expectedPrefix := "VAT" + country + "-"
+
+	if strings.HasPrefix(vatNumber, expectedPrefix) {
+		return "", fmt.Errorf("enter the VAT number without the prefix %s", expectedPrefix)
+	}
+
+	if strings.HasPrefix(vatNumber, "VAT") {
+		return "", fmt.Errorf("enter the VAT number without the prefix VAT")
+	}
+
+	return vatNumber, nil
 }
 
 // SendJSON utility helper

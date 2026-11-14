@@ -3,6 +3,7 @@ package server
 import (
 	"crypto/x509"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -146,7 +147,77 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 			return
 		}
 
-		json, err := adminViews.APIRegistrationsJSON(regs)
+		json, err := json.Marshal(regs)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write(json)
+	}))
+
+	mux.Handle("/admin/regsorgs", adminChain(func(w http.ResponseWriter, r *http.Request) {
+
+		html, err := adminViews.PageRegsOrgs("/admin/regsorgsjson")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(html))
+	}))
+
+	type ExtendedRegistration struct {
+		*db.RegistrationRecord
+		Org Organization
+	}
+
+	mux.Handle("/admin/regsorgsjson", adminChain(func(w http.ResponseWriter, r *http.Request) {
+
+		var extRegs = []ExtendedRegistration{}
+
+		regs, _, err := s.DB.GetRegistrations(1000, 0)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		orgs, err := adminViews.AllOrganizations()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		matchedOrgs := make([]bool, len(orgs))
+		for _, reg := range regs {
+			extReg := ExtendedRegistration{
+				RegistrationRecord: reg,
+			}
+			regID := reg.VatID
+			for i, org := range orgs {
+				if regID != "" && regID == org.VATID {
+					extReg.Org = org
+					matchedOrgs[i] = true
+					break
+				}
+			}
+			extRegs = append(extRegs, extReg)
+		}
+
+		for i, org := range orgs {
+			if !matchedOrgs[i] {
+				extRegs = append(extRegs, ExtendedRegistration{
+					RegistrationRecord: &db.RegistrationRecord{},
+					Org:                org,
+				})
+			}
+		}
+
+		json, err := json.Marshal(extRegs)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
