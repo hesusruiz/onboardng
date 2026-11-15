@@ -73,7 +73,7 @@
         <main class="app-main">
             <div class="app-content-header">
                 <div class="container-fluid">
-                    <h3 class="mb-0"><span id="org-count">Registrations: </span></h3>
+                    <h3 class="mb-0"><span id="org-count">Regs & Orgs: </span></h3>
                 </div>
             </div>
             <div class="app-content">
@@ -112,10 +112,26 @@
                                 content = `<div class="fw-bold">${data.role}</div>`;
                             }
                         } else {
-                            content = `<div>Unknown</div>`;
+                            content = `<div>????</div>`;
                         }
 
                         return content;
+                    }
+                },
+                {
+                    title: "TMF", formatter: function (cell, formatterParams, onRendered) {
+                        const value = cell.getValue();
+                        const data = cell.getData();
+
+                        if (data.Org.id) {
+                            var content = `<div style="color:green">YES</div>`;
+                            return content
+                        } else {
+                            var content = `<div style="color:red">NO</div>`;
+                            return content
+                        }
+
+                        return "";
                     }
                 },
                 {
@@ -204,9 +220,9 @@
                         const value = cell.getValue();
                         const data = cell.getData();
 
-                        if (data.vat_id) {
+                        if (data.lear_completed) {
                             const completedStyle = data.lear_completed ? "border: 1px solid green;color:green;margin-bottom:3px;" : "border: 1px solid red;color:red;margin-bottom:3px;";
-                            const completedText = data.lear_completed ? "LEAR" : "LEAR";
+                            const completedText = data.lear_completed ? "LEAR data" : "LEAR data";
 
                             var content = `<div class="fw-bold" style="${completedStyle}">${completedText}</div>`;
 
@@ -227,7 +243,13 @@
             //e - the click event object
             //row - row component
             var data = row.getData();
-            location = "/admin/oneregistration?vat_id=" + data.vat_id
+            if (data.vat_id) {
+                location = "/admin/oneregistration?vat_id=" + data.vat_id
+            } else if (data.Org.id) {
+                location = "{{tmfOrganizationUrl}}/" + data.Org.id
+            } else {
+                alert("No object to display")
+            }
         });
     </script>
 </body>

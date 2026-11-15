@@ -159,8 +159,9 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 	}))
 
 	mux.Handle("/admin/regsorgs", adminChain(func(w http.ResponseWriter, r *http.Request) {
+		tmfOrganizationUrl := s.Marketplace + "/party/organization"
 
-		html, err := adminViews.PageRegsOrgs("/admin/regsorgsjson")
+		html, err := adminViews.PageRegsOrgs("/admin/regsorgsjson", tmfOrganizationUrl)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

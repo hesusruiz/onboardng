@@ -58,6 +58,12 @@
                                 <p>Organizations</p>
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a href="/admin/regsorgs" class="nav-link">
+                                <i class="nav-icon bi bi-bar-chart"></i>
+                                <p>Regs & Orgs</p>
+                            </a>
+                        </li>
                     </ul>
                 </nav>
             </div>
@@ -122,6 +128,7 @@
                                 </div>
                             </div>
 
+                            {% if Reg.LEARCompleted %}
                             <div class="card card-primary card-outline mb-3">
                                 <div class="card-header">
                                     Legal Representative
@@ -167,7 +174,7 @@
 
                                 </div>
                             </div>
-
+                            {% endif %}
 
                         </div>
 
@@ -195,27 +202,40 @@
                                         </li>
                                     </ul>
 
+                                    {% if Reg.LEARCompleted %}
                                     <ul class="list-group">
                                         <li class="list-group-item active" aria-current="true">Stage 2</li>
                                         <li class="list-group-item">
                                             <span
-                                                class="badge {{ Reg.TMFRegistered|yesno:'text-bg-success,text-bg-danger' }}">
-                                                Files uploaded
+                                                class="badge {{ Reg.LEARCompleted|yesno:'text-bg-success,text-bg-danger' }}">
+                                                LEAR data
                                             </span>
                                         </li>
                                         <li class="list-group-item">
+                                            {% if Reg.Approved == 0 %}
                                             <span
-                                                class="badge {{ Reg.TMFRegistered|yesno:'text-bg-success,text-bg-danger' }}">
-                                                Credential to Account Admin
+                                                class="badge {{ Reg.Approved|yesno:'text-bg-success,text-bg-warning' }}">
+                                                Pending approval
                                             </span>
+                                            {% endif %}
+                                            {% if Reg.Approved == 1 %}
+                                            <span
+                                                class="badge {{ Reg.Approved|yesno:'text-bg-success,text-bg-success' }}">
+                                                Approved
+                                            </span>
+                                            {% endif %}
+                                            {% if Reg.Approved == 2 %}
+                                            <span
+                                                class="badge {{ Reg.Approved|yesno:'text-bg-success,text-bg-danger' }}">
+                                                Rejected
+                                            </span>
+                                            {% endif %}
                                         </li>
                                     </ul>
+                                    {% endif %}
 
                                 </div>
                             </div>
-
-
-
 
                         </div>
                     </div>
@@ -226,13 +246,9 @@
                             Activity Log
                         </div>
                         <div class="card-body">
-                            <div id="tmf-table"></div>
-
+                            <div id="log-table"></div>
                         </div>
                     </div>
-
-
-
 
                 </div>
             </div>
@@ -241,8 +257,8 @@
     </div>
 
     <script>
-        // Initialize Tabulator
-        var table = new Tabulator("#tmf-table", {
+        // Initialize Tabulator for the Logs table
+        var table = new Tabulator("#log-table", {
             ajaxResponse: function (url, params, response) {
                 //url - the URL of the request
                 //params - the parameters passed with the request
