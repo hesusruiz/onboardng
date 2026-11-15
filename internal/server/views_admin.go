@@ -57,9 +57,12 @@ func (v *AdminViews) PageRegistrations(apiJSON string) (string, error) {
 	return executeTemplate(v.Set, "registrations.html.j2", pongo2.Context{"APIJson": apiJSON})
 }
 
-func (v *AdminViews) PageRegsOrgs(apiJSON string) (string, error) {
+func (v *AdminViews) PageRegsOrgs(apiJSON string, tmfOrganizationUrl string) (string, error) {
 
-	return executeTemplate(v.Set, "regs_orgs.html.j2", pongo2.Context{"APIJson": apiJSON})
+	return executeTemplate(v.Set, "regs_orgs.html.j2", pongo2.Context{
+		"APIJson":            apiJSON,
+		"tmfOrganizationUrl": tmfOrganizationUrl,
+	})
 }
 
 func (v *AdminViews) PageOneRegistration(registration *db.RegistrationRecord) (string, error) {
