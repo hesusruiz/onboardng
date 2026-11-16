@@ -747,8 +747,14 @@ func (s *Server) HandleUpdateRepresentatives(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Delete verification code after successful use. In any case, it will expire in 1 hour.
-	s.DeleteVerificationCode(req.Email)
+	// Build the VATId with the proper prefix of VATCC-
+	country := req.LRCountry
+
+	vatPrefix := "VAT" + country + "-"
+
+	if !strings.HasPrefix(req.VatID, vatPrefix) {
+		req.VatID = vatPrefix + req.VatID
+	}
 
 	// Fetch registration and check if immutable
 	current, err := s.DB.GetRegistrationByVatID(req.VatID)
@@ -808,6 +814,9 @@ func (s *Server) HandleUpdateRepresentatives(w http.ResponseWriter, r *http.Requ
 			slog.Error("Error updating registration status with email result", "error", errl.Error(updateErr))
 		}
 	}
+
+	// Delete verification code after successful use. In any case, it will expire in 1 hour.
+	s.DeleteVerificationCode(req.Email)
 
 	s.SendJSON(w, r, http.StatusOK, true, "Representatives updated successfully", nil)
 }
