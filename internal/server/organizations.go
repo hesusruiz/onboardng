@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/hesusruiz/onboardng/common"
 	"github.com/hesusruiz/onboardng/internal/jpath"
@@ -20,9 +21,11 @@ type Organization struct {
 	TradingName                string         `json:"tradingName"`
 	EmailAddress               string         `json:"emailAddress"`
 	VATID                      string         `json:"vatId"`
+	VATIDCorrected             string         `json:"vatIdCorrected"`
 	VIESError                  string         `json:"viesError"`
 	HREF                       string         `json:"href"`
 	OrganizationIdentification string         `json:"organizationIdentification"`
+	Country                    string         `json:"country"`
 	Valid                      bool           `json:"valid"`
 	Errors                     []string       `json:"errors"`
 	Warnings                   []string       `json:"warnings"`
@@ -33,7 +36,7 @@ type Organization struct {
 func TMFRetrieveOrganizations(baseUrl string, offset int, limit int) ([]Organization, error) {
 
 	// Retrieve limit objects starting from offset
-	url := fmt.Sprintf("%s?offset=%d&limit=%d", baseUrl, offset, limit)
+	url := fmt.Sprintf("%s?offset=%d&limit=%d&fields=externalReference,tradingName", baseUrl, offset, limit)
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -55,12 +58,10 @@ func TMFRetrieveOrganizations(baseUrl string, offset int, limit int) ([]Organiza
 	var orgs []Organization
 	for _, rawOrg := range rawOrgs {
 		id, _ := rawOrg["id"].(string)
-		name, _ := rawOrg["name"].(string)
 		tradingName, _ := rawOrg["tradingName"].(string)
 
 		org := Organization{
 			ID:          id,
-			Name:        name,
 			TradingName: tradingName,
 			Errors:      make([]string, 0),
 			Warnings:    make([]string, 0),
@@ -73,161 +74,76 @@ func TMFRetrieveOrganizations(baseUrl string, offset int, limit int) ([]Organiza
 			org.Errors = append(org.Errors, "Trading name is empty")
 		}
 
-		// Try to get the email address from the raw data
-		mediums, err := jpath.GetListStrict(rawOrg, "contactMedium")
-		if err != nil {
-			org.Warnings = append(org.Warnings, "contactMedium is missing or not a list")
-		} else {
-			foundEmail := false
-			for _, medium := range mediums {
-				mediumType, _ := jpath.GetStringStrict(medium, "mediumType")
-				if strings.ToUpper(mediumType) == "EMAIL" {
-					email, err := jpath.GetStringStrict(medium, "characteristic.emailAddress")
-					if err != nil {
-						org.Warnings = append(org.Warnings, "emailAddress is missing in contactMedium")
-					} else {
-						org.EmailAddress = email
-					}
-					foundEmail = true
-					break
-				}
-			}
-			if !foundEmail {
-				org.Warnings = append(org.Warnings, "Email address not found in contactMedium")
-			}
-		}
-
 		// Try to get the VAT ID
 		externalReferences, err := jpath.GetListStrict(rawOrg, "externalReference")
 		if err != nil {
-			org.Errors = append(org.Errors, "externalReference is missing or not a list")
-		} else {
-			foundVATID := false
-			for _, extRef := range externalReferences {
-				extRefType, _ := jpath.GetStringStrict(extRef, "externalReferenceType")
-				if extRefType == "idm_id" {
-					vatId, err := jpath.GetStringStrict(extRef, "name")
-					if err != nil {
-						org.Errors = append(org.Errors, "VAT ID is missing in externalReference")
-						break
-					}
+			org.Errors = append(org.Errors, "externalReference missing or not a list")
+			org.VIESError = org.VIESError + "<div style='color: red;'>externalReference missing or not a list</div>"
+			continue
+		}
 
-					// The VAT ID must be long enough
-					if len(vatId) < 7 {
-						org.Errors = append(org.Errors, "VAT ID too short")
-						fmt.Println("VAT ID too short:", "OID:", org.ID, "VAT ID:", org.VATID)
-						org.VIESError = org.VIESError + "<div style='color: red;'>Error: VAT ID too short</div>"
-						break
-					}
-
-					org.VATID = vatId
-					foundVATID = true
-
-					// Now we are going to handle a series of cases for badly formatted VATIDs, and will try to correct them if possible
-					var countryCode string
-					var vatNumber string
-
-					if !strings.HasPrefix(org.VATID, "VAT") {
-						// No VAT prefix. Check if it starts with a valid EU country code (2 letters)
-						countryCode = org.VATID[0:2]
-
-						// Handle the 'GR' case for Greece, which should be 'EL'
-						if countryCode == "GR" {
-							countryCode = "EL"
-							org.VIESError = org.VIESError + "<div style='color: orange;'>Greece should be 'EL'</div>"
-						}
-
-						if !common.IsValidEUCountry(countryCode) {
-							org.Errors = append(org.Errors, "Invalid EU country code in VAT ID")
-							fmt.Println("Invalid EU country code in VAT ID:", "OID:", org.ID, "VAT ID:", org.VATID, "CountryCode:", countryCode)
-							org.VIESError = org.VIESError + "<div style='color: orange;'>Non EU country code</div>"
-							break
-						}
-
-						vatNumber = org.VATID[2:]
-						// Add warning to VIESError field, but continue to check in VIES
-						org.VIESError = org.VIESError + "<div style='color: orange;'>Missing VAT prefix</div>"
-
-						// Check VIES database
-						viesResponse, err := vies.CheckVAT(context.Background(), false, countryCode, vatNumber)
-						if err != nil {
-							org.Errors = append(org.Errors, "Failed to check VAT ID in VIES")
-							org.VIESError = org.VIESError + "<div style='color: red;'>VIES call failed</div>"
-							break
-						} else {
-							if !viesResponse.Valid {
-								org.Errors = append(org.Errors, "VAT ID is not valid according to VIES")
-								org.VIESError = org.VIESError + "<div style='color: red;'>NOT VALID in VIES</div>"
-								fmt.Println("VATID invalid:", org.VATID, "CC:", countryCode, "Num:", vatNumber, "OID:", org.ID)
-								break
-							} else {
-								org.VIESError = org.VIESError + "<div style='color: green;'>Valid in VIES</div>"
-								break
-							}
-						}
-					}
-
-					// Get the country code and VAT number from the VAT ID
-					countryCode = org.VATID[3:5]
-					vatNumber = org.VATID[6:]
-
-					// Handle the 'GR' case for Greece, which should be 'EL'
-					if countryCode == "GR" {
-						countryCode = "EL"
-						org.VIESError = org.VIESError + "<div style='color: orange;'>Greece should be 'EL'</div>"
-					}
-
-					// Check if country is a valid EU country code (2 letters)
-					if !common.IsValidEUCountry(countryCode) {
-						org.Errors = append(org.Errors, "Invalid EU country code in VAT ID")
-						fmt.Println("Invalid EU country code in VAT ID:", "OID:", org.ID, "VAT ID:", org.VATID, "CountryCode:", countryCode, "VAT number:", vatNumber)
-						org.VIESError = org.VIESError + "<div style='color: orange;'>Warning: non EU country code</div>"
-						break
-					}
-
-					// Now check in the VIES database
-					viesResponse, err := vies.CheckVAT(context.Background(), false, countryCode, vatNumber)
-					if err != nil {
-						org.Errors = append(org.Errors, "Failed to check VAT ID in VIES")
-						org.VIESError = org.VIESError + "<div style='color: red;'>Error: VIES call failed</div>"
-						break
-					}
-
-					if viesResponse.Valid {
-						org.VIESError = org.VIESError + "<div style='color: green;'>Valid in VIES</div>"
-						break
-					}
-
-					// Check to see if the first 2 chars of the VAT number is the country code, and try again if so
-					countryCode = org.VATID[3:5]
-
-					if len(vatNumber) >= 2 && strings.ToUpper(vatNumber[0:2]) == countryCode {
-						if countryCode == "GR" {
-							countryCode = "EL"
-						}
-						vatNumber = vatNumber[2:]
-						viesResponse, err := vies.CheckVAT(context.Background(), false, countryCode, vatNumber)
-						if err != nil {
-							org.Errors = append(org.Errors, "Failed to check VAT ID in VIES (second attempt)")
-							org.VIESError = org.VIESError + "<div style='color: red;'>Error: VIES call failed (second attempt)</div>"
-							break
-						}
-
-						if viesResponse.Valid {
-							org.VIESError = org.VIESError + "<div style='color: green;'>Valid in VIES (second attempt)</div>"
-							break
-						}
-					}
-
-					org.Errors = append(org.Errors, "VAT ID is not valid according to VIES")
-					org.VIESError = org.VIESError + "<div style='color: red;'>Error: not valid in VIES</div>"
-					fmt.Println("VATID invalid:", org.VATID, "CC:", countryCode, "Num:", vatNumber, "OID:", org.ID)
-					break
-				}
+		for _, extRef := range externalReferences {
+			extRefType, _ := jpath.GetStringStrict(extRef, "externalReferenceType")
+			if extRefType != "idm_id" {
+				continue
 			}
-			if !foundVATID {
-				org.Errors = append(org.Errors, "VAT ID not found in externalReference")
+
+			vatId, err := jpath.GetStringStrict(extRef, "name")
+			if err != nil {
+				// This is a severe error on this entry: it is not worth continuing
+				org.Errors = append(org.Errors, "VATID missing in externalReference")
+				org.VIESError = org.VIESError + "<div style='color: red;'>VATID missing in externalReference</div>"
+				break
 			}
+
+			org.VATID = vatId
+
+			// Canonicalize the VAT ID
+			countryCode, vatNumber, err := CanonicalizeVATID(vatId)
+			if err != nil {
+				org.Errors = append(org.Errors, "VATID invalid format")
+				org.VIESError = org.VIESError + fmt.Sprintf("<div style='color: red;'>%s</div>", err.Error())
+				slog.Error("VATID invalid format", "VATID", vatId, "OID", org.ID)
+				break
+			}
+
+			org.VATIDCorrected = fmt.Sprintf("VAT%s-%s", countryCode, vatNumber)
+			org.Country = countryCode
+
+			if org.VATIDCorrected != org.VATID {
+				org.Warnings = append(org.Warnings, fmt.Sprintf("VATID changed to %s", org.VATIDCorrected))
+				org.VIESError = org.VIESError + fmt.Sprintf("<div style='color: orange;'>%s</div>", "Corrected to: "+org.VATIDCorrected)
+			}
+
+			// Check VIES database
+			slog.Info("Checking VAT ID in VIES", "VATID", org.VATID, "CC", countryCode, "Num", vatNumber)
+			startTime := time.Now()
+			viesResponse, err := vies.CheckVAT(context.Background(), false, countryCode, vatNumber)
+			elapsed := time.Since(startTime)
+			if err != nil {
+				// This is a technical error
+				slog.Error("VIES call failed", "elapsed", elapsed, "VATID", org.VATID, "CC", countryCode, "Num", vatNumber, "Error", err.Error())
+				org.Errors = append(org.Errors, "VIES call failed")
+				org.VIESError = org.VIESError + "<div style='color: red;'>VIES call failed</div>"
+				break
+			}
+
+			// Check for validation errors
+			if !viesResponse.Valid {
+				slog.Error("VATID invalid in VIES", "elapsed", elapsed, "VATID", org.VATID, "CC", countryCode, "Num", vatNumber, "OID", org.ID)
+				org.Errors = append(org.Errors, "VATID invalid in VIES")
+				org.VIESError = org.VIESError + "<div style='color: red;'>NOT VALID in VIES</div>"
+				break
+			}
+			slog.Info("VIES response", "valid", viesResponse.Valid, "elapsed", elapsed)
+
+			org.VIESError = org.VIESError + "<div style='color: green;'>Valid in VIES</div>"
+
+		}
+
+		if org.VATID == "" {
+			org.Errors = append(org.Errors, "VATID not found in externalReference")
+			org.VIESError = org.VIESError + "<div style='color: red;'>VAT ID not found in externalReference</div>"
 		}
 
 		if len(org.Errors) == 0 {
@@ -240,117 +156,43 @@ func TMFRetrieveOrganizations(baseUrl string, offset int, limit int) ([]Organiza
 	return orgs, nil
 }
 
-func VerifyLazyEUVATID(org *Organization) error {
-	// Now we are going to handle a series of cases for badly formatted VATIDs, and will try to correct them if possible
-	var countryCode string
-	var vatNumber string
+// CanonicalizeVATID normalizes a possibly malformed EU VAT ID into a 2-letter EU
+// country code (converting "GR" to "EL") and the national VAT number.
+func CanonicalizeVATID(vatID string) (countryCode string, vatNumber string, err error) {
+	// Normalize case and remove spaces and hyphens
+	vatID = strings.TrimSpace(vatID)
+	vatID = strings.ToUpper(vatID)
+	vatID = strings.ReplaceAll(vatID, " ", "")
+	vatID = strings.ReplaceAll(vatID, "-", "")
 
-	// The VAT ID must be long enough
-	if len(org.VATID) < 7 {
-		org.Errors = append(org.Errors, "VAT ID too short")
-		fmt.Println("VAT ID too short:", "OID:", org.ID, "VAT ID:", org.VATID)
-		org.VIESError = org.VIESError + "<div style='color: red;'>Error: VAT ID too short</div>"
-		return fmt.Errorf("VAT ID too short")
+	// Strip optional leading "VAT" prefix
+	vatID = strings.TrimPrefix(vatID, "VAT")
+
+	// Check if VAT ID is long enough (2-char country code + at least 5-char VAT number)
+	if len(vatID) < 7 {
+		return "", "", fmt.Errorf("VAT ID is too short")
 	}
 
-	if !strings.HasPrefix(org.VATID, "VAT") {
-		// No VAT prefix. Check if it starts with a valid EU country code (2 letters)
-		countryCode = org.VATID[0:2]
+	countryCode = vatID[:2]
+	vatNumber = vatID[2:]
 
-		// Handle the 'GR' case for Greece, which should be 'EL'
-		if countryCode == "GR" {
-			countryCode = "EL"
-			org.VIESError = org.VIESError + "<div style='color: orange;'>Greece should be 'EL'</div>"
-		}
-
-		if !common.IsValidEUCountry(countryCode) {
-			org.Errors = append(org.Errors, "Invalid EU country code in VAT ID")
-			fmt.Println("Invalid EU country code in VAT ID:", "OID:", org.ID, "VAT ID:", org.VATID, "CountryCode:", countryCode)
-			org.VIESError = org.VIESError + "<div style='color: orange;'>Non EU country code</div>"
-			return fmt.Errorf("Invalid EU country code in VAT ID")
-		}
-
-		// Skip the country code
-		vatNumber = org.VATID[2:]
-		// Add warning to VIESError field, but continue to check in VIES
-		org.VIESError = org.VIESError + "<div style='color: orange;'>Missing VAT prefix</div>"
-
-		// Check VIES database
-		viesResponse, err := vies.CheckVAT(context.Background(), false, countryCode, vatNumber)
-		if err != nil {
-			org.Errors = append(org.Errors, "Failed to check VAT ID in VIES")
-			org.VIESError = org.VIESError + "<div style='color: red;'>VIES call failed</div>"
-			slog.Error("Failed to check VAT ID in VIES", "error", err.Error())
-			return fmt.Errorf("Failed to check VAT ID in VIES")
-		} else {
-			if !viesResponse.Valid {
-				org.Errors = append(org.Errors, "VAT ID is not valid according to VIES")
-				org.VIESError = org.VIESError + "<div style='color: red;'>NOT VALID in VIES</div>"
-				slog.Error("VATID invalid", "VATID", org.VATID, "CC", countryCode, "Num", vatNumber, "OID", org.ID)
-				return fmt.Errorf("VAT ID is not valid according to VIES")
-			} else {
-				org.VIESError = org.VIESError + "<div style='color: green;'>Valid in VIES</div>"
-				return nil
-			}
-		}
-	}
-
-	// Get the country code and VAT number from the VAT ID
-	countryCode = org.VATID[3:5]
-	vatNumber = org.VATID[6:]
-
-	// Handle the 'GR' case for Greece, which should be 'EL'
+	// Greece uses "EL" in EU VAT IDs rather than ISO "GR"
 	if countryCode == "GR" {
 		countryCode = "EL"
-		org.VIESError = org.VIESError + "<div style='color: orange;'>Greece should be 'EL'</div>"
 	}
 
-	// Check if country is a valid EU country code (2 letters)
 	if !common.IsValidEUCountry(countryCode) {
-		org.Errors = append(org.Errors, "Invalid EU country code in VAT ID")
-		fmt.Println("Invalid EU country code in VAT ID:", "OID:", org.ID, "VAT ID:", org.VATID, "CountryCode:", countryCode, "VAT number:", vatNumber)
-		org.VIESError = org.VIESError + "<div style='color: red;'>Non EU country code</div>"
-		return fmt.Errorf("Invalid EU country code in VAT ID")
+		return "", "", fmt.Errorf("invalid EU country code: %s", countryCode)
 	}
 
-	// Now check in the VIES database first time
-	viesResponse, err := vies.CheckVAT(context.Background(), false, countryCode, vatNumber)
-	if err != nil {
-		org.Errors = append(org.Errors, "Failed to check VAT ID in VIES")
-		org.VIESError = org.VIESError + "<div style='color: red;'>Error: VIES call failed</div>"
-		return fmt.Errorf("Failed to check VAT ID in VIES")
-	}
-
-	if viesResponse.Valid {
-		org.VIESError = org.VIESError + "<div style='color: green;'>Valid in VIES</div>"
-		return nil
-	}
-
-	// We will try again to see if we can bypass the error
-
-	// Check to see if the first 2 chars of the VAT number is the country code
-	countryCode = org.VATID[3:5]
-
-	if len(vatNumber) >= 2 && strings.ToUpper(vatNumber[0:2]) == countryCode {
-		if countryCode == "GR" {
-			countryCode = "EL"
-		}
+	// Strip a duplicated country code prefix inside the national VAT number (e.g. VATIT-IT555...)
+	if strings.HasPrefix(vatNumber, countryCode) || (countryCode == "EL" && strings.HasPrefix(vatNumber, "GR")) {
 		vatNumber = vatNumber[2:]
-		viesResponse, err := vies.CheckVAT(context.Background(), false, countryCode, vatNumber)
-		if err != nil {
-			org.Errors = append(org.Errors, "Failed to check VAT ID in VIES (second attempt)")
-			org.VIESError = org.VIESError + "<div style='color: red;'>Error: VIES call failed (second attempt)</div>"
-			return fmt.Errorf("Failed to check VAT ID in VIES (second attempt)")
-		}
-
-		if viesResponse.Valid {
-			org.VIESError = org.VIESError + "<div style='color: green;'>Valid in VIES (corrected number)</div>"
-			return nil
-		}
 	}
 
-	org.Errors = append(org.Errors, "VAT ID is not valid according to VIES")
-	org.VIESError = org.VIESError + "<div style='color: red;'>Error: not valid in VIES</div>"
-	fmt.Println("VATID invalid:", org.VATID, "CC:", countryCode, "Num:", vatNumber, "OID:", org.ID)
-	return fmt.Errorf("VAT ID is not valid according to VIES")
+	if len(vatNumber) < 5 {
+		return "", "", fmt.Errorf("VAT ID is too short")
+	}
+
+	return countryCode, vatNumber, nil
 }

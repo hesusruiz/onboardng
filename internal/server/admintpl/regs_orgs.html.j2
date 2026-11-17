@@ -111,8 +111,6 @@
                             if (data.role === "Seller") {
                                 content = `<div class="fw-bold">${data.role}</div>`;
                             }
-                        } else {
-                            content = `<div>????</div>`;
                         }
 
                         return content;
@@ -135,32 +133,59 @@
                     }
                 },
                 {
+                    title: "Msg", field: "errors", formatter: function (cell, formatterParams, onRendered) {
+                        const value = cell.getValue();
+                        const data = cell.getData();
+
+                        var content = ``
+
+                        const errors = data.Errors || []
+                        const warnings = data.Warnings || []
+
+                        // Iterate the warnings and errors arrays and create a div for each warning and error
+                        warnings.forEach(function (warning) {
+                            content = content + `<div class="fw-bold" style="color:orange">${warning}</div>`
+                        })
+
+                        errors.forEach(function (error) {
+                            content = content + `<div class="fw-bold" style="color:red">${error}</div>`
+                        })
+
+                        return content;
+                    }
+                },
+                {
                     title: "Org", field: "company_name", formatter: function (cell, formatterParams, onRendered) {
                         const value = cell.getValue();
                         const data = cell.getData();
 
                         var content = ``
 
-                        if (data.vat_id) {
-                            content = `<div class="fw-bold">${data.company_name}</div>`;
-                            content = content + `<div">${data.vat_id}</div>`;
-                            content = content + `<div>Country: ${data.country}</div>`;
-                        }
-
-                        if (data.Org.tradingName) {
-                            content = content + `<div class="fw-bold">${data.Org.tradingName}</div>`
-                        }
-
-                        if (!data.vat_id) {
-                            if (data.Org.vatId) {
-                                content = content + `<div">${data.Org.vatId}</div>`;
+                        if (data.company_name) {
+                            if (data.Org.tradingName && data.Org.tradingName !== data.company_name) {
+                                content = content + `<div class="fw-bold" style="color:red">Reg: ${data.company_name}</div>`;
+                                content = content + `<div class="fw-bold" style="color:red">Org: ${data.Org.tradingName}</div>`;
                             } else {
-                                content = content + `<div">Unknown VATID</div>`;
+                                content = content + `<div class="fw-bold">${data.company_name}</div>`
+                            }
+                        } else {
+                            if (data.Org.tradingName) {
+                                content = content + `<div class="fw-bold">${data.Org.tradingName}</div>`
                             }
                         }
 
-                        if (data.Org.viesError) {
-                            content = content + `${data.Org.viesError}`;
+                        if (data.vat_id) {
+                            if (data.Org.vatId && data.Org.vatId !== data.vat_id) {
+                                content = content + `<div class="fw-bold" style="color:red">Reg: ${data.vat_id}</div>`;
+                                content = content + `<div class="fw-bold" style="color:red">Org: ${data.Org.vatId}</div>`;
+                            } else {
+                                content = content + `<div>${data.vat_id}</div>`;
+                            }
+                            content = content + `<div>Country: ${data.country}</div>`;
+                        } else {
+                            if (data.Org.vatId) {
+                                content = content + `<div>${data.Org.vatId}</div>`;
+                            }
                         }
 
                         return content;

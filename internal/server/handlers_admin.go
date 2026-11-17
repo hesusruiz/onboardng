@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"crypto/x509"
 	"embed"
 	"encoding/json"
@@ -20,6 +21,7 @@ import (
 	"strconv"
 
 	"github.com/hesusruiz/onboardng/internal/db"
+	"github.com/hesusruiz/onboardng/internal/vies"
 	"github.com/hesusruiz/onboardng/internal/x509util"
 	"github.com/hesusruiz/utils/errl"
 
@@ -174,7 +176,9 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 
 	type ExtendedRegistration struct {
 		*db.RegistrationRecord
-		Org Organization
+		Org      Organization
+		Errors   []string
+		Warnings []string
 	}
 
 	mux.Handle("/admin/regsorgsjson", adminChain(func(w http.ResponseWriter, r *http.Request) {
@@ -198,23 +202,75 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 			extReg := ExtendedRegistration{
 				RegistrationRecord: reg,
 			}
-			regID := reg.VatID
+
+			regCC, regVATNumber, err := CanonicalizeVATID(reg.VatID)
+			if err != nil {
+				slog.Error("Failed to canonicalize registration VATID", "vat_id", reg.VatID, "error", err.Error())
+				extReg.Errors = append(extReg.Errors, "Failed to canonicalize VATID")
+				continue
+			}
+
+			regCanonVATID := "VAT" + regCC + "-" + regVATNumber
+
+			if reg.VatID != regCanonVATID {
+				extReg.Warnings = append(extReg.Warnings, "VATID changed to "+regCanonVATID)
+			}
+
 			for i, org := range orgs {
-				if regID != "" && regID == org.VATID {
+				if regCanonVATID == org.VATIDCorrected {
 					extReg.Org = org
+					// Copy the Errors and Warnings from the Org, so we do not have to validate again
+					if org.Errors != nil {
+						extReg.Errors = append(extReg.Errors, org.Errors...)
+					}
+					if org.Warnings != nil {
+						extReg.Warnings = append(extReg.Warnings, org.Warnings...)
+					}
 					matchedOrgs[i] = true
 					break
 				}
 			}
+
+			// Validate the VATID for VIES, if not already validated
+			// Check VIES database
+			slog.Info("Checking VAT ID in VIES", "VATID", regCanonVATID)
+			startTime := time.Now()
+			viesResponse, err := vies.CheckVAT(context.Background(), false, regCC, regVATNumber)
+			elapsed := time.Since(startTime)
+			if err != nil {
+				// This is a technical error
+				slog.Error("VIES call failed", "elapsed", elapsed, "VATID", regCanonVATID, "CC", regCC, "Num", regVATNumber, "Error", err.Error())
+				extReg.Errors = append(extReg.Errors, "VIES call failed")
+				continue
+			}
+
+			// Check for validation errors
+			if !viesResponse.Valid {
+				slog.Error("VATID invalid in VIES", "elapsed", elapsed, "VATID", regCanonVATID, "CC", regCC, "Num", regVATNumber)
+				extReg.Errors = append(extReg.Errors, "VATID not valid in VIES")
+				continue
+			}
+			slog.Info("VIES response", "valid", viesResponse.Valid, "elapsed", elapsed)
 			extRegs = append(extRegs, extReg)
 		}
 
 		for i, org := range orgs {
 			if !matchedOrgs[i] {
-				extRegs = append(extRegs, ExtendedRegistration{
+				extReg := ExtendedRegistration{
 					RegistrationRecord: &db.RegistrationRecord{},
 					Org:                org,
-				})
+				}
+
+				// Copy the org erros and warnings
+				if org.Errors != nil {
+					extReg.Errors = append(extReg.Errors, org.Errors...)
+				}
+				if org.Warnings != nil {
+					extReg.Warnings = append(extReg.Warnings, org.Warnings...)
+				}
+
+				extRegs = append(extRegs, extReg)
+				matchedOrgs[i] = true
 			}
 		}
 

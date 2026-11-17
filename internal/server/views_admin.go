@@ -69,23 +69,9 @@ func (v *AdminViews) PageOrganizations(tmfUrl string) (string, error) {
 func (v *AdminViews) APIOrganizationsJSON() ([]byte, error) {
 
 	// Retrieve all Organizations from the TMF server
-	baseUrlSBX := v.TMFUrl
-	offset := 0
-	limit := 200
-	allOrgs := make([]Organization, 0)
-
-	for {
-		orgs, err := TMFRetrieveOrganizations(baseUrlSBX, offset, limit)
-		if err != nil {
-			return nil, err
-		}
-
-		allOrgs = append(allOrgs, orgs...)
-
-		if len(orgs) < limit {
-			break
-		}
-		offset += limit
+	allOrgs, err := v.AllOrganizations()
+	if err != nil {
+		return nil, err
 	}
 
 	// Convert to JSON
