@@ -747,11 +747,8 @@ func (s *Server) HandleUpdateRepresentatives(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Delete verification code after successful use. In any case, it will expire in 1 hour.
-	s.DeleteVerificationCode(req.Email)
-
 	// Fetch registration and check if immutable
-	current, err := s.DB.GetRegistrationByVatID(req.VatID)
+	current, err := s.DB.GetRegistrationByEmail(req.Email)
 	if err != nil {
 		s.SendJSON(w, r, http.StatusNotFound, false, "Registration not found", errl.Error(err))
 		return
@@ -759,10 +756,26 @@ func (s *Server) HandleUpdateRepresentatives(w http.ResponseWriter, r *http.Requ
 	slog.Info("Registration found", "registration", current.String())
 
 	// Check if the email matches the registration email
-	if current.Email != strings.ToLower(req.Email) {
+	if current.Email != req.Email {
 		s.SendJSON(w, r, http.StatusForbidden, false, "Email does not match the registration", nil)
 		return
 	}
+
+	// Build the VATID with the proper prefix of VATCC-
+	country := current.Country
+
+	vatPrefix := "VAT" + country + "-"
+
+	if !strings.HasPrefix(req.VatID, vatPrefix) {
+		req.VatID = vatPrefix + req.VatID
+	}
+
+	if current.VatID != req.VatID {
+		s.SendJSON(w, r, http.StatusForbidden, false, "VATID does not match the registration", nil)
+		return
+	}
+
+	// Check if the VATid matches the registration VATID
 	if current.Approved > 0 {
 		s.SendJSON(w, r, http.StatusForbidden, false, "Registration is already approved or denied and immutable", nil)
 		return
@@ -808,6 +821,9 @@ func (s *Server) HandleUpdateRepresentatives(w http.ResponseWriter, r *http.Requ
 			slog.Error("Error updating registration status with email result", "error", errl.Error(updateErr))
 		}
 	}
+
+	// Delete verification code after successful use. In any case, it will expire in 1 hour.
+	s.DeleteVerificationCode(req.Email)
 
 	s.SendJSON(w, r, http.StatusOK, true, "Representatives updated successfully", nil)
 }
