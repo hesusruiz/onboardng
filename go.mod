@@ -27,6 +27,7 @@ require (
 	dario.cat/mergo v1.0.2 // indirect
 	filippo.io/hpke v0.4.0 // indirect
 	github.com/Masterminds/semver/v3 v3.5.0 // indirect
+	github.com/carlos7ags/folio v0.11.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1 // indirect
 	github.com/dustin/go-humanize v1.1.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.10.0 // indirect
@@ -35,6 +36,7 @@ require (
 	github.com/go-webauthn/x v0.3.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/go-tpm v0.9.8 // indirect
+	github.com/hesusruiz/pdf v0.1.0 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.4 // indirect
 	github.com/lestrrat-go/httpcc v1.0.1 // indirect
 	github.com/lestrrat-go/httprc v1.0.6 // indirect
@@ -52,6 +54,8 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.6 // indirect
 	golang.org/x/crypto v0.59.0 // indirect
+	golang.org/x/image v0.47.0 // indirect
+	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/text v0.44.0 // indirect
 	modernc.org/libc v1.81.0 // indirect

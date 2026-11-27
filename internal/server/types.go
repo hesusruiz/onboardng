@@ -18,8 +18,11 @@ type DBServiceProvider interface {
 	UpdateRegistrationStatus(reg *db.RegistrationRecord) error
 	UpdateApproval(registrationID string, approved int) error
 	UpdateRepresentativesByVatID(vatID string, rep *db.RegistrationRecord) error
-	SaveRegistrationLog(logEntry *db.RegistrationLog) error
-	GetRegistrationLogs(vatID string, limit, offset int) ([]*db.RegistrationLog, error)
+	LogRegError(vatId string, message string, regId string, email string) error
+	LogRegInfo(vatId string, message string, regId string, email string) error
+	LogRegWarn(vatId string, message string, regId string, email string) error
+	LogRegDebug(vatId string, message string, regId string, email string) error
+	GetRegistrationLogs(vatID string, limit, offset int) ([]*db.RegistrationLogEntry, error)
 	GetRegistrationFiles(vatID string, limit, offset int) ([]*db.RegistrationFile, error)
 	GetRegistrationFile(fileID string) (*db.RegistrationFile, error)
 }

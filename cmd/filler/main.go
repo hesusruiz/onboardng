@@ -72,14 +72,7 @@ func main() {
 			// Add random number of errors
 			numErrors := (i % 2) + 1
 			for j := 1; j <= numErrors; j++ {
-				logEntry := &db.RegistrationLog{
-					RegistrationID: regID,
-					Email:          email,
-					VatID:          vatID,
-					Type:           "error",
-					Message:        fmt.Sprintf("Sample error %d during processing for user %d", j, i),
-				}
-				_ = dbService.SaveRegistrationLog(logEntry)
+				_ = dbService.LogRegError(vatID, fmt.Sprintf("Sample error %d during processing for user %d", j, i), regID, email)
 			}
 		}
 
@@ -96,7 +89,7 @@ func main() {
 					MimeType:       "text/plain",
 					Size:           int64(1024 * j),
 					Status:         "uploaded",
-					Content:        []byte(fmt.Sprintf("This is the content of document %d for user %d.", j, i)),
+					Content:        fmt.Appendf(nil, "This is the content of document %d for user %d.", j, i),
 				}
 				_ = dbService.SaveRegistrationFile(f)
 			}

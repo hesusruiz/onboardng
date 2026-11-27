@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	passkeys "github.com/hesusruiz/authgo"
 	"github.com/hesusruiz/onboardng/internal/configuration"
 	"github.com/hesusruiz/onboardng/internal/db"
 	"github.com/hesusruiz/onboardng/internal/mail"
@@ -115,7 +116,13 @@ func main() {
 
 	http.HandleFunc("/admin/organizations", func(w http.ResponseWriter, r *http.Request) {
 
-		html, err := adminViews.PageOrganizations("/admin/organizationsjson")
+		user := passkeys.FromContext(r.Context())
+		if user == nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		html, err := adminViews.PageOrganizations("/admin/organizationsjson", user)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -141,7 +148,14 @@ func main() {
 
 	http.HandleFunc("/admin/registrations", func(w http.ResponseWriter, r *http.Request) {
 
-		html, err := adminViews.PageRegistrations("/admin/registrationsjson")
+		// Retrieve the user from the request context
+		user := passkeys.FromContext(r.Context())
+		if user == nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		html, err := adminViews.PageRegistrations("/admin/registrationsjson", user)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
