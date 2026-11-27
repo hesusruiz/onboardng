@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/flosch/pongo2/v7"
+	passkeys "github.com/hesusruiz/authgo"
 	"github.com/hesusruiz/onboardng/internal/db"
 )
 
@@ -43,27 +44,28 @@ func (v *AdminViews) PageIndex(email string, regs []db.RegistrationRecord, limit
 	return executeTemplate(v.Set, "index.html.j2", ctx)
 }
 
-func (v *AdminViews) PageRegistrations(apiJSON string) (string, error) {
+func (v *AdminViews) PageRegistrations(apiJSON string, user *passkeys.User) (string, error) {
 
-	return executeTemplate(v.Set, "registrations.html.j2", pongo2.Context{"APIJson": apiJSON})
+	return executeTemplate(v.Set, "registrations.html.j2", pongo2.Context{"APIJson": apiJSON, "User": user})
 }
 
-func (v *AdminViews) PageRegsOrgs(apiJSON string, tmfOrganizationUrl string) (string, error) {
+func (v *AdminViews) PageRegsOrgs(apiJSON string, user *passkeys.User, tmfOrganizationUrl string) (string, error) {
 
 	return executeTemplate(v.Set, "regs_orgs.html.j2", pongo2.Context{
 		"APIJson":            apiJSON,
+		"User":               user,
 		"tmfOrganizationUrl": tmfOrganizationUrl,
 	})
 }
 
-func (v *AdminViews) PageOneRegistration(registration *db.RegistrationRecord) (string, error) {
+func (v *AdminViews) PageOneRegistration(registration *db.RegistrationRecord, user *passkeys.User) (string, error) {
 
-	return executeTemplate(v.Set, "oneregistration.html.j2", pongo2.Context{"Reg": registration})
+	return executeTemplate(v.Set, "oneregistration.html.j2", pongo2.Context{"Reg": registration, "User": user})
 }
 
-func (v *AdminViews) PageOrganizations(tmfUrl string) (string, error) {
+func (v *AdminViews) PageOrganizations(tmfUrl string, user *passkeys.User) (string, error) {
 
-	return executeTemplate(v.Set, "organizations.html.j2", pongo2.Context{"APIJson": tmfUrl})
+	return executeTemplate(v.Set, "organizations.html.j2", pongo2.Context{"APIJson": tmfUrl, "User": user})
 }
 
 func (v *AdminViews) APIOrganizationsJSON() ([]byte, error) {

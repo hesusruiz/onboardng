@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/hesusruiz/onboardng/internal/db"
 	"github.com/hesusruiz/utils/errl"
 )
 
@@ -47,13 +46,7 @@ func (s *Server) RemindSellers(ctx context.Context) error {
 			if err != nil {
 				slog.Error("Error sending reminder email", "error", err)
 				// Record the error in the database
-				_ = s.DB.SaveRegistrationLog(&db.RegistrationLog{
-					RegistrationID: reg.RegistrationID,
-					Email:          reg.Email,
-					VatID:          reg.VatID,
-					Type:           "error",
-					Message:        fmt.Sprintf("Reminder email error: %v", err.Error()),
-				})
+				_ = s.DB.LogRegError(reg.VatID, fmt.Sprintf("Reminder email error: %v", err.Error()), reg.RegistrationID, reg.Email)
 			} else {
 				slog.Info("Reminder email sent", "email", reg.Email)
 			}

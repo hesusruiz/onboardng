@@ -119,15 +119,7 @@ func TestRegistrationLogs(t *testing.T) {
 	}
 	defer svc.Close()
 
-	logEntry := &RegistrationLog{
-		RegistrationID: "reg-log-001",
-		Email:          "log@example.com",
-		VatID:          "VAT_LOG_1",
-		Type:           "info",
-		Message:        "Something informative",
-	}
-
-	if err := svc.SaveRegistrationLog(logEntry); err != nil {
+	if err := svc.LogRegInfo("VAT_LOG_1", "Something informative", "reg-log-001", "log@example.com"); err != nil {
 		t.Fatalf("failed to save registration log: %v", err)
 	}
 

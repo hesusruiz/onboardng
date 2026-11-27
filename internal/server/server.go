@@ -129,7 +129,7 @@ func NewHTTPServer(cfg *ServerConfig) (*Server, error) {
 		}
 	} else {
 		if err := s.CheckMail(); err != nil {
-			err = errl.Errorf("Self-Diagnostics: failed to check Mail: %v", err)
+			err = errl.Errorf("Self-Diagnostics: failed to check: %v", err)
 			slog.Error(err.Error())
 		}
 	}

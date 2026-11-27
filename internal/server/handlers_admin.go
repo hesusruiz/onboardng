@@ -78,13 +78,20 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 
 	// Middleware to wrap the Admin routes
 	adminChain := func(next http.HandlerFunc) http.Handler {
-		return s.LogRequest(s.EnableCORS(pk.RequirePasskey(next)))
+		return s.LogRequest(pk.RequirePasskey(next))
 	}
 
 	// Admin routes for pages and APIs
 	mux.Handle("/admin/index", adminChain(func(w http.ResponseWriter, r *http.Request) {
 
-		html, err := adminViews.PageRegistrations("/admin/registrationsjson")
+		// Retrieve the user from the request context
+		user := passkeys.FromContext(r.Context())
+		if user == nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		html, err := adminViews.PageRegistrations("/admin/registrationsjson", user)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -93,44 +100,18 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(html))
-	}))
-	mux.Handle("/admin/registration", adminChain(s.PageAdminDetailsByVatID))
-	mux.Handle("/admin/api/registrations", adminChain(s.APIAdminGetRegistrations))
-	mux.Handle("/admin/api/registration", adminChain(s.APIAdminGetRegistrationByVatID))
-	mux.Handle("/admin/api/registration-logs", adminChain(s.APIAdminGetRegistrationLogs))
-	mux.Handle("GET /admin/api/registration-log", adminChain(s.APIAdminGetRegistrationLog))
-	mux.Handle("/admin/api/registration-files", adminChain(s.APIAdminGetRegistrationFiles))
-	mux.Handle("/admin/api/file/{file_id}", adminChain(s.APIAdminGetFile))
-
-	mux.Handle("/admin/organizations", adminChain(func(w http.ResponseWriter, r *http.Request) {
-
-		html, err := adminViews.PageOrganizations("/admin/organizationsjson")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(html))
-	}))
-
-	mux.Handle("/admin/organizationsjson", adminChain(func(w http.ResponseWriter, r *http.Request) {
-
-		json, err := adminViews.APIOrganizationsJSON()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write(json)
 	}))
 
 	mux.Handle("/admin/registrations", adminChain(func(w http.ResponseWriter, r *http.Request) {
 
-		html, err := adminViews.PageRegistrations("/admin/registrationsjson")
+		// Retrieve the user from the request context
+		user := passkeys.FromContext(r.Context())
+		if user == nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		html, err := adminViews.PageRegistrations("/admin/registrationsjson", user)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -160,10 +141,51 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 		w.Write(json)
 	}))
 
+	mux.Handle("/admin/organizations", adminChain(func(w http.ResponseWriter, r *http.Request) {
+
+		// Retrieve the user from the request context
+		user := passkeys.FromContext(r.Context())
+		if user == nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		html, err := adminViews.PageOrganizations("/admin/organizationsjson", user)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(html))
+	}))
+
+	mux.Handle("/admin/organizationsjson", adminChain(func(w http.ResponseWriter, r *http.Request) {
+
+		json, err := adminViews.APIOrganizationsJSON()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write(json)
+	}))
+
 	mux.Handle("/admin/regsorgs", adminChain(func(w http.ResponseWriter, r *http.Request) {
+
+		// Retrieve the user from the request context
+		user := passkeys.FromContext(r.Context())
+		if user == nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
 		tmfOrganizationUrl := s.Marketplace + "/party/organization"
 
-		html, err := adminViews.PageRegsOrgs("/admin/regsorgsjson", tmfOrganizationUrl)
+		html, err := adminViews.PageRegsOrgs("/admin/regsorgsjson", user, tmfOrganizationUrl)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -288,6 +310,13 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 	mux.Handle("/admin/oneregistration", adminChain(func(w http.ResponseWriter, r *http.Request) {
 		slog.Info("Hello in OneRegistration")
 
+		// Retrieve the user from the request context
+		user := passkeys.FromContext(r.Context())
+		if user == nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
 		// Get the vat_id from the query string
 		vatID := r.URL.Query().Get("vat_id")
 		if vatID == "" {
@@ -301,7 +330,7 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 			return
 		}
 
-		html, err := adminViews.PageOneRegistration(registration)
+		html, err := adminViews.PageOneRegistration(registration, user)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -329,6 +358,14 @@ func (s *Server) registerAdminRoutes(mux *http.ServeMux) error {
 		}
 		w.Write(data)
 	})
+
+	mux.Handle("/admin/registration", adminChain(s.PageAdminDetailsByVatID))
+	mux.Handle("/admin/api/registrations", adminChain(s.APIAdminGetRegistrations))
+	mux.Handle("/admin/api/registration", adminChain(s.APIAdminGetRegistrationByVatID))
+	mux.Handle("/admin/api/registration-logs", adminChain(s.APIAdminGetRegistrationLogs))
+	mux.Handle("GET /admin/api/registration-log", adminChain(s.APIAdminGetRegistrationLog))
+	mux.Handle("/admin/api/registration-files", adminChain(s.APIAdminGetRegistrationFiles))
+	mux.Handle("/admin/api/file/{file_id}", adminChain(s.APIAdminGetFile))
 
 	return nil
 }
@@ -481,7 +518,7 @@ func (s *Server) PageAdminDetailsByVatID(w http.ResponseWriter, r *http.Request)
 		Email     string
 		Reg       *db.RegistrationRecord
 		Files     []*db.RegistrationFile
-		Logs      []*db.RegistrationLog
+		Logs      []*db.RegistrationLogEntry
 	}{
 		User:      user,
 		UserWrite: userWrite,

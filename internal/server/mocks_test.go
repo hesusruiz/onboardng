@@ -9,18 +9,21 @@ import (
 
 type MockDB struct {
 	SaveRegistrationFunc              func(reg *db.RegistrationRecord) error
-	UpdateRegistrationStatusFunc      func(reg *db.RegistrationRecord) error
-	UpdateApprovalFunc                func(registrationID string, approved int) error
-	SaveRegistrationLogFunc           func(logEntry *db.RegistrationLog) error
 	GetRegistrationByVatIDFunc        func(vatID string) (*db.RegistrationRecord, error)
+	GetRegistrationByIDFunc           func(registrationID string) (*db.RegistrationRecord, error)
 	GetRegistrationByEmailFunc        func(email string) (*db.RegistrationRecord, error)
 	GetRegistrationByEmailOrVatIDFunc func(email, vatID string) (*db.RegistrationRecord, error)
 	GetRegistrationsFunc              func(limit, offset int) ([]*db.RegistrationRecord, int, error)
-	GetRegistrationLogsFunc           func(vatID string, limit, offset int) ([]*db.RegistrationLog, error)
+	UpdateRegistrationStatusFunc      func(reg *db.RegistrationRecord) error
+	UpdateApprovalFunc                func(registrationID string, approved int) error
+	UpdateRepresentativesByVatIDFunc  func(vatID string, rep *db.RegistrationRecord) error
+	LogRegErrorFunc                   func(vatID string, message string, regID string, email string) error
+	LogRegInfoFunc                    func(vatID string, message string, regID string, email string) error
+	LogRegWarnFunc                    func(vatID string, message string, regID string, email string) error
+	LogRegDebugFunc                   func(vatID string, message string, regID string, email string) error
+	GetRegistrationLogsFunc           func(vatID string, limit, offset int) ([]*db.RegistrationLogEntry, error)
 	GetRegistrationFilesFunc          func(vatID string, limit, offset int) ([]*db.RegistrationFile, error)
 	GetRegistrationFileFunc           func(fileID string) (*db.RegistrationFile, error)
-	GetRegistrationByIDFunc           func(registrationID string) (*db.RegistrationRecord, error)
-	UpdateRepresentativesByVatIDFunc  func(vatID string, rep *db.RegistrationRecord) error
 }
 
 func (m *MockDB) SaveRegistration(reg *db.RegistrationRecord) error {
@@ -32,8 +35,18 @@ func (m *MockDB) UpdateRegistrationStatus(reg *db.RegistrationRecord) error {
 func (m *MockDB) UpdateApproval(registrationID string, approved int) error {
 	return m.UpdateApprovalFunc(registrationID, approved)
 }
-func (m *MockDB) SaveRegistrationLog(logEntry *db.RegistrationLog) error {
-	return m.SaveRegistrationLogFunc(logEntry)
+
+func (m *MockDB) LogRegWarn(vatID string, message string, regID string, email string) error {
+	return m.LogRegWarnFunc(vatID, message, regID, email)
+}
+func (m *MockDB) LogRegInfo(vatID string, message string, regID string, email string) error {
+	return m.LogRegInfoFunc(vatID, message, regID, email)
+}
+func (m *MockDB) LogRegError(vatID string, message string, regID string, email string) error {
+	return m.LogRegErrorFunc(vatID, message, regID, email)
+}
+func (m *MockDB) LogRegDebug(vatID string, message string, regID string, email string) error {
+	return m.LogRegDebugFunc(vatID, message, regID, email)
 }
 func (m *MockDB) GetRegistrationByVatID(vatID string) (*db.RegistrationRecord, error) {
 	return m.GetRegistrationByVatIDFunc(vatID)
@@ -47,7 +60,7 @@ func (m *MockDB) GetRegistrationByEmailOrVatID(email, vatID string) (*db.Registr
 func (m *MockDB) GetRegistrations(limit, offset int) ([]*db.RegistrationRecord, int, error) {
 	return m.GetRegistrationsFunc(limit, offset)
 }
-func (m *MockDB) GetRegistrationLogs(vatID string, limit, offset int) ([]*db.RegistrationLog, error) {
+func (m *MockDB) GetRegistrationLogs(vatID string, limit, offset int) ([]*db.RegistrationLogEntry, error) {
 	return m.GetRegistrationLogsFunc(vatID, limit, offset)
 }
 func (m *MockDB) GetRegistrationFiles(vatID string, limit, offset int) ([]*db.RegistrationFile, error) {

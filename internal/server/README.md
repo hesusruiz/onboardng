@@ -25,14 +25,14 @@ All API responses follow a consistent JSON structure as defined in `APIResponse`
 ### Security Requirements
 
 #### CSRF Protection
-All **POST** requests MUST include the following HTTP header to pass the security check:
+All `/api/*` requests (excluding `/health`) MUST include the following HTTP header to pass the security check:
 ```http
 X-Requested-With: XMLHttpRequest
 ```
 Failure to provide this header will result in a `403 Forbidden` response.
 
 #### CORS
-The backend implements a permissive CORS policy for development, but it is recommended to ensure the frontend is served from the same origin or a trusted domain in production.
+The backend enables a permissive CORS policy only in development (`dev`). In preproduction and production, CORS headers are omitted because the frontend is served from the same origin, allowing the browser's Same-Origin Policy to block cross-origin requests regardless of the hosted domain.
 
 ---
 

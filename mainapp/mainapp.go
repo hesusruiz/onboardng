@@ -354,6 +354,7 @@ func LoadEncryptedConfig(path string, secretKey string) configuration.EnvConfig 
 		}
 		source = resp.Body
 	} else {
+		slog.Info("Loading local config", "path", path)
 		file, err := os.Open(path)
 		if err != nil {
 			log.Fatalf("Error: Could not open config file: %v", err)

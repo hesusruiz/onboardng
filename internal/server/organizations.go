@@ -11,25 +11,264 @@ import (
 	"time"
 
 	"github.com/hesusruiz/onboardng/common"
+	"github.com/hesusruiz/onboardng/internal/db"
 	"github.com/hesusruiz/onboardng/internal/jpath"
 	"github.com/hesusruiz/onboardng/internal/vies"
 )
 
 type Organization struct {
-	ID                         string         `json:"id"`
-	Name                       string         `json:"name"`
-	TradingName                string         `json:"tradingName"`
-	EmailAddress               string         `json:"emailAddress"`
-	VATID                      string         `json:"vatId"`
-	VATIDCorrected             string         `json:"vatIdCorrected"`
-	VIESError                  string         `json:"viesError"`
-	HREF                       string         `json:"href"`
-	OrganizationIdentification string         `json:"organizationIdentification"`
-	Country                    string         `json:"country"`
-	Valid                      bool           `json:"valid"`
-	Errors                     []string       `json:"errors"`
-	Warnings                   []string       `json:"warnings"`
-	rawData                    map[string]any `json:"-"`
+	ID                         string                     `json:"id"`
+	Name                       string                     `json:"name"`
+	TradingName                string                     `json:"tradingName"`
+	EmailAddress               string                     `json:"emailAddress"`
+	VATID                      string                     `json:"vatId"`
+	VATIDCorrected             string                     `json:"vatIdCorrected"`
+	VIESError                  string                     `json:"viesError"`
+	HREF                       string                     `json:"href"`
+	OrganizationIdentification string                     `json:"organizationIdentification"`
+	Country                    string                     `json:"country"`
+	Valid                      bool                       `json:"valid"`
+	Errors                     []string                   `json:"errors"`
+	Warnings                   []string                   `json:"warnings"`
+	Logs                       []*db.RegistrationLogEntry `json:"logs"`
+	rawData                    map[string]any             `json:"-"`
+}
+
+func TMFRetrieveOrganizationsNoValidation(baseUrl string, offset int, limit int) ([]Organization, error) {
+
+	// Retrieve limit objects starting from offset
+	url := fmt.Sprintf("%s?offset=%d&limit=%d&fields=externalReference,tradingName", baseUrl, offset, limit)
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var rawOrgs []map[string]any
+	err = json.Unmarshal(body, &rawOrgs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Now we process each object trying to find the VAT-ID of the retrieved organization
+	var orgs []Organization
+	for _, rawOrg := range rawOrgs {
+		id, _ := rawOrg["id"].(string)
+		tradingName, _ := rawOrg["tradingName"].(string)
+
+		org := Organization{
+			ID:          id,
+			TradingName: tradingName,
+			Errors:      make([]string, 0),
+			Warnings:    make([]string, 0),
+			Logs:        make([]*db.RegistrationLogEntry, 0),
+			rawData:     rawOrg,
+			HREF:        fmt.Sprintf("%s/%s", baseUrl, id),
+		}
+
+		// tradingName is required
+		if org.TradingName == "" {
+			org.Errors = append(org.Errors, "Trading name is empty")
+			org.Logs = append(org.Logs, &db.RegistrationLogEntry{
+				Type:    "error",
+				Message: "Trading name is empty",
+			})
+		}
+
+		// Try to get the VAT ID
+		externalReferences, err := jpath.GetListStrict(rawOrg, "externalReference")
+		if err != nil {
+			org.Errors = append(org.Errors, "externalReference missing or not a list")
+			org.Logs = append(org.Logs, &db.RegistrationLogEntry{
+				Type:    "error",
+				Message: "externalReference missing or not a list",
+			})
+			org.VIESError = org.VIESError + "<div style='color: red;'>externalReference missing or not a list</div>"
+			continue
+		}
+
+		for _, extRef := range externalReferences {
+			extRefType, _ := jpath.GetStringStrict(extRef, "externalReferenceType")
+			if extRefType != "idm_id" {
+				continue
+			}
+
+			vatId, err := jpath.GetStringStrict(extRef, "name")
+			if err != nil {
+				// This is a severe error on this entry: it is not worth continuing
+				org.Errors = append(org.Errors, "VATID missing in externalReference")
+				org.Logs = append(org.Logs, &db.RegistrationLogEntry{
+					Type:    "error",
+					Message: "VATID missing in externalReference",
+				})
+				org.VIESError = org.VIESError + "<div style='color: red;'>VATID missing in externalReference</div>"
+				break
+			}
+
+			org.VATID = vatId
+
+			// Canonicalize the VAT ID
+			countryCode, vatNumber, err := CanonicalizeVATID(vatId)
+			if err != nil {
+				org.Errors = append(org.Errors, "VATID invalid format")
+				org.Logs = append(org.Logs, &db.RegistrationLogEntry{
+					Type:    "error",
+					Message: "VATID invalid format",
+				})
+				org.VIESError = org.VIESError + fmt.Sprintf("<div style='color: red;'>%s</div>", err.Error())
+				slog.Error("VATID invalid format", "VATID", vatId, "OID", org.ID)
+				break
+			}
+
+			org.VATIDCorrected = fmt.Sprintf("VAT%s-%s", countryCode, vatNumber)
+			org.Country = countryCode
+
+			if org.VATIDCorrected != org.VATID {
+				org.Warnings = append(org.Warnings, fmt.Sprintf("VATID changed to %s", org.VATIDCorrected))
+				org.Logs = append(org.Logs, &db.RegistrationLogEntry{
+					Type:    "warning",
+					Message: "VATID changed",
+				})
+				org.VIESError = org.VIESError + fmt.Sprintf("<div style='color: orange;'>%s</div>", "Corrected to: "+org.VATIDCorrected)
+			}
+
+			// Check VIES database
+			slog.Info("Checking VAT ID in VIES", "VATID", org.VATID, "CC", countryCode, "Num", vatNumber)
+			startTime := time.Now()
+			viesResponse, err := vies.CheckVAT(context.Background(), false, countryCode, vatNumber)
+			elapsed := time.Since(startTime)
+			if err != nil {
+				// This is a technical error
+				slog.Error("VIES call failed", "elapsed", elapsed, "VATID", org.VATID, "CC", countryCode, "Num", vatNumber, "Error", err.Error())
+				org.Errors = append(org.Errors, "VIES call failed")
+				org.Logs = append(org.Logs, &db.RegistrationLogEntry{
+					Type:    "error",
+					Message: "VIES call failed",
+				})
+				org.VIESError = org.VIESError + "<div style='color: red;'>VIES call failed</div>"
+				break
+			}
+
+			// Check for validation errors
+			if !viesResponse.Valid {
+				slog.Error("VATID invalid in VIES", "elapsed", elapsed, "VATID", org.VATID, "CC", countryCode, "Num", vatNumber, "OID", org.ID)
+				org.Errors = append(org.Errors, "VATID invalid in VIES")
+				org.Logs = append(org.Logs, &db.RegistrationLogEntry{
+					Type:    "error",
+					Message: "VATID invalid in VIES",
+				})
+				org.VIESError = org.VIESError + "<div style='color: red;'>NOT VALID in VIES</div>"
+				break
+			}
+			slog.Info("VIES response", "valid", viesResponse.Valid, "elapsed", elapsed)
+
+			org.VIESError = org.VIESError + "<div style='color: green;'>Valid in VIES</div>"
+			org.Logs = append(org.Logs, &db.RegistrationLogEntry{
+				Type:    "info",
+				Message: "Valid in VIES",
+			})
+
+		}
+
+		if org.VATID == "" {
+			org.Errors = append(org.Errors, "VATID not found in externalReference")
+			org.Logs = append(org.Logs, &db.RegistrationLogEntry{
+				Type:    "error",
+				Message: "VATID not found in externalReference",
+			})
+			org.VIESError = org.VIESError + "<div style='color: red;'>VAT ID not found in externalReference</div>"
+		}
+
+		if len(org.Errors) == 0 {
+			org.Valid = true
+		}
+
+		orgs = append(orgs, org)
+	}
+
+	return orgs, nil
+}
+
+func ValidateOrganization(org *Organization) error {
+
+	if org.VATID == "" {
+		org.Logs = append(org.Logs, &db.RegistrationLogEntry{
+			Type:    "error",
+			Message: "VATID not found in externalReference",
+		})
+		return fmt.Errorf("VATID not found in externalReference")
+	}
+
+	// tradingName is required
+	if org.TradingName == "" {
+		org.Logs = append(org.Logs, &db.RegistrationLogEntry{
+			Type:    "error",
+			Message: "Trading name is empty",
+		})
+		return fmt.Errorf("Trading name is empty")
+	}
+
+	vatId := org.VATID
+
+	// Canonicalize the VAT ID
+	countryCode, vatNumber, err := CanonicalizeVATID(vatId)
+	if err != nil {
+		err = fmt.Errorf("VATID invalid format: %s", err.Error())
+		org.Logs = append(org.Logs, &db.RegistrationLogEntry{
+			Type:    "error",
+			Message: err.Error(),
+		})
+		return err
+	}
+
+	org.VATIDCorrected = fmt.Sprintf("VAT%s-%s", countryCode, vatNumber)
+	org.Country = countryCode
+
+	if org.VATIDCorrected != org.VATID {
+		org.Logs = append(org.Logs, &db.RegistrationLogEntry{
+			Type:    "warning",
+			Message: fmt.Sprintf("VATID changed to %s", org.VATIDCorrected),
+		})
+	}
+
+	// Check VIES database
+	slog.Info("Checking VAT ID in VIES", "VATID", org.VATID, "CC", countryCode, "Num", vatNumber)
+	startTime := time.Now()
+	viesResponse, err := vies.CheckVAT(context.Background(), false, countryCode, vatNumber)
+	elapsed := time.Since(startTime)
+	if err != nil {
+		// This is a technical error
+		slog.Error("VIES call failed", "elapsed", elapsed, "VATID", org.VATID, "CC", countryCode, "Num", vatNumber, "Error", err.Error())
+		org.Logs = append(org.Logs, &db.RegistrationLogEntry{
+			Type:    "error",
+			Message: fmt.Sprintf("VIES call failed: %s", err.Error()),
+		})
+		return fmt.Errorf("VIES call failed: %s", err.Error())
+	}
+
+	// Check for validation errors
+	if !viesResponse.Valid {
+		slog.Error("VATID invalid in VIES", "elapsed", elapsed, "VATID", org.VATID, "CC", countryCode, "Num", vatNumber, "OID", org.ID)
+		org.Logs = append(org.Logs, &db.RegistrationLogEntry{
+			Type:    "error",
+			Message: "VATID invalid in VIES",
+		})
+		return fmt.Errorf("VATID invalid in VIES")
+	}
+	slog.Info("VIES response", "valid", viesResponse.Valid, "elapsed", elapsed)
+
+	org.Logs = append(org.Logs, &db.RegistrationLogEntry{
+		Type:    "info",
+		Message: "Valid in VIES",
+	})
+
+	org.Valid = true
+	return nil
 }
 
 // TMFRetrieveOrganizations retrieves from the remote TMF server up to limit organizations

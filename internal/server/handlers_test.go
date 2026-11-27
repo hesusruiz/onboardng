@@ -35,7 +35,7 @@ func TestHandleValidateEmail(t *testing.T) {
 	t.Run("Missing CSRF Header", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/validate-email", nil)
 		w := httptest.NewRecorder()
-		s.HandleSendEmailValidationCode(w, req)
+		s.EnableCORS(http.HandlerFunc(s.HandleSendEmailValidationCode)).ServeHTTP(w, req)
 		assert.Equal(t, http.StatusForbidden, w.Code)
 	})
 
@@ -419,4 +419,74 @@ func TestHandleHealth(t *testing.T) {
 	w := httptest.NewRecorder()
 	s.HandleHealth(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestEnableCORS(t *testing.T) {
+	t.Run("Development allows CORS and handles preflight OPTIONS without CSRF header", func(t *testing.T) {
+		s := &Server{Runtime: configuration.Development}
+		nextCalled := false
+		handler := s.EnableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			nextCalled = true
+			w.WriteHeader(http.StatusOK)
+		}))
+
+		reqOpt := httptest.NewRequest(http.MethodOptions, "/api/validate-email", nil)
+		wOpt := httptest.NewRecorder()
+		handler.ServeHTTP(wOpt, reqOpt)
+		assert.Equal(t, http.StatusNoContent, wOpt.Code)
+		assert.False(t, nextCalled)
+		assert.Equal(t, "*", wOpt.Header().Get("Access-Control-Allow-Origin"))
+		assert.Equal(t, "POST, GET, OPTIONS, PUT, DELETE", wOpt.Header().Get("Access-Control-Allow-Methods"))
+		assert.Equal(t, "Content-Type, X-Requested-With, Authorization", wOpt.Header().Get("Access-Control-Allow-Headers"))
+
+		reqPost := httptest.NewRequest(http.MethodPost, "/api/validate-email", nil)
+		reqPost.Header.Set("X-Requested-With", "XMLHttpRequest")
+		wPost := httptest.NewRecorder()
+		handler.ServeHTTP(wPost, reqPost)
+		assert.Equal(t, http.StatusOK, wPost.Code)
+		assert.True(t, nextCalled)
+		assert.Equal(t, "*", wPost.Header().Get("Access-Control-Allow-Origin"))
+		assert.Equal(t, "POST, GET, OPTIONS, PUT, DELETE", wPost.Header().Get("Access-Control-Allow-Methods"))
+		assert.Equal(t, "Content-Type, X-Requested-With, Authorization", wPost.Header().Get("Access-Control-Allow-Headers"))
+	})
+
+	for _, env := range []configuration.RuntimeEnv{configuration.Preproduction, configuration.Production} {
+		t.Run(string(env)+" omits CORS headers and forwards requests with CSRF header", func(t *testing.T) {
+			s := &Server{Runtime: env}
+			nextCalled := false
+			handler := s.EnableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				nextCalled = true
+				w.WriteHeader(http.StatusOK)
+			}))
+
+			req := httptest.NewRequest(http.MethodPost, "/api/validate-email", nil)
+			req.Header.Set("X-Requested-With", "XMLHttpRequest")
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, req)
+			assert.Equal(t, http.StatusOK, w.Code)
+			assert.True(t, nextCalled)
+			assert.Empty(t, w.Header().Get("Access-Control-Allow-Origin"))
+			assert.Empty(t, w.Header().Get("Access-Control-Allow-Methods"))
+			assert.Empty(t, w.Header().Get("Access-Control-Allow-Headers"))
+		})
+	}
+
+	for _, env := range []configuration.RuntimeEnv{configuration.Development, configuration.Production} {
+		for _, method := range []string{http.MethodPost, http.MethodGet} {
+			t.Run(string(env)+" "+method+" missing CSRF header returns 403", func(t *testing.T) {
+				s := &Server{Runtime: env}
+				nextCalled := false
+				handler := s.EnableCORS(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					nextCalled = true
+					w.WriteHeader(http.StatusOK)
+				}))
+
+				req := httptest.NewRequest(method, "/api/orgstatus", nil)
+				w := httptest.NewRecorder()
+				handler.ServeHTTP(w, req)
+				assert.Equal(t, http.StatusForbidden, w.Code)
+				assert.False(t, nextCalled)
+			})
+		}
+	}
 }
